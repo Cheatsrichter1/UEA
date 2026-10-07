@@ -42,6 +42,14 @@ The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by o
 
 After v1, the light pack grows from luminaires into lighting design and photometric calculation (`docs/decisions/0006-pack-order.md`).
 
+## Todo
+
+To be scheduled into the phases above:
+
+- **Standard library.** A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" below), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
+- **Cable paths** (phase 3). Cable runs from the distribution board through the building to every device, along the Installationszonen, with lengths for voltage drop, quantities and the Elektro plan. The prototype only derived them roughly.
+- **Pipe paths** (phase 6; ducts in phase 7). Pipe runs and networks for Sanitär and Heizung with dimensions and lengths, for pipe sizing, the Heizungsschema and quantities.
+
 ## Token task set
 
 From phase 1 on, a fixed set of agent tasks runs against UEA and counts tokens and errors. Every change to the file format or CLI output is measured on it before it lands. Fewer tokens do not count if weaker agents make more mistakes, so the set measures both. The benchmark in phase 5 adds the comparison with a conventional tool and with a human drafter.
