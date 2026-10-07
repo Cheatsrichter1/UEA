@@ -1,6 +1,6 @@
 # 0005: Own compact line format, IFC for exchange
 
-Status: Accepted (exact syntax still draft)
+Status: Accepted; the details are fixed in `0013-canonical-line-format.md`
 Date: 2026-10-07
 
 ## Context
@@ -22,4 +22,4 @@ UEA uses its own line format: one element per line, kind and id first, positiona
 - We maintain a parser and a writer, and agents need a short syntax help (`uea help`).
 - One changed element is a one-line diff.
 - `--json` output stays available for programs.
-- The exact syntax is fixed in phase 1 and measured on the token task set (`ROADMAP.md`) before the first release.
+- The exact syntax was fixed in phase 1 (`0013-canonical-line-format.md`) and is measured on the token task set (`ROADMAP.md`, `bench/`) before the first release.

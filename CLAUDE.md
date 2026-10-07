@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** design phase. No UEA code yet (only throwaway prototype scripts in `tools/`). The first work is `ROADMAP.md` phase 0 and phase 1.
+**Status:** phase 0 done, phase 1 (core + Architektur) in progress; what is built and what is open is in `ROADMAP.md`.
 
 ## Docs
 
@@ -15,6 +15,10 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `FUTURE.md` | Ideas beyond the first scope. Not planned. |
 | `docs/decisions/` | One file per major decision, with alternatives and reasons |
 | `docs/prototype/` | Hand-written example projects that test the draft format; Haus Müller is the reference EFH |
+| `docs/validation/` | Validation report of each `norm` calculator |
+| `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
+| `tests/` | pytest; hand-computed expected values, the prototype, the CLI |
+| `bench/` | The token task set; `bench/results.md` holds the last run |
 | `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |
 
 Each fact lives in one file; the others link to it. When a decision changes, add or update its decision record and fix the docs that depend on it.
@@ -34,6 +38,7 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 ### Code
 
 - Python 3.12+, fully typed, pyright strict, Pydantic v2 for schemas, uv, ruff, pytest.
+- Before finishing: `uv run ruff format`, `uv run ruff check`, `uv run pyright`, `uv run pytest` must all pass. After a change to CLI output or the format, also `uv run python -m bench --write` and compare with the committed `bench/results.md`.
 - Dependencies must be Apache-2.0-compatible: LGPL as a library is fine, GPL only as a separate process. Check the licence before adding anything.
 - Add tests with every behaviour change. Prefer hand-computed expected values over values copied from program output.
 - Any change to CLI output or the file format must keep or improve token cost and error rate on the token task set (`ROADMAP.md`).

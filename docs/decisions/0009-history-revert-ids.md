@@ -1,6 +1,6 @@
 # 0009: Project history, revert and ids
 
-Status: Accepted (syntax still draft)
+Status: Accepted; the details are fixed in `0014-operations-and-history.md`
 Date: 2026-10-07
 
 ## Context

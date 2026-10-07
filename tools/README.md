@@ -2,7 +2,7 @@
 
 ## `prototype/`
 
-Throwaway scripts that work on the hand-written prototype in `docs/prototype/haus-mueller/`. They exist to test the draft format and to show what the model must be able to deliver. They are not UEA: untyped, untested, written fast, and not held to the code rules in `CLAUDE.md`. Real code replaces them from phase 1 on.
+Throwaway scripts that work on the hand-written prototype in `docs/prototype/haus-mueller/`. They exist to test the draft format and to show what the model must be able to deliver. They are not UEA: untyped, untested, written fast, and not held to the code rules in `CLAUDE.md`. Real code replaces them from phase 1 on: UEA itself now reads the prototype's `project.uea`, `arch.uea` and `issues.uea` (`tests/test_prototype.py`). The scripts stay for the disciplines UEA cannot read yet.
 
 | Script | What it does |
 |---|---|

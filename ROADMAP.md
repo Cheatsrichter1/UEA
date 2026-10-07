@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: design phase. No code yet.
+Status, October 2026: phase 0 is done and phase 1 is in progress (see below).
 
 ## Phases
 
@@ -18,9 +18,37 @@ Status, October 2026: design phase. No code yet.
 | 7. Lüftung | Units, ducts, outlets | The EFH demo is complete apart from Statik |
 | 8. Statik | Load-bearing elements, loads, frame analysis on an open-source solver | Only together with a licensed engineer who reviews the validation |
 
+### Phase 1: where it stands
+
+Built and tested (`src/uea/`, `tests/`):
+
+- File format, strict parser and canonical writer (`docs/decisions/0013-canonical-line-format.md`).
+- Operations, atomic batches, placeholders, history, revert, edits outside UEA (`docs/decisions/0014-operations-and-history.md`).
+- Requests and waivers, validation with issue codes, the reference graph between disciplines.
+- Read commands: `show`, `get`, `find`, `check`, `log`, layered `help`.
+- Levels, grids, build-ups, walls, openings, niches, slabs, voids, gable, shed and hip roofs, straight stairs, separators, rooms with Rohbau and Fertig areas, heights and volumes (`docs/decisions/0015-rooms-and-finishes.md`, `0016-roofs.md`). Bestand status.
+- Wohnfläche per WoFlV as the first `norm` calculator, with a validation report (`docs/validation/wofl.md`); custom calculators from a project's `calc/`.
+- Plan images (PNG, SVG) per storey and the IFC4 export, schema-valid by IfcOpenShell's validator.
+- The token task set (`bench/`) with reference solutions: the Haus Müller shell, roof included, costs about 2,400 tokens of commands and output.
+
+Still open for phase 1:
+
+- An off-the-shelf agent builds the EFH shell from a brief, and its errors are counted in the task set. So far only the reference solutions run.
+- A human opens the IFC in a free viewer (it validates and every shape builds in IfcOpenShell).
+- CI runs on GitHub (the workflow is written).
+- Walls in any direction with raw coordinates (needed for the IFC import in phase 4); stairs other than one straight flight; roofs over outlines that are not rectangles.
+
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 
 After v1, the light pack grows from luminaires into lighting design and photometric calculation (`docs/decisions/0006-pack-order.md`).
+
+## Todo
+
+To be scheduled into the phases above:
+
+- **Standard library.** A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" below), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
+- **Cable paths** (phase 3). Cable runs from the distribution board through the building to every device, along the Installationszonen, with lengths for voltage drop, quantities and the Elektro plan. The prototype only derived them roughly.
+- **Pipe paths** (phase 6; ducts in phase 7). Pipe runs and networks for Sanitär and Heizung with dimensions and lengths, for pipe sizing, the Heizungsschema and quantities.
 
 ## Token task set
 
