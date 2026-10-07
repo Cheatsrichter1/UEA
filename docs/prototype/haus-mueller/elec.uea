@@ -1,0 +1,89 @@
+board b1 w6.w y=w3-0.6 z=1.4 main=SLS-E35 spd=T1+T2 meters=1 "Zählerschrank/UV"
+board b2 w6.w y=w5+1.6 z=1.6 media "Medienverteiler"
+rcd fi1 b1 40/0.03 A
+rcd fi2 b1 40/0.03 A
+rcd fi3 b1 40/0.03 A
+rcd fi4 b1 40/0.03 A
+rcd fi5 b1 40/0.03 B
+circ c1 fi1 NYM-J5x2.5 B16 p=3 "Küche Herd"
+circ c2 fi1 NYM-J3x2.5 B16 "Küche Geschirrspüler"
+circ c3 fi1 NYM-J3x2.5 B16 "Küche Steckdosen 1"
+circ c4 fi1 NYM-J3x2.5 B16 "Küche Steckdosen 2"
+circ c5 fi2 NYM-J3x2.5 B16 "Waschmaschine"
+circ c6 fi2 NYM-J3x2.5 B16 "Trockner"
+circ c7 fi5 NYM-J5x2.5 B16 p=3 "Wärmepumpe außen"
+circ c8 fi2 NYM-J3x2.5 B16 "Wohnen/Essen"
+circ c9 fi2 NYM-J3x2.5 B16 "HWR, WC, Diele"
+circ c10 fi3 NYM-J3x1.5 B10 "Licht EG, Treppe"
+circ c11 fi4 NYM-J3x2.5 B16 "Schlafen"
+circ c12 fi4 NYM-J3x2.5 B16 "Kind 1"
+circ c13 fi4 NYM-J3x2.5 B16 "Kind 2"
+circ c14 fi4 NYM-J3x2.5 B16 "Bad"
+circ c15 fi3 NYM-J3x2.5 B16 "Flur OG"
+circ c16 fi3 NYM-J3x1.5 B10 "Licht OG"
+circ c17 fi3 NYM-J3x2.5 B16 "Außen"
+circ c18 fi2 NYM-J3x1.5 B10 "Lüftungsgeräte"
+circ c19 fi5 NYM-J3x2.5 B16 "Wärmepumpe innen"
+sock s1 w4 c3 y=w1+0.3 z=1.15 n=2
+sock s2 w4 c4 y=w1+0.9 z=2.1 "Dunstabzug"
+sock s3 w4 c2 y=w1+2.15 "Geschirrspüler"
+sock s4 w4 c4 y=f2+0.3 z=1.15 n=2
+sock s5 w4 c3 y=w5-0.6 z=2.05 "Kühlschrank"
+sock s6 w5.s c3 x=d4+0.25 n=2
+sock s7 w5.s c8 x=w4+3.75 n=2
+sock s8 w1 c8 x=d5-0.3
+sock s9 w1 c8 x=f3-0.25 n=2
+sock s10 w2 c8 y=f4-0.3 n=2
+sock s11 w2 c8 y=w5-1 n=3
+sock s12 w1.s c17 x=d5-0.4
+sock s13 w4 c5 y=w3-1 z=1.15 "Waschmaschine"
+sock s14 w4 c6 y=w3-1.2 z=1.15 "Trockner"
+sock s15 w5.n c9 x=d4-0.15
+sock s16 w6.e c9 y=w3-1.75 z=1.15
+sock s17 w5.n c9 x=w7+0.25
+sock s18 w13.w c11 y=w8+1.1 z=0.7 n=2
+sock s19 w13.w c11 y=w8+3.4 z=0.7 n=2
+sock s20 w12.s c11 x=w11+0.5
+sock s21 w11 c11 y=f8+0.3
+sock s22 w12.s c12 x=d8+0.15
+sock s23 w13.e c12 y=w8+0.6 n=2
+sock s24 w14.w c12 y=w8+1.8 n=2
+sock s25 w12.s c13 x=d9+0.15
+sock s26 w14.e c13 y=w8+1 n=2
+sock s27 w9 c13 y=f11+0.3 n=2
+sock s28 w12.n c14 x=w11+0.7 z=1.15 n=2
+sock s29 w12.n c15 x=d8+1
+sock s30 w9 c15 y=w12+0.3
+conn a1 w4 c1 y=w1+0.9 z=0.6 "Herd"
+switch sw1 w5.s c10 x=w4+3.2 ctl=l1
+switch sw2 w5.s c10 x=d2+0.15 ctl=l2,l3
+switch sw3 w1 c17 x=d5-0.15 ctl=l7
+switch sw4 w5.n c10 x=d4-0.15 ctl=l4
+switch sw5 w7.w c10 y=d3+0.15 ctl=l5
+switch sw6 w2 c10 y=d1-0.15 ctl=l6,l8
+switch sw7 w5.n c10 x=d2-0.15 ctl=l6
+switch sw8 w2 c10 y=w3-0.9 ctl=l9
+switch sw9 w13.w c16 y=w8+1.1 z=0.9 ctl=l10
+switch sw10 w13.w c16 y=w8+3.4 z=0.9 ctl=l10
+switch sw11 w12.s c16 x=d7-0.15 ctl=l10
+switch sw12 w12.s c16 x=d8+0.15 ctl=l11
+switch sw13 w12.s c16 x=d9+0.15 ctl=l12
+switch sw14 w15.w c16 y=d6+0.15 ctl=l13,l14
+switch sw15 w15.e c10 y=w10-0.5 ctl=l9
+switch sw16 w15.e c16 y=d6-0.15 ctl=l15+l16
+switch sw17 w9 c16 y=w12+0.6 ctl=l15+l16
+switch sw18 w5.s c10 x=sw2+0.071 ctl=l17+l18+l19+l20 dim
+data dt1 w2 b2 y=w5-0.75 n=2
+data dt2 w14.w b2 y=w8+2.1 n=2
+data dt3 w14.e b2 y=w8+1.3 n=2
+smoke rm1 r5
+smoke rm2 r6
+smoke rm3 r7
+smoke rm4 r8
+smoke rm5 r10
+feed fd1 g1 c7
+feed fd2 t1 c19
+feed fd3 vl1 c18
+feed fd4 vl2 c18
+feed fd5 vl3 c18
+feed fd6 vl4 c18

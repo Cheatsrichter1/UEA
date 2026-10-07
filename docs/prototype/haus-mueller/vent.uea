@@ -1,0 +1,4 @@
+fan vl1 w11 y=w12-0.5 z=2.2 typ=DZ-160 pair=vl2
+fan vl2 w8 x=w13+0.4 z=2.2 typ=DZ-160
+fan vl3 w9 y=w12-0.5 z=2.2 typ=DZ-160 pair=vl4
+fan vl4 w2 y=f4+0.5 z=2.2 typ=DZ-160

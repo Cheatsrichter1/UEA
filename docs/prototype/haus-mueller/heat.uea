@@ -1,0 +1,14 @@
+gen g1 EG at=W-1.2,N-1 typ=WP-LW-8 "Wärmepumpe außen"
+tank t1 r3 at=w4+0.4,w5+0.4 typ=HM-200 src=g1 "Inneneinheit mit 200 l Speicher"
+man hv1 ni1 src=t1
+man hv2 ni2 src=t1
+ufh uh1 r1 hv1
+ufh uh2 r2 hv1
+ufh uh3 r3 hv1
+ufh uh4 r4 hv1
+ufh uh5 r5 hv1
+ufh uh6 r6 hv2
+ufh uh7 r7 hv2
+ufh uh8 r8 hv2
+ufh uh9 r9 hv2
+ufh uh10 r10 hv2

@@ -1,0 +1,8 @@
+project haus-mueller "EFH Müller" site=DE-HE plz=64283 ground=-0.3
+level EG z=0 fb=0.15 head=2.26
+level OG z=2.875 fb=0.15 head=2.26
+level DB z=5.86 fb=0.26
+grid W x=0
+grid E x=10.49
+grid S y=0
+grid N y=8.49

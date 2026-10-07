@@ -1,0 +1,7 @@
+san sa1 w4 sink y=f2.c
+san sa2 w4 wm y=w3-0.6
+san sa3 w3 wc x=f6.c
+san sa4 w6.e basin y=w3-1.3
+san sa5 w11 wc y=f12.c
+san sa6 w12.n basin x=w11+1.25
+san sa7 r9 shower at=w15-0.45,w10-0.45

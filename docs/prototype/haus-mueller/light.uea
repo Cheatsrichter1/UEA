@@ -1,0 +1,25 @@
+type DK-18 lum "LED-Deckenleuchte 18 W" flux=1800 w=18 dist=cos1
+type DL-11 lum "LED-Einbaudownlight 11 W" flux=1050 w=11 dist=cos3
+type PL-12 lum "LED-Pendelleuchte 12 W" flux=1200 w=12 dist=cos1
+lum l1 r1
+lum l2 r2 at=w4+4.6,w1+2.25 z=1.6 typ=PL-12
+lum l3 r2 at=w2-2,w1+2.25 typ=DK-18
+lum l4 r3
+lum l5 r4
+lum l6 r5 at=w7+1.5,w5+1
+lum l7 w1.s x=d5-0.3 z=2.4
+lum l8 w2.e y=d1+0.3 z=2.2
+lum l9 r10 at=w9-3,w10-0.5
+lum l10 r6
+lum l11 r7
+lum l12 r8
+lum l13 r9
+lum l14 w12.n x=w11+1.25 z=2
+lum l15 r10 at=w15+1,w12+1
+lum l16 r10 at=w9-1.2,w12+1
+lum l17 r2 at=w2-1,w1+1.2 typ=DL-11
+lum l18 r2 at=w2-3,w1+1.2 typ=DL-11
+lum l19 r2 at=w2-1,w5-1.2 typ=DL-11
+lum l20 r2 at=w2-3,w5-1.2 typ=DL-11
+illum il1 r2 em=150 h=0.75 "Allgemeinbeleuchtung, Planungsannahme"
+illum il2 r2 em=200 h=0.75 at=w4+4.6,w1+2.25 area=1.8x0.9 "Esstisch, Planungsannahme"
