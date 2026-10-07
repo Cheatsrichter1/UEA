@@ -1,4 +1,4 @@
-"""The Architektur pack."""
+"""The architecture pack."""
 
 from uea.core.registry import Pack
 from uea.packs.arch.checks import CODES, arch_checks
@@ -8,7 +8,7 @@ from uea.packs.arch.views import describe
 
 PACK = Pack(
     name="arch",
-    title="Architektur",
+    title="Architecture",
     kinds=KINDS,
     derive=derive_arch,
     checks=(arch_checks,),

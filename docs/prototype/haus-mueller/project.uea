@@ -1,4 +1,4 @@
-project haus-mueller "EFH Müller" site=DE-HE plz=64283 ground=-0.3
+project haus-mueller "EFH Müller" site=DE-HE postcode=64283 ground=-0.3
 level EG z=0 fb=0.15 head=2.26
 level OG z=2.875 fb=0.15 head=2.26
 level DB z=5.86 fb=0.26

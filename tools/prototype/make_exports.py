@@ -87,7 +87,7 @@ def plankopf(svg, title, note="unmaßstäblich"):
 # ---------------------------------------------------------------- roof geometry
 rf = els["rf1"]
 PITCH = math.radians(float(rf["kv"]["pitch"]))
-KN, EAVE, VERGE = (float(rf["kv"][k]) for k in ("kn", "eave", "verge"))
+KN, EAVE, VERGE = (float(rf["kv"][k]) for k in ("knee", "eave", "verge"))
 _rl = layers(rf["pos"][1])
 _ci = [i for i, l in enumerate(_rl) if l[2]][0]
 T_VERT = sum(l[1] for l in _rl[:_ci + 1]) / math.cos(PITCH)
@@ -162,7 +162,7 @@ def ansichten():
             z0, z1 = lz + o["sill"], lz + o["top"]
             svg.rect(PX(u0), PY(z1), (u1 - u0) * S, (z1 - z0) * S, fill="#fff", stroke="#000", sw=1.2)
             fr = 0.06
-            if o["kind"] == "win" or els[o["id"]]["kv"].get("typ") == "HST-1":
+            if o["kind"] == "win" or els[o["id"]]["kv"].get("type") == "HST-1":
                 n = 2 if u1 - u0 > 1.3 else 1
                 wseg = (u1 - u0 - 2 * fr) / n
                 for i in range(n):
@@ -267,13 +267,13 @@ def floor_base(svg, lvl, X, Y, S, room_labels=True, faded=False):
         if w["o"] == "h":
             y0, y1 = w["pos"]
             face, sgn = (y1, 1) if rc[1] > y1 else (y0, -1)
-            hmin = (e["kv"]["din"] == "l") == (sgn < 0)
+            hmin = (e["kv"]["hand"] == "l") == (sgn < 0)
             h_, o_ = (lo, hi) if hmin else (hi, lo)
             hp, op, tp = (h_, face), (o_, face), (h_, face + sgn * wd)
         else:
             x0, x1 = w["pos"]
             face, sgn = (x1, 1) if rc[0] > x1 else (x0, -1)
-            hmin = (e["kv"]["din"] == "l") == (sgn > 0)
+            hmin = (e["kv"]["hand"] == "l") == (sgn > 0)
             h_, o_ = (lo, hi) if hmin else (hi, lo)
             hp, op, tp = (face, h_), (face, o_), (face + sgn * wd, h_)
         cross = (op[0] - hp[0]) * (tp[1] - hp[1]) - (op[1] - hp[1]) * (tp[0] - hp[0])
@@ -441,7 +441,7 @@ def installationsplan(lvl):
         else:
             x, y = X(d["x"]), Y(d["y"])
             if k == "lum":
-                typ = e["kv"].get("typ", "")
+                typ = e["kv"].get("type", "")
                 r = (0.06 if typ.startswith("DL") else 0.11) * S
                 svg.circle(x, y, r, fill="white", stroke="#c80", sw=1.5)
                 rr = r * 0.7
@@ -642,7 +642,7 @@ def heizungsschema():
     g1 = els["g1"]
     svg.text(115, 175, "g1 Wärmepumpe", 12, anchor="middle", weight="bold")
     svg.text(115, 192, "Luft/Wasser, außen", 10, anchor="middle")
-    svg.text(115, 208, f"Typ {g1['kv']['typ']} (Platzhalter)", 9, anchor="middle", fill="#666")
+    svg.text(115, 208, f"Typ {g1['kv']['type']} (Platzhalter)", 9, anchor="middle", fill="#666")
     svg.circle(115, 235, 16)
     svg.line(103, 235, 127, 235)
     svg.text(115, 278, "Einspeisung fd1 c7 (3-polig)", 9, anchor="middle", fill="#666")
@@ -651,7 +651,7 @@ def heizungsschema():
     # indoor unit
     t1 = els["t1"]
     svg.rect(290, 110, 330, 440, fill="#fafafa", sw=1.4)
-    svg.text(455, 132, f"t1 Inneneinheit {t1['kv']['typ']} (HWR r3)", 12, anchor="middle", weight="bold")
+    svg.text(455, 132, f"t1 Inneneinheit {t1['kv']['type']} (HWR r3)", 12, anchor="middle", weight="bold")
     svg.text(455, 147, "innerer Aufbau aus dem Typ, Platzhalter", 9, anchor="middle", fill="#666")
     # primary lines g1 -> t1
     svg.line(200, 180, 360, 180, stroke=RED, sw=3)
@@ -781,11 +781,11 @@ def licht():
 
     def lum_data(k):
         e = els[k]
-        t = els[e["kv"]["typ"]]
+        t = els[e["kv"]["type"]]
         flux = float(t["kv"]["flux"])
         n = int(t["kv"]["dist"].replace("cos", ""))
         zl = float(e["kv"].get("z", hc))
-        return dict(id=k, x=devices[k]["x"], y=devices[k]["y"], z=zl, flux=flux, n=n, I0=flux * (n + 1) / (2 * math.pi), typ=e["kv"]["typ"])
+        return dict(id=k, x=devices[k]["x"], y=devices[k]["y"], z=zl, flux=flux, n=n, I0=flux * (n + 1) / (2 * math.pi), typ=e["kv"]["type"])
 
     A_floor = (x1 - x0) * (y1 - y0)
     A_walls = 2 * ((x1 - x0) + (y1 - y0)) * hc
@@ -832,7 +832,7 @@ def licht():
         il[0]: (lambda x, y: x0 + 0.5 <= x <= x1 - 0.5 and y0 + 0.5 <= y <= y1 - 0.5, float(els[il[0]]["kv"]["em"]), "Raum ohne 0,5-m-Randzone"),
         il[1]: (lambda x, y: abs(x - tx) <= tw / 2 and abs(y - ty) <= th / 2, float(t2["kv"]["em"]), f"Esstisch {de(tw)} × {de(th)} m"),
     }
-    base = [k for k in lums if not els[k]["kv"]["typ"].startswith("DL")]
+    base = [k for k in lums if not els[k]["kv"]["type"].startswith("DL")]
     variants = {"A": base, "B": lums}
     res = {v: calc(ids) for v, ids in variants.items()}
     st = {v: {z: stats(res[v][3], zones[z][0]) for z in zones} for v in variants}

@@ -2,7 +2,7 @@
 
 How UEA is built. For the why see `VISION.md`; for the order of work see `ROADMAP.md`; for the reasoning behind individual choices see `docs/decisions/`.
 
-Status: phase 1 in progress. The core, the Architektur pack, the CLI, the first `norm` calculator, plan images and the IFC export exist in `src/uea/`; the other packs, importers and exports are still plans. Syntax and output may change before the first release.
+Status: phase 1 in progress. The core, the architecture pack, the CLI, the first `norm` calculator, plan images and the IFC export exist in `src/uea/`; the other packs, importers and exports are still plans. Syntax and output may change before the first release.
 
 ## 1. Overview
 
@@ -40,12 +40,12 @@ A project is a folder, usually a git repository. Each discipline has its own fil
 ```
 haus-mueller/
   project.uea     project data, site, levels, grids (shared by all disciplines)
-  arch.uea        Architektur: build-ups, walls, slabs, roofs, stairs, openings, rooms, finishes
-  struct.uea      Statik: load-bearing elements, supports, loads
-  elec.uea        Elektro: devices, circuits, distribution boards, cables, feeds
-  plumb.uea       Sanitär: fixtures, pipe networks
-  heat.uea        Heizung: heat generators, emitters, pipe networks
-  vent.uea        Lüftung: units, ducts, outlets
+  arch.uea        architecture: build-ups, walls, slabs, roofs, stairs, openings, rooms, finishes
+  struct.uea      structural: load-bearing elements, supports, loads
+  elec.uea        electrical: devices, circuits, distribution boards, cables, feeds
+  plumb.uea       plumbing: fixtures, pipe networks
+  heat.uea        heating: heat generators, emitters, pipe networks
+  vent.uea        ventilation: units, ducts, outlets
   light.uea       Lighting: luminaires; after v1 also lighting design and requirements
   issues.uea      requests between disciplines and waivers (shared, §5)
   calc/           project-specific calculators written by agents (custom)
@@ -57,7 +57,7 @@ A discipline file only exists once the discipline has elements. If one file gets
 
 ### Reference direction
 
-References only point upstream. Architecture never references Elektro; Elektro references architecture. In the graph, an arrow points from a discipline to the disciplines that reference it.
+References only point upstream. Architecture never references electrical; electrical references architecture. In the graph, an arrow points from a discipline to the disciplines that reference it.
 
 ```
 project ─▶ arch ─┬─▶ struct
@@ -68,7 +68,7 @@ project ─▶ arch ─┬─▶ struct
                  └──────────┘
 ```
 
-- Elektro sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
+- Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair.
 - `issues.uea` is outside the graph: requests and waivers may reference anything, and nothing references them.
 
@@ -78,7 +78,7 @@ The exact graph is fixed per pack and checked by the core. It must stay acyclic.
 
 1. **Intent over coordinates.** Walls run between grid points or relative to other walls (for example at a distance from another wall's face), openings sit at a distance along their host wall, sockets sit on a wall at a height, rooms are bounded by walls. A solver derives the actual geometry. Raw coordinates are the escape hatch for drafted elements and the normal case for imported ones (§9).
 2. **Derived, never stored.** Areas, lengths, volumes, joins and cable lengths are computed on demand. Only decisions are stored.
-3. **Datums.** Plan positions are Rohbau (the faces of a type's core layer); Fertigmaß is derived from the other layers (Putz, Estrich, Bekleidung), and both are available everywhere. Heights count from the storey's OKFF. Windows hang from the storey's Sturzhöhe. See `docs/decisions/0012-datums-and-positions.md`.
+3. **Datums.** Plan positions are core faces (the faces of a type's core layer, the German Rohbau); finished sizes are derived from the other layers (plaster, screed, linings), and both are available everywhere. Heights count from the storey's FFL, its finished floor level. Windows hang from the storey's head height. See `docs/decisions/0012-datums-and-positions.md`.
 4. **Types and instances.** An instance references a type (`AW-365`, `NYM-J3x1.5`). Types come from the pack's catalogue or are defined in the project file. Changing a type changes every instance.
 5. **IFC vocabulary.** Element kinds and properties follow IFC names and property sets where they exist, so IFC export is near-lossless. The internal format stays far simpler than IFC.
 6. **Status.** Every element is new unless it carries the flag `existing` (Bestand), `demolish` or `temp`, matching IFC's status values. Plans, quantities and calculators respect the status (a demolished wall bounds no room), so Umbau projects work in the same model.
@@ -108,7 +108,7 @@ circ c4 fi1 NYM-J3x2.5 B16 "Küche Steckdosen 2"
 sock s4 w4 c4 y=f2+0.3 z=1.15 n=2
 ```
 
-`y=w1+4.51` places w5 4.51 m clear of w1's inside face, like a Maßkette. f2 has no sill: it hangs from the storey's Sturzhöhe of 2,26 m. `y=f2+0.3` puts the socket 0.30 m past the edge of window f2, so it moves when the window moves.
+`y=w1+4.51` places w5 4.51 m clear of w1's inside face, like a dimension chain. f2 has no sill: it hangs from the storey's head height of 2.26 m. `y=f2+0.3` puts the socket 0.30 m past the edge of window f2, so it moves when the window moves.
 
 Rules:
 
@@ -227,7 +227,7 @@ Later, a thin MCP server wrapping the CLI for agents that prefer tools over a sh
 - Issues have a code (`E-REF-001`, `E-ARCH-…`, `W-ELEC-…`), a severity (error or warning), the element, the numbers, and a fix hint. `uea help codes` lists every code.
 - An issue cites a norm clause in its `rule` field only when the check really implements that clause.
 - Open requests count as issues of their target's discipline. A waived issue stays listed as waived; it is never hidden.
-- A check that involves two disciplines belongs to the downstream one, which placed the dependent element: a switch on the hinge side of a door is Elektro's issue. If the fix lies upstream, the downstream discipline sends a request instead of changing the other discipline's file.
+- A check that involves two disciplines belongs to the downstream one, which placed the dependent element: a switch on the hinge side of a door is an electrical issue. If the fix lies upstream, the downstream discipline sends a request instead of changing the other discipline's file.
 - v1 re-checks the whole model on every batch. Incremental checks come when projects get large enough to need them.
 
 ## 8. Calculators
@@ -251,7 +251,7 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | Plan image | Pillow (MIT-CMU), and SVG | Built. Cheap pictures for agents to check their own layouts, from a neutral 2D drawing |
 | DXF | ezdxf (MIT) | Phase 2. From the same 2D drawing; layer structure per discipline |
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
-| PDF plans | from the same 2D drawing | Phase 2. Grundriss per storey and discipline |
+| PDF plans | from the same 2D drawing | Phase 2. Floor plans, sections and elevations per storey and discipline |
 | XLSX | openpyxl (MIT) | Phase 2. Tables: rooms, walls, sockets, circuits, quantities |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
@@ -265,7 +265,7 @@ Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>`
 
 - Buildings are mostly extrusions. UEA uses 2D plan geometry (Shapely) plus heights, and builds simple 3D bodies only for export and rendering.
 - Wall joins, room boundaries, opening voids and device positions are derived from intent. Rooms are the free regions between walls and separators around their seed point (`docs/decisions/0015-rooms-and-finishes.md`).
-- Roofs are where plain extrusion stops: pitched roof planes cut the walls below them (gables, Kniestock) and set the clear height of the rooms under them, which the Wohnfläche depends on. UEA handles this with plane cuts on the extruded bodies, still without a general geometry kernel (`docs/decisions/0016-roofs.md`).
+- Roofs are where plain extrusion stops: pitched roof planes cut the walls below them (gables, knee walls) and set the clear height of the rooms under them, which the Wohnfläche depends on. UEA handles this with plane cuts on the extruded bodies, still without a general geometry kernel (`docs/decisions/0016-roofs.md`).
 - No general geometry kernel. Anything that needs real solids (mechanical parts, see `FUTURE.md`) goes into a separate pack on an existing kernel.
 
 ## 11. Tech stack

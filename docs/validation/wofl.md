@@ -19,12 +19,12 @@ The Wohnfläche of each room, each storey and the whole project, from the model.
 | Clause | Rule | Implementation |
 |---|---|---|
 | §2 Abs. 3 Nr. 1 | Zubehörräume do not count | By room use: `cellar` (a), `laundry` (c), `attic` (d), `technical` (f), `garage` (g) are excluded. All other uses count. |
-| §3 Abs. 1 | Grundfläche from the lichte Maße, starting at the front edge of the Bekleidung | The room's Fertig outline: the region between the wall cores, minus every non-core layer of the walls (`docs/decisions/0015-rooms-and-finishes.md`). |
+| §3 Abs. 1 | Grundfläche from the lichte Maße, starting at the front edge of the Bekleidung | The room's finished outline: the region between the wall cores, minus every non-core layer of the walls (`docs/decisions/0015-rooms-and-finishes.md`). |
 | §3 Abs. 1 | (no floor, no Grundfläche) | Voids in the room's own slab (a stair hole) are deducted. |
-| §3 Abs. 3 Nr. 2 | Stairs with more than three risers and their landings do not count | The stair footprint inside the Fertig outline is deducted on the storey it starts on. |
+| §3 Abs. 3 Nr. 2 | Stairs with more than three risers and their landings do not count | The stair footprint inside the finished outline is deducted on the storey it starts on. |
 | §3 Abs. 3 Nr. 3 | Türnischen do not count | Rooms end at the wall face; door reveals are never part of a room. |
 | §3 Abs. 3 Nr. 4 | Niches count only if they reach the floor and are deeper than 0.13 m | A niche with sill 0 and depth over 0.13 m adds width × depth, counted by its own height per §4. |
-| §4 Nr. 1, 2 | Clear height ≥ 2 m full, 1 m to < 2 m half, < 1 m nothing | Clear height from OKFF to the finished ceiling or the roof's inner surface. The parts of the outline in each height band are cut exactly with the ceiling planes. |
+| §4 Nr. 1, 2 | Clear height ≥ 2 m full, 1 m to < 2 m half, < 1 m nothing | Clear height from the FFL (OKFF) to the finished ceiling or the roof's inner surface. The parts of the outline in each height band are cut exactly with the ceiling planes. |
 
 ## Not implemented
 
@@ -37,8 +37,8 @@ A room with no ceiling (no storey and no roof above it) stops the calculation, b
 ## Assumptions to check when signing
 
 - A Hauswirtschaftsraum (`utility`) inside the dwelling counts. Use `laundry` or `technical` for a Waschküche or a Heizungsraum.
-- The Fertigmaß comes from the wall types' layers. Tiles, skirting boards and fixed furniture are not deducted, as §3 Abs. 2 requires.
-- A stair placed against the Rohbau face overlaps the plaster zone; only the part inside the Fertig outline is deducted.
+- The finished size comes from the wall types' layers. Tiles, skirting boards and fixed furniture are not deducted, as §3 Abs. 2 requires.
+- A stair placed against the core face overlaps the plaster zone; only the part inside the finished outline is deducted.
 
 ## Test cases
 

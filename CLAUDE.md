@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** phase 0 done, phase 1 (core + Architektur) in progress; what is built and what is open is in `ROADMAP.md`.
+**Status:** phase 0 done, phase 1 (core + architecture) in progress; what is built and what is open is in `ROADMAP.md`.
 
 ## Docs
 
@@ -18,7 +18,8 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `docs/validation/` | Validation report of each `norm` calculator |
 | `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
 | `tests/` | pytest; hand-computed expected values, the prototype, the CLI |
-| `bench/` | The token task set; `bench/results.md` holds the last run |
+| `docs/reference.md` | Every command, kind, field and issue code, generated from the code (`uv run python -m uea.reference`) |
+| `bench/` | The token task set; `bench/results.md` holds the last run. `bench/agent/`: an agent builds Haus Müller from a brief |
 | `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |
 
 Each fact lives in one file; the others link to it. When a decision changes, add or update its decision record and fix the docs that depend on it.
@@ -38,7 +39,7 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 ### Code
 
 - Python 3.12+, fully typed, pyright strict, Pydantic v2 for schemas, uv, ruff, pytest.
-- Before finishing: `uv run ruff format`, `uv run ruff check`, `uv run pyright`, `uv run pytest` must all pass. After a change to CLI output or the format, also `uv run python -m bench --write` and compare with the committed `bench/results.md`.
+- Before finishing: `uv run ruff format`, `uv run ruff check`, `uv run pyright`, `uv run pytest` must all pass. After a change to CLI output or the format, also `uv run python -m bench --write` and compare with the committed `bench/results.md`. After a change to commands, kinds, fields, help or issue codes, regenerate `docs/reference.md` with `uv run python -m uea.reference` (a test checks it).
 - Dependencies must be Apache-2.0-compatible: LGPL as a library is fine, GPL only as a separate process. Check the licence before adding anything.
 - Add tests with every behaviour change. Prefer hand-computed expected values over values copied from program output.
 - Any change to CLI output or the file format must keep or improve token cost and error rate on the token task set (`ROADMAP.md`).
@@ -56,4 +57,6 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 
 ### Language
 
-- Docs and code in English. Keep German domain terms (Leistungsverzeichnis, Heizlast, Bestand, Haftung, Prüfingenieur, Fachplaner) as they are and explain around them.
+- The format, the CLI output, the help, code and docs are English (`docs/decisions/0017-english-format.md`). The help names a German term once where a German brief uses it: `knee: ... (Kniestock)`.
+- In docs, German stays only for legal, norm and role terms without an exact English equivalent (Wohnfläche, Leistungsverzeichnis, Heizlast, Bestand, Haftung, Prüfingenieur, Fachplaner, Landesbauordnung) and in names (Haus Müller). Plain building words are English: eaves, ridge, floor plan, electrical.
+- What people write stays in their language (labels, request texts), and exports for humans (drawings, calculation reports) are German.

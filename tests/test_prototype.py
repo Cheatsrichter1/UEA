@@ -44,7 +44,7 @@ def test_clean_model(prototype: Project) -> None:
 def test_roof_heights(prototype: Project) -> None:
     d, _ = report(prototype.load())
     rf = d.arch.roofs["rf1"]
-    # README: First +8,10, Traufe +6,12
+    # README: ridge +8.10, eaves +6.12
     assert round(rf.ridge_z, 2) == 8.10
     assert round(rf.eaves_z, 2) == 6.12
 

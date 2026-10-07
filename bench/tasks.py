@@ -41,7 +41,7 @@ def apply(by: str, msg: str, ops: str) -> Step:
 
 
 BATCH1 = """\
-+ project haus-mueller "EFH Müller" site=DE-HE plz=64283 ground=-0.3
++ project haus-mueller "EFH Müller" site=DE-HE postcode=64283 ground=-0.3
 + level EG z=0 fb=0.15 head=2.26
 + level OG z=2.875 fb=0.15 head=2.26
 + level DB z=5.86 fb=0.26
@@ -72,11 +72,11 @@ BATCH_EG = """\
 + wall @m EG IW-240 y=@s+4.51 x=@w..@o lb
 + wall @h EG IW-115 x=@w+2.26 y=@m..@n
 + wall @k EG IW-115 x=@h+1.385 y=@m..@n
-+ door _ @o 1.135x2.26 y=@m+0.385 into=@diele din=l typ=TH-1
-+ door _ @m 0.885x2.01 x=@k+1.76 into=@wohn din=l
-+ door _ @k 0.76x2.01 y=@m+0.26 into=@diele din=r
-+ door _ @m 0.885x2.01 x=@h-0.135 into=@hwr din=l
-+ door _ @s 2.26x2.26 x=W+5.385 typ=HST-1
++ door _ @o 1.135x2.26 y=@m+0.385 into=@diele hand=l type=TH-1
++ door _ @m 0.885x2.01 x=@k+1.76 into=@wohn hand=l
++ door _ @k 0.76x2.01 y=@m+0.26 into=@diele hand=r
++ door _ @m 0.885x2.01 x=@h-0.135 into=@hwr hand=l
++ door _ @s 2.26x2.26 x=W+5.385 type=HST-1
 + win _ @s 1.26x1.26 x=W+1.51
 + win _ @w 1.26x1.135 y=S+1.76
 + win _ @s 1.26x2.26 x=W+8.26
@@ -104,10 +104,10 @@ BATCH_OG = """\
 + wall @a OG IW-115 x=@w+4.01 y=@s..@m
 + wall @b OG IW-115 x=@a+2.885 y=@s..@m
 + wall @c OG IW-115 x=@w+2.76 y=@m..@n
-+ door _ @c 0.885x2.01 y=@m+0.26 into=@bad din=r
-+ door _ @m 0.885x2.01 x=@c+0.125 into=@schlafen din=r
-+ door _ @m 0.885x2.01 x=@a+0.135 into=@k1 din=l
-+ door _ @m 0.885x2.01 x=@b+0.135 into=@k2 din=l
++ door _ @c 0.885x2.01 y=@m+0.26 into=@bad hand=r
++ door _ @m 0.885x2.01 x=@c+0.125 into=@schlafen hand=r
++ door _ @m 0.885x2.01 x=@a+0.135 into=@k1 hand=l
++ door _ @m 0.885x2.01 x=@b+0.135 into=@k2 hand=l
 + win _ @s 1.51x1.385 x=W+1.385
 + win _ @w 1.01x1.385 y=S+2.01
 + win _ @s 1.26x1.385 x=W+5.26
@@ -126,7 +126,7 @@ BATCH_DB = """\
 + slab _ DB DE-20
 + wall _ DB AW-365 x=W+ y=S..N lb top=@roof
 + wall _ DB AW-365 x=E- y=S..N lb top=@roof
-+ roof @roof DB DA-25 gable ridge=x pitch=25 kn=0.2 eave=0.5 verge=0.3
++ roof @roof DB DA-25 gable ridge=x pitch=25 knee=0.2 eave=0.5 verge=0.3
 + room _ DB "Spitzboden" attic at=W+1.365,S+4 floor=FB-db
 """
 
@@ -139,7 +139,7 @@ def _areas(p: Project, want: dict[str, float]) -> list[str]:
         if r is None:
             out.append(f"{k} missing")
         elif round(r.area_fin, 2) != v:
-            out.append(f"{k} Fertig {r.area_fin:.2f}, expected {v}")
+            out.append(f"{k} fin {r.area_fin:.2f}, expected {v}")
     return out
 
 
@@ -152,7 +152,7 @@ def check_house(p: Project) -> list[str]:
     d, _ = report(p.load())
     rf = d.arch.roofs.get("rf1")
     if rf is None or round(rf.ridge_z, 2) != 8.10 or round(rf.eaves_z, 2) != 6.12:
-        out.append("rf1: First +8.10 and Traufe +6.12 expected")
+        out.append("rf1: ridge +8.10 and eaves +6.12 expected")
     return out
 
 
@@ -229,7 +229,7 @@ TASKS: list[Task] = [
     ),
     Task(
         "request",
-        "Elektro needs a 10 x 5 cm Schlitz in w7 for the riser. Ask Architektur; Architektur"
+        "Electrical needs a 10 x 5 cm chase in w7 for the riser. Ask architecture; architecture"
         " accepts and closes the request.",
         [
             apply(

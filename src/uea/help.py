@@ -4,44 +4,61 @@ from uea.core.issues import CORE_CODES
 from uea.core.registry import Registry
 from uea.core.schema import Element, spec, usage
 
-ROOT = """\
+COMMANDS: tuple[tuple[str, str], ...] = (
+    ("uea init <dir>", "new project"),
+    ("uea show [scope]", "summary: project, EG, arch, arch:EG, or an id"),
+    ("uea get <id>...", "elements with derived values"),
+    ("uea find <kind> [filters]", "find wall ext lb · find door room=r3 · find win level=OG"),
+    ("uea apply --by <who> -m <why>", "atomic batch of operations from stdin (help ops)"),
+    ("uea revert <batch> --by <who>", "undo a batch as a new batch"),
+    ("uea check [discipline]", "open issues, requests and waivers"),
+    ("uea calc [name] [scope]", "calculators, e.g. calc wofl (help calc)"),
+    ("uea render <level>", "plan image (PNG) to look at (help export)"),
+    ("uea export <format> [scope]", "for humans: ifc, svg, png (help export)"),
+    ("uea log [n]", "recent batches"),
+    ("uea help [topic]", "this help, or a topic"),
+)
+"""Every command with a one-line description: the root help and docs/reference.md."""
+
+TOPICS = "start | ops | positions | arch | <kind> | codes | calc | export"
+
+ROOT = (
+    """\
 UEA: a building model for agents. A project is a folder of .uea text files, one per
 discipline. Read it with commands, change it with batches of operations. Code computes
 areas, heights and checks; you decide. A human reviews the exports and signs.
 
-  uea init <dir>                  new project
-  uea show [scope]                summary: project, EG, arch, arch:EG, or an id
-  uea get <id>...                 elements with derived values
-  uea find <kind> [filters]       find wall ext lb · find door room=r3 · find win level=OG
-  uea apply --by <who> -m <why>   atomic batch of operations from stdin (help ops)
-  uea revert <batch> --by <who>   undo a batch as a new batch
-  uea check [discipline]          open issues, requests and waivers
-  uea calc [name] [scope]         calculators, e.g. calc wofl (help calc)
-  uea render <level>              plan image (PNG) to look at
-  uea export <format> [scope]     for humans: ifc, svg, png
-  uea log [n]                     recent batches
+"""
+    + "\n".join(f"  {u:<31} {d}" for u, d in COMMANDS[:-1])
+    + f"""
   Options: -C <dir> run in another folder · --json machine-readable output
 
-Topics: uea help start | ops | positions | arch | <kind> | codes | calc
+Topics: uea help {TOPICS}
 """
+)
 
 START = """\
-Start a building:
-  uea init haus && cd haus
-  batch 1: + project, + level (z= OKFF, fb= floor build-up, head= Sturzhöhe), + grid, + type
-  batch 2 per storey: walls, then doors/windows, stair, slab, sep, rooms
-  uea check after each batch; uea show EG to see rooms and areas; uea render EG to look.
-Rules: one element per line. You name levels, grids and types; UEA assigns all other ids
-(use @name placeholders inside a batch). Positions are relative (help positions), so moving
-one wall moves what is placed on it. Plan positions are Rohbau faces; heights are above OKFF.
-Example (four exterior walls and the room inside them):
-  uea apply --by arch-agent -m "EG walls" <<'EOF'
+Start a building: uea init haus && cd haus, then send batches of operations:
+  uea apply --by arch-agent -m "why" <<'EOF'
+  ...one operation per line...
+  EOF
+Batch 1, the project data. You name the project, levels, grids and types:
+  + project haus "EFH Müller" site=DE-HE postcode=64283 ground=-0.3
+  + level EG z=0 fb=0.15 head=2.26
+  + grid W x=0              (likewise E x=10.49, S y=0, N y=8.49)
+  + type AW-365 wall "Ziegel 36,5" layers=plaster:0.015,*brick:0.365,render:0.02
+  z: FFL (finished floor level, OKFF) · fb: floor build-up · head: window head height
+  layers: material:thickness in m, comma-separated, * marks the core (uea help type)
+Batch 2 per storey: walls, then doors/windows, stair, slab, sep, rooms. UEA assigns their
+ids; inside a batch use @name placeholders. Four exterior walls and the room inside them:
   + wall @s EG AW-365 y=S+ x=W..E lb
   + wall @n EG AW-365 y=N- x=W..E lb
   + wall @w EG AW-365 x=W+ y=@s..@n lb
   + wall @o EG AW-365 x=E- y=@s..@n lb
-  + room _ EG living at=@w+1,@s+1
-  EOF
+  + room _ EG living "Wohnen" at=@w+1,@s+1
+uea check after each batch; uea show EG to see rooms and areas; uea render EG to look.
+Positions are relative (help positions), so moving one wall moves what is placed on it.
+Plan positions are core faces; heights are above the storey's FFL.
 """
 
 OPS = """\
@@ -60,9 +77,11 @@ Output: ok batch N (packs): +added changed -removed, the ids, new issues, what f
 """
 
 POSITIONS = """\
-Positions (metres, Rohbau). anchor±distance; the sign says from which face and which way.
+Positions (metres, core faces). anchor±distance; the sign says from which face and which way.
   x=w4+2.26     my -x side is 2.26 past w4's +x face; I extend in +x (a clear dimension)
+  x=w6-0.135    my +x side is 0.135 before w6's -x face; I extend in -x
   x=E-          my +x side is on grid E; I extend in -x
+  x=W+1.51      1.51 past grid W, e.g. a window measured from the outside corner
   y=w5.n-       explicit face: my +y side on w5's north face
   x=d4+0.25     0.25 past the + edge of opening d4
   y=f2.c        on the centre of f2
@@ -73,18 +92,21 @@ Positions (metres, Rohbau). anchor±distance; the sign says from which face and 
   x=3.2+        raw coordinate (escape hatch)
 Anchors: grids, walls, openings, stairs, separators. Faces: .n .s .e .w, centre .c.
 Walls: one axis is a position, the other a span. Openings: their edge along the wall.
-Heights: z of a level is its OKFF (±0.00 = OKFF EG); OK Rohdecke = z - fb. Windows hang
-from the level's head= (Sturzhöhe); sill= only if one deviates. Doors stand on OKFF.
+Heights: a level's z is its FFL (finished floor level, OKFF; ±0.00 = FFL of the ground
+storey). Its SSL (structural slab level, OK Rohdecke) = z - fb. Windows hang from the
+level's head= (head height, Sturzhöhe); sill= only if one deviates. Doors stand on the FFL.
 Names of levels and grids: no '-', because W-1.2 means grid W minus 1.2.
 """
 
 ARCH_NOTES = """\
-Wall layers inside to outside (interior walls: -x/-y face first); * marks the core, which is
-what positions refer to. Slab layers top to bottom; the core top is OK Rohdecke. Floor types
-are the Fußbodenaufbau (fb). Roof layers outside to inside.
+Layers: material:thickness in metres, comma-separated; * marks the core, which is what
+positions refer to: layers=plaster:0.015,*brick:0.365,render:0.02. Walls inside to outside
+(interior walls: -x/-y face first), slabs top to bottom (the core top is the SSL), floor
+types top to bottom (the floor build-up, fb), roofs outside to inside.
 Status flags on physical elements: existing (Bestand), demolish, temp; none means new.
-Derived, never stored: exterior walls, room outlines and areas (Rohbau and Fertig), heights,
-volumes, slab outlines, stair risers, Traufe and First. Read them with uea get.
+Derived, never stored: exterior walls, room outlines and areas (shell: between core faces;
+fin: between finished surfaces), heights, volumes, slab outlines, stair risers, eaves and
+ridge heights. Read them with uea get.
 """
 
 CALC = """\
@@ -92,6 +114,14 @@ uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
 Results say calculator, kind (norm or custom), version and inputs. A custom result is never
 norm-compliant. Project calculators live in calc/ (custom).
+"""
+
+EXPORT = """\
+uea render <level> [-o file]        plan image (PNG) for you to look at
+uea export ifc [-o file]            IFC4 model for humans and other software
+uea export svg|png [level] [-o f]   plan drawings for humans; all levels if none is given
+Files go to out/ unless -o says otherwise; the output names them. Drawings are labelled in
+German, for the people who read them. dxf, pdf and xlsx come later.
 """
 
 
@@ -153,11 +183,23 @@ def help_text(reg: Registry, topic: str | None) -> str | None:
     if topic is None:
         return ROOT
     t = topic.lower()
-    fixed = {"start": START, "ops": OPS, "positions": POSITIONS, "calc": CALC}
+    fixed = {
+        "start": START,
+        "ops": OPS,
+        "positions": POSITIONS,
+        "calc": CALC,
+        "export": EXPORT,
+        "render": EXPORT,
+    }
     if t in fixed:
         return fixed[t]
     if t == "codes":
         return codes_help(reg)
+    if t in reg.kinds and t in reg.packs:
+        # `project` is a kind and a pack: the kind's fields matter more
+        others = [c.kind for c in reg.packs[t].kinds if c.kind != t]
+        more = f"\nThe {t} pack also has: {' '.join(others)} (uea help {others[0]})"
+        return kind_help(reg.kinds[t]) + (more if others else "")
     if t in reg.packs:
         return pack_help(reg, t)
     if t in reg.kinds:

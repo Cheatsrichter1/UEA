@@ -1,7 +1,7 @@
-"""Architektur element kinds (`arch.uea`).
+"""Architecture element kinds (`arch.uea`).
 
-Datums (docs/decisions/0012-datums-and-positions.md): plan positions are Rohbau faces of a
-type's core layer; heights count from the storey's OKFF; openings store their Rohbaurichtmaß.
+Datums (docs/decisions/0012-datums-and-positions.md): plan positions are the faces of a
+type's core layer; heights count from the storey's FFL; openings store their structural size.
 """
 
 from typing import Annotated, Any, ClassVar, Literal, Self
@@ -28,7 +28,7 @@ def _position_first(el: Element, x: object, y: object) -> tuple[str, ...]:
 def _core_check(layers: Layers) -> None:
     cores = [i for i, x in enumerate(layers.items) if x.core]
     if not cores:
-        raise ValueError("layers need a core layer marked with *, e.g. *ziegel:0.365")
+        raise ValueError("layers need a core layer marked with *, e.g. *brick:0.365")
     if cores != list(range(cores[0], cores[-1] + 1)):
         raise ValueError("core layers (*) must be next to each other")
 
@@ -42,7 +42,7 @@ class _ArchType(Element):
 
 
 class _Layered(_ArchType):
-    layers: Annotated[Layers, F("build-up; * marks the core")]
+    layers: Annotated[Layers, F("material:thickness in m, comma-separated; * marks the core")]
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -54,39 +54,48 @@ class WallType(_Layered):
     category: ClassVar[str | None] = "wall"
     doc: ClassVar[str] = (
         "Wall build-up, inside to outside (interior walls: -x/-y face first). The core layer"
-        " (*) is what wall positions refer to (Rohbau)."
+        " (*) is what wall positions refer to: layers=plaster:0.015,*brick:0.365,render:0.02"
     )
 
 
 class SlabType(_Layered):
     category: ClassVar[str | None] = "slab"
-    doc: ClassVar[str] = "Slab build-up, top to bottom. The core top is OK Rohdecke."
+    doc: ClassVar[str] = (
+        "Slab build-up, top to bottom. The core top is the storey's SSL:"
+        " layers=*concrete:0.25,xps:0.14"
+    )
 
 
 class FloorType(_ArchType):
     category: ClassVar[str | None] = "floor"
-    doc: ClassVar[str] = "Floor build-up on a slab, top to bottom (Fußbodenaufbau)."
-    layers: Annotated[Layers, F("build-up, top to bottom")]
+    doc: ClassVar[str] = (
+        "Floor build-up on a slab, top to bottom (Fußbodenaufbau, the level's fb):"
+        " layers=parquet:0.015,screed:0.065,eps:0.07"
+    )
+    layers: Annotated[Layers, F("material:thickness in m, comma-separated")]
 
 
 class RoofType(_Layered):
     category: ClassVar[str | None] = "roof"
-    doc: ClassVar[str] = "Roof build-up, outside to inside. The core is the rafter layer."
+    doc: ClassVar[str] = (
+        "Roof build-up, outside to inside. The core is the rafter layer:"
+        " layers=tiles:0.04,battens:0.07,*rafters:0.18"
+    )
 
 
 class WinType(_ArchType):
     category: ClassVar[str | None] = "win"
-    doc: ClassVar[str] = "Window type. A window without typ= uses the type marked default."
+    doc: ClassVar[str] = "Window type. A window without type= uses the type marked default."
     uw: Annotated[float | None, F("Uw", unit="W/(m²K)")] = None
-    default: Annotated[bool, F("used by windows without typ=", flag=True)] = False
+    default: Annotated[bool, F("used by windows without type=", flag=True)] = False
 
 
 class DoorType(_ArchType):
     category: ClassVar[str | None] = "door"
-    doc: ClassVar[str] = "Door type. A door without typ= uses the type marked default."
+    doc: ClassVar[str] = "Door type. A door without type= uses the type marked default."
     ud: Annotated[float | None, F("Ud", unit="W/(m²K)")] = None
     uw: Annotated[float | None, F("Uw of a glazed door", unit="W/(m²K)")] = None
-    default: Annotated[bool, F("used by doors without typ=", flag=True)] = False
+    default: Annotated[bool, F("used by doors without type=", flag=True)] = False
 
 
 # ---------- elements ----------
@@ -98,7 +107,7 @@ class Wall(Element):
     prefix: ClassVar[str | None] = "w"
     positional: ClassVar[tuple[str, ...]] = ("level", "type")
     doc: ClassVar[str] = (
-        "A straight wall. One of x=/y= is its position (a Rohbau face, e.g. y=S+ or"
+        "A straight wall. One of x=/y= is its position (a core face, e.g. y=S+ or"
         " x=w4+2.26), the other its span (x=W..E, y=w1..w3). on= stacks it on a wall below."
     )
     level: Annotated[Ref, F("storey", targets=("level",))]
@@ -107,10 +116,10 @@ class Wall(Element):
     y: Annotated[Place, F("y position (anchor±d) or span (a..b)", unit="m")] = None
     on: Annotated[Ref | None, F("same footprint as this wall", targets=("wall",))] = None
     top: Annotated[Ref | None, F("roof that cuts the wall's top", targets=("roof",))] = None
-    h: Annotated[
-        float | None, F("height above OK Rohdecke, if not up to the slab above", unit="m")
-    ] = None
-    lb: Annotated[bool, F("load-bearing (tragend)", flag=True)] = False
+    h: Annotated[float | None, F("height above the SSL, if not up to the slab above", unit="m")] = (
+        None
+    )
+    lb: Annotated[bool, F("load-bearing", flag=True)] = False
     flip: Annotated[bool, F("reverse the layer order", flag=True)] = False
     status: Status = "new"
 
@@ -139,7 +148,7 @@ class Wall(Element):
 class _Opening(Element):
     pack: ClassVar[str] = "arch"
     positional: ClassVar[tuple[str, ...]] = ("host", "size")
-    size: Annotated[Size, F("Rohbaurichtmaß width x height", unit="m")]
+    size: Annotated[Size, F("structural opening width x height (Rohbaurichtmaß)", unit="m")]
     x: Annotated[Anchor | None, F("edge position along a wall running along x", unit="m")] = None
     y: Annotated[Anchor | None, F("edge position along a wall running along y", unit="m")] = None
 
@@ -160,16 +169,16 @@ class Door(_Opening):
     kind: ClassVar[str] = "door"
     prefix: ClassVar[str | None] = "d"
     doc: ClassVar[str] = (
-        "A door in a wall. Stands on OKFF. into= is the room it opens into; din= its handing"
-        " (DIN links/rechts, seen from that room)."
+        "A door in a wall. Stands on the FFL. into= is the room it opens into; hand= its handing"
+        " (l or r as DIN links/rechts, seen from that room)."
     )
     host: Annotated[Ref, F("wall", targets=("wall",))]
-    sill: Annotated[float | None, F("bottom above OKFF, if not on the floor", unit="m")] = None
+    sill: Annotated[float | None, F("bottom above the FFL, if not on the floor", unit="m")] = None
     into: Annotated[Ref | None, F("room the leaf opens into", targets=("room",))] = None
-    din: Annotated[Literal["l", "r"] | None, F("handing: l or r, seen from the into room")] = None
-    typ: Annotated[Ref | None, F("door type; default type if left out", targets=("type:door",))] = (
-        None
-    )
+    hand: Annotated[Literal["l", "r"] | None, F("handing: l or r, seen from the into room")] = None
+    type: Annotated[
+        Ref | None, F("door type; default type if left out", targets=("type:door",))
+    ] = None
     status: Status = "new"
 
 
@@ -177,12 +186,12 @@ class Win(_Opening):
     kind: ClassVar[str] = "win"
     prefix: ClassVar[str | None] = "f"
     doc: ClassVar[str] = (
-        "A window in a wall. It hangs from the storey's Sturzhöhe (head=); sill= only if it"
+        "A window in a wall. It hangs from the storey's head height (head=); sill= only if it"
         " deviates."
     )
     host: Annotated[Ref, F("wall", targets=("wall",))]
-    sill: Annotated[float | None, F("Brüstungshöhe above OKFF, if not from head", unit="m")] = None
-    typ: Annotated[
+    sill: Annotated[float | None, F("sill height above the FFL, if not from head", unit="m")] = None
+    type: Annotated[
         Ref | None, F("window type; default type if left out", targets=("type:win",))
     ] = None
     status: Status = "new"
@@ -193,7 +202,7 @@ class Niche(_Opening):
     prefix: ClassVar[str | None] = "ni"
     doc: ClassVar[str] = "A niche in one face of a wall (host w5.n), d deep."
     host: Annotated[Ref, F("wall face, e.g. w5.n", targets=("wall",))]
-    sill: Annotated[float, F("bottom above OKFF", unit="m")] = 0.0
+    sill: Annotated[float, F("bottom above the FFL", unit="m")] = 0.0
     d: Annotated[float, F("depth into the wall", unit="m")]
     status: Status = "new"
 
@@ -212,7 +221,7 @@ class Slab(Element):
     prefix: ClassVar[str | None] = "sl"
     positional: ClassVar[tuple[str, ...]] = ("level", "type")
     doc: ClassVar[str] = (
-        "The slab under a storey; its top is the storey's OK Rohdecke. Its outline comes from"
+        "The slab under a storey; its top is the storey's SSL. Its outline comes from"
         " the walls below it (the storey's own walls for the lowest slab)."
     )
     level: Annotated[Ref, F("storey it carries", targets=("level",))]
@@ -248,18 +257,21 @@ class Roof(Element):
     positional: ClassVar[tuple[str, ...]] = ("level", "type", "shape")
     doc: ClassVar[str] = (
         "A roof over a storey's outline. gable (Satteldach, ridge=x|y), shed (Pultdach, up="
-        " the side it rises to), hip (Walmdach). kn: underside of the rafters at the outer"
-        " face of the eaves wall, above the storey's OK Rohdecke."
+        " the side it rises to), hip (Walmdach). knee: underside of the rafters at the outer"
+        " face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height"
+        " (top of the roof skin above the outer wall face) and ridge height."
     )
     level: Annotated[Ref, F("storey the roof sits on", targets=("level",))]
     type: Annotated[Ref, F("roof type", targets=("type:roof",))]
     shape: Annotated[Literal["gable", "shed", "hip"], F("gable, shed or hip")]
     ridge: Annotated[Literal["x", "y"] | None, F("ridge direction of a gable roof")] = None
     up: Annotated[Literal["n", "s", "e", "w"] | None, F("side a shed roof rises to")] = None
-    pitch: Annotated[float, F("Dachneigung", unit="°")]
-    kn: Annotated[float, F("rafter underside at the eaves wall's outer face", unit="m")] = 0.0
+    pitch: Annotated[float, F("roof pitch", unit="°")]
+    knee: Annotated[
+        float, F("rafter underside at the eaves wall's outer face, above the SSL", unit="m")
+    ] = 0.0
     eave: Annotated[float, F("overhang at the eaves", unit="m")] = 0.0
-    verge: Annotated[float, F("overhang at the verge (Ortgang)", unit="m")] = 0.0
+    verge: Annotated[float, F("overhang at the verge", unit="m")] = 0.0
     status: Status = "new"
 
     @model_validator(mode="after")
@@ -293,7 +305,7 @@ class Stair(Element):
     up: Annotated[Literal["n", "s", "e", "w"], F("direction it climbs")]
     w: Annotated[float, F("width", unit="m")]
     n: Annotated[int, F("number of risers")]
-    tread: Annotated[float, F("tread depth (Auftritt)", unit="m")]
+    tread: Annotated[float, F("tread depth", unit="m")]
     status: Status = "new"
 
     @model_validator(mode="after")
@@ -362,8 +374,8 @@ class Room(Element):
     level: Annotated[Ref, F("storey", targets=("level",))]
     use: Annotated[RoomUse, F("use; decides e.g. whether it counts as Wohnfläche")]
     at: Annotated[Point, F("seed point inside the room", unit="m")]
-    floor: Annotated[Ref | None, F("floor type (Bodenbelag)", targets=("type:floor",))] = None
-    tile: Annotated[float | None, F("wall tiling height above OKFF", unit="m")] = None
+    floor: Annotated[Ref | None, F("floor type", targets=("type:floor",))] = None
+    tile: Annotated[float | None, F("wall tiling height above the FFL", unit="m")] = None
 
 
 TYPES: tuple[type[Element], ...] = (WallType, SlabType, FloorType, RoofType, WinType, DoorType)

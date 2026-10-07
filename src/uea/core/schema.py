@@ -40,7 +40,7 @@ class F:
 
 Status = Annotated[
     Literal["new", "existing", "demolish", "temp"],
-    F("Bestand status; new unless flagged existing, demolish or temp", flag_enum=True),
+    F("status; new unless flagged existing (Bestand), demolish or temp", flag_enum=True),
 ]
 
 

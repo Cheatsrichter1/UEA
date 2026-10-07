@@ -13,7 +13,7 @@ UEA does not build an agent, an agent router or a multi-agent framework. It prov
 
 ## Alternatives
 
-- **Own agent with roles (Architekt, Statik, TGA, Zeichner):** the earlier plan. Duplicates work others do better and ties UEA to one vendor.
+- **Own agent with roles (architect, structural engineer, building services, drafter):** the earlier plan. Duplicates work others do better and ties UEA to one vendor.
 - **Own agent on top of UEA as a product:** possible later, but not part of the open-source core.
 
 ## Consequences
