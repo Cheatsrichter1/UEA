@@ -1,0 +1,52 @@
+[project]
+name = "uea"
+version = "0.1.0.dev0"
+description = "Ultimate Engineering Assistant: open-source engineering and building software made for AI agents"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "shapely>=2.0",
+    "pillow>=10.1",
+]
+
+[project.optional-dependencies]
+ifc = ["ifcopenshell>=0.8"]
+
+[project.scripts]
+uea = "uea.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pyright>=1.1.380",
+    "ruff>=0.6",
+    "tiktoken>=0.7",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["tools"]  # throwaway prototype scripts, see tools/README.md
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PTH", "C4"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # German text uses ×, –, ä and friends on purpose
+
+[tool.ruff.lint.per-file-ignores]
+"bench/tasks.py" = ["E501"]  # model lines are data and cannot be wrapped
+
+[tool.pyright]
+include = ["src", "tests", "bench"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
