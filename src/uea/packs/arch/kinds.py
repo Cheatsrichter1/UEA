@@ -276,17 +276,32 @@ class Roof(Element):
     positional: ClassVar[tuple[str, ...]] = ("level", "type", "shape")
     doc: ClassVar[str] = (
         "A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof:"
-        " L, T). gable (Satteldach, ridge=x|y), shed (Pultdach, up= the side it rises to), hip"
-        " (Walmdach). knee: underside of the rafters at the outer face of the eaves wall, above"
-        " the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the"
-        " outer wall face) and ridge height."
+        " L, T). gable (Satteldach, ridge=x|y; halfhip=<run> hips the ends, Krüppelwalm), shed"
+        " (Pultdach, up= the side it rises to), hip (Walmdach; a square gives a Zeltdach),"
+        " mansard (pitch up to rise= above the eaves, then upper=; ridge=x|y gables the ends),"
+        " flat (knee= is its underside). knee: underside of the rafters at the outer face of the"
+        " eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof"
+        " skin above the outer wall face) and ridge height."
     )
     level: Annotated[Ref, F("storey the roof sits on", targets=("level",))]
     type: Annotated[Ref, F("roof type", targets=("type:roof",))]
-    shape: Annotated[Literal["gable", "shed", "hip"], F("gable, shed or hip")]
-    ridge: Annotated[Literal["x", "y"] | None, F("ridge direction of a gable roof")] = None
+    shape: Annotated[
+        Literal["gable", "shed", "hip", "mansard", "flat"], F("gable, shed, hip, mansard or flat")
+    ]
+    ridge: Annotated[Literal["x", "y"] | None, F("ridge direction of a gable or mansard roof")] = (
+        None
+    )
     up: Annotated[Literal["n", "s", "e", "w"] | None, F("side a shed roof rises to")] = None
-    pitch: Annotated[float, F("roof pitch", unit="°")]
+    pitch: Annotated[
+        float | None, F("roof pitch, of a mansard below the break; not for flat", unit="°")
+    ] = None
+    halfhip: Annotated[
+        float | None, F("horizontal run of the hipped ends of a gable roof", unit="m")
+    ] = None
+    upper: Annotated[float | None, F("pitch of a mansard roof above the break", unit="°")] = None
+    rise: Annotated[
+        float | None, F("height of a mansard roof's break above the eaves", unit="m")
+    ] = None
     knee: Annotated[
         float, F("rafter underside at the eaves wall's outer face, above the SSL", unit="m")
     ] = 0.0
@@ -304,16 +319,42 @@ class Roof(Element):
     def _check(self) -> Self:
         if (self.x is None) != (self.y is None):
             raise ValueError("give both x= and y= spans, or neither")
+        if self.shape == "flat":
+            extras = {
+                k: getattr(self, k)
+                for k in ("pitch", "ridge", "up", "halfhip", "upper", "rise")
+                if getattr(self, k) is not None
+            }
+            if extras:
+                raise ValueError(f"a flat roof has no {', '.join(extras)}")
+            if self.knee <= 0:
+                raise ValueError("a flat roof needs knee=, its underside above the storey's SSL")
+            return self
+        if self.pitch is None:
+            raise ValueError(f"a {self.shape} roof needs pitch=")
         if not 0 < self.pitch < 75:
             raise ValueError("pitch must be between 0 and 75 degrees")
         if self.shape == "gable" and self.ridge is None:
             raise ValueError("a gable roof needs ridge=x or ridge=y")
         if self.shape == "shed" and self.up is None:
             raise ValueError("a shed roof needs up=n|s|e|w, the side it rises to")
-        if self.shape != "gable" and self.ridge is not None:
-            raise ValueError("ridge= is only for gable roofs")
+        if self.shape not in ("gable", "mansard") and self.ridge is not None:
+            raise ValueError("ridge= is only for gable and mansard roofs")
         if self.shape != "shed" and self.up is not None:
             raise ValueError("up= is only for shed roofs")
+        if self.shape != "gable" and self.halfhip is not None:
+            raise ValueError("halfhip= is only for gable roofs")
+        if self.halfhip is not None and self.halfhip <= 0:
+            raise ValueError("halfhip= must be more than 0")
+        if self.shape == "mansard":
+            if self.upper is None or self.rise is None:
+                raise ValueError("a mansard roof needs upper= (the pitch above) and rise=")
+            if not 0 < self.upper < self.pitch:
+                raise ValueError("upper= must be between 0 and pitch=: the roof flattens above")
+            if self.rise <= 0:
+                raise ValueError("rise= must be more than 0")
+        elif self.upper is not None or self.rise is not None:
+            raise ValueError("upper= and rise= are only for mansard roofs")
         return self
 
 

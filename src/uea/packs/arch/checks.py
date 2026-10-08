@@ -35,6 +35,7 @@ CODES: dict[str, str] = {
     "E-ARCH-040": "roof without an outline",
     "W-ARCH-041": "roof outline is not a rectangle",
     "W-ARCH-042": "part of the outline is under no roof",
+    "E-ARCH-043": "roof shape does not fit its rectangle",
     "W-ARCH-050": "two default types in one category",
     "W-ARCH-051": "door or window without type and no default type",
 }

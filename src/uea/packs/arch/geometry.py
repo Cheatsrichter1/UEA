@@ -388,11 +388,14 @@ class RoofGeo:
     """Rafter underside (absolute z) as planes; the roof is their minimum."""
     eave_edges: list[str]
     over: Polygon
-    skin: float
-    """Vertical thickness above the rafter underside."""
-    lining: float
-    """Vertical thickness below the rafter underside."""
-    d_max: float
+    skin_thick: float
+    """Thickness of the layers above the rafters, square to the roof."""
+    lining_thick: float
+    """Thickness of the layers below the rafters, square to the roof."""
+    peak: float
+    """Highest point of the rafter underside above `base`."""
+    peak_slope: float
+    """Slope of the roof at its highest point."""
     status: str
 
     @property
@@ -402,15 +405,22 @@ class RoofGeo:
     def underside(self, x: float, y: float) -> float:
         return min(p(x, y) for p in self.planes)
 
+    def skin_of(self, plane: Lin) -> float:
+        """Vertical thickness above the rafter underside `plane`: steeper roofs have more."""
+        return self.skin_thick * math.hypot(1.0, plane.a, plane.b)
+
+    def lining_of(self, plane: Lin) -> float:
+        return self.lining_thick * math.hypot(1.0, plane.a, plane.b)
+
     @property
     def eaves_z(self) -> float:
         """Eaves height: top of the roof skin above the outer face of the eaves wall."""
-        return self.base + self.skin
+        return self.base + self.skin_thick * math.hypot(1.0, self.slope)
 
     @property
     def ridge_z(self) -> float:
         """Ridge height: top of the roof skin at the ridge (highest point)."""
-        return self.base + self.slope * self.d_max + self.skin
+        return self.base + self.peak + self.skin_thick * math.hypot(1.0, self.peak_slope)
 
 
 @dataclass
@@ -1135,7 +1145,10 @@ class Resolver:
                         f" box {ar(x1 - x0)} x {ar(y1 - y0)}",
                         f"one roof per wing: ~ {el.id} x=<a>..<b> y=<c>..<d>, + roof for the rest",
                     )
-            self.g.roofs[el.id] = make_roof(el, rt, lv, x0, x1, y0, y1)
+            try:
+                self.g.roofs[el.id] = make_roof(el, rt, lv, x0, x1, y0, y1)
+            except GeoError as e:
+                self.d.add(e.code, el.id, e.msg, e.fix)
         for lv in self.g.levels.values():
             parts = self.g.roofs_on(lv.id)
             dom = self.g.domains.get(lv.id)
@@ -1270,7 +1283,7 @@ class Resolver:
         for roof in self.g.roofs.values():
             rl = self.g.levels[roof.level]
             if rl.z <= lv.z + 1e-9 and roof.status != "demolish":
-                planes = tuple(Lin(p.a, p.b, p.c - roof.lining - lv.z) for p in roof.planes)
+                planes = tuple(Lin(p.a, p.b, p.c - roof.lining_of(p) - lv.z) for p in roof.planes)
                 parts.append(Part(roof.foot, planes))
         return Ceil(tuple(caps), tuple(parts))
 
@@ -1304,8 +1317,7 @@ def _reach(
 def make_roof(
     el: Roof, rt: RoofType, lv: LevelGeo, x0: float, x1: float, y0: float, y1: float
 ) -> RoofGeo:
-    t = math.tan(math.radians(el.pitch))
-    cos = math.cos(math.radians(el.pitch))
+    t = math.tan(math.radians(el.pitch or 0.0))
     base = lv.ssl + el.knee
     # eave edges: (name, inward normal, a point on the edge)
     edges: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
@@ -1314,9 +1326,22 @@ def make_roof(
         "w": ((1.0, 0.0), (x0, y0)),
         "e": ((-1.0, 0.0), (x1, y0)),
     }
-    if el.shape == "gable":
+    lift = dict.fromkeys("snwe", 0.0)
+    if el.shape in ("gable", "mansard") and el.ridge is not None:
         eaves = ["s", "n"] if el.ridge == "x" else ["w", "e"]
         d_max = (y1 - y0) / 2 if el.ridge == "x" else (x1 - x0) / 2
+        length = (x1 - x0) if el.ridge == "x" else (y1 - y0)
+        if el.halfhip is not None:
+            if el.halfhip >= d_max or 2 * el.halfhip >= length:
+                raise GeoError(
+                    f"halfhip={ln(el.halfhip)} leaves no ridge on a roof {ln(2 * d_max)} wide and"
+                    f" {ln(length)} long (the ends can run at most {ln(min(d_max, length / 2))})",
+                    f"give halfhip= less than {ln(min(d_max, length / 2))}, or use a hip roof",
+                    "E-ARCH-043",
+                )
+            ends = ["w", "e"] if el.ridge == "x" else ["s", "n"]
+            lift.update(dict.fromkeys(ends, t * (d_max - el.halfhip)))
+            eaves += ends
     elif el.shape == "shed":
         low = {"n": "s", "s": "n", "e": "w", "w": "e"}[el.up or "n"]
         eaves = [low]
@@ -1325,18 +1350,35 @@ def make_roof(
         eaves = ["s", "n", "w", "e"]
         d_max = min(x1 - x0, y1 - y0) / 2
     planes: list[Lin] = []
-    for name in eaves:
-        (nx, ny), (px, py) = edges[name]
-        planes.append(Lin(t * nx, t * ny, base - t * (px * nx + py * ny)))
-    ov = {k: (el.eave if k in eaves else el.verge) for k in "snwe"}
+    peak, peak_slope = t * d_max, t
+    if el.shape == "flat":
+        planes.append(Lin(0.0, 0.0, base))
+        peak, peak_slope = 0.0, 0.0
+    else:
+        for name in eaves:
+            (nx, ny), (px, py) = edges[name]
+            near = px * nx + py * ny
+            planes.append(Lin(t * nx, t * ny, base + lift[name] - t * near))
+            if el.shape == "mansard":
+                assert el.upper is not None and el.rise is not None
+                t2 = math.tan(math.radians(el.upper))
+                run = el.rise / t
+                if run >= d_max:
+                    raise GeoError(
+                        f"the break of the mansard roof is {ln(run)} in from the eaves (rise="
+                        f"{ln(el.rise)} at {el.pitch:g}°), but the ridge is {ln(d_max)} in",
+                        f"give rise= less than {ln(t * d_max)}, or use a gable roof",
+                        "E-ARCH-043",
+                    )
+                planes.append(Lin(t2 * nx, t2 * ny, base + el.rise - t2 * run - t2 * near))
+                peak, peak_slope = el.rise + t2 * (d_max - run), t2
+    ov = {k: (el.eave if k in eaves or el.shape == "flat" else el.verge) for k in "snwe"}
     over = rect(x0 - ov["w"], x1 + ov["e"], y0 - ov["s"], y1 + ov["n"])
-    skin = (rt.layers.core + rt.layers.before_core()) / cos
-    lining = rt.layers.after_core() / cos
     return RoofGeo(
         el.id,
         lv.id,
         el.shape,
-        el.pitch,
+        el.pitch or 0.0,
         x0,
         x1,
         y0,
@@ -1346,9 +1388,10 @@ def make_roof(
         planes,
         eaves,
         over,
-        skin,
-        lining,
-        d_max,
+        rt.layers.core + rt.layers.before_core(),
+        rt.layers.after_core(),
+        peak,
+        peak_slope,
         el.status,
     )
 

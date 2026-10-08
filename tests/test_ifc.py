@@ -110,6 +110,9 @@ roof rf2 EG DA {b} knee=0.5 eave=0.4 x=W..E2 y=S..N
         ("gable ridge=x pitch=40", "gable ridge=y pitch=40"),
         ("hip pitch=35", "hip pitch=35"),
         ("gable ridge=x pitch=40 verge=0.3", "shed up=n pitch=20"),
+        ("gable ridge=x pitch=40 halfhip=1", "gable ridge=y pitch=40 halfhip=1"),
+        ("mansard pitch=60 upper=25 rise=1", "mansard ridge=y pitch=60 upper=25 rise=1"),
+        ("flat", "flat"),
     ],
 )
 def test_roofs_with_wings(a: str, b: str, tmp_path: Path) -> None:
@@ -117,6 +120,28 @@ def test_roofs_with_wings(a: str, b: str, tmp_path: Path) -> None:
     check_valid_and_buildable(f)
     assert len(f.by_type("IfcRoof")) == 2
     assert len(f.by_type("IfcWall")) == 6
+
+
+@pytest.mark.parametrize(
+    ("roof", "predefined"),
+    [
+        ("gable ridge=x pitch=40", "GABLE_ROOF"),
+        ("gable ridge=x pitch=40 halfhip=1", "HIPPED_GABLE_ROOF"),
+        ("hip pitch=40", "HIP_ROOF"),
+        ("shed up=n pitch=10", "SHED_ROOF"),
+        ("mansard pitch=60 upper=25 rise=1.5", "MANSARD_ROOF"),
+        ("mansard ridge=x pitch=60 upper=25 rise=1.5", "GAMBREL_ROOF"),
+        ("flat knee=2.7", "FLAT_ROOF"),
+    ],
+)
+def test_roof_shapes_in_the_ifc(roof: str, predefined: str, tmp_path: Path) -> None:
+    text = L_ROOFS.splitlines(keepends=True)
+    house = "".join(x for x in text if not x.startswith("roof"))
+    f = export_text(house + f"roof rf1 EG DA {roof} x=W..E y=S..N\n", tmp_path / "r.ifc")
+    check_valid_and_buildable(f)
+    # an occurrence with a type takes its predefined type from the type
+    assert [t.PredefinedType for t in f.by_type("IfcRoofType")] == [predefined]
+    assert len(f.by_type("IfcRoof")) == 1
 
 
 def test_global_ids_are_stable(prototype: Project, tmp_path: Path) -> None:

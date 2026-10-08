@@ -297,7 +297,7 @@ An opening in a slab: over a stair (over=st1) or given by x= and y= spans.
 
 #### `roof`
 
-A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof: L, T). gable (Satteldach, ridge=x|y), shed (Pultdach, up= the side it rises to), hip (Walmdach). knee: underside of the rafters at the outer face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the outer wall face) and ridge height.
+A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof: L, T). gable (Satteldach, ridge=x|y; halfhip=<run> hips the ends, Krüppelwalm), shed (Pultdach, up= the side it rises to), hip (Walmdach; a square gives a Zeltdach), mansard (pitch up to rise= above the eaves, then upper=; ridge=x|y gables the ends), flat (knee= is its underside). knee: underside of the rafters at the outer face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the outer wall face) and ridge height.
 
 `roof <id> <level> <type> <shape>` · ids `rf1`, `rf2`, … assigned by UEA
 
@@ -305,10 +305,13 @@ A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are on
 |---|---|---|---|
 | level | positional |  | storey the roof sits on |
 | type | positional |  | roof type |
-| shape | positional | `gable` `shed` `hip` | gable, shed or hip |
-| ridge | `ridge=` | `x` `y` | ridge direction of a gable roof |
+| shape | positional | `gable` `shed` `hip` `mansard` `flat` | gable, shed, hip, mansard or flat |
+| ridge | `ridge=` | `x` `y` | ridge direction of a gable or mansard roof |
 | up | `up=` | `n` `s` `e` `w` | side a shed roof rises to |
-| pitch | `pitch=` | ° | roof pitch (required) |
+| pitch | `pitch=` | ° | roof pitch, of a mansard below the break; not for flat |
+| halfhip | `halfhip=` | m | horizontal run of the hipped ends of a gable roof |
+| upper | `upper=` | ° | pitch of a mansard roof above the break |
+| rise | `rise=` | m | height of a mansard roof's break above the eaves |
 | knee | `knee=` | m | rafter underside at the eaves wall's outer face, above the SSL |
 | eave | `eave=` | m | overhang at the eaves |
 | verge | `verge=` | m | overhang at the verge |
@@ -430,6 +433,7 @@ E is an error, W a warning.
 | E-ARCH-040 | roof without an outline |
 | W-ARCH-041 | roof outline is not a rectangle |
 | W-ARCH-042 | part of the outline is under no roof |
+| E-ARCH-043 | roof shape does not fit its rectangle |
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 

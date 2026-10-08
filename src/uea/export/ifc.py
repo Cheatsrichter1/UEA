@@ -32,11 +32,25 @@ from uea.core.values import Layers
 from uea.derive import Derived
 from uea.geom import Lin, Part, halfplane, polys, union_pieces
 from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, StairGeo, StairPartGeo, WallGeo
-from uea.packs.arch.kinds import Door, DoorType, Room, Win, WinType
+from uea.packs.arch.kinds import Door, DoorType, Roof, Room, Win, WinType
 
 NS = uuid.UUID("6f1d2a8e-3c4b-5d6e-8f90-a1b2c3d4e5f6")
 STATUS = {"new": "NEW", "existing": "EXISTING", "demolish": "DEMOLISH", "temp": "TEMPORARY"}
 Entity = Any
+
+
+def roof_type(el: Roof) -> str:
+    """The IfcRoofTypeEnum of a roof."""
+    if el.shape == "gable" and el.halfhip is not None:
+        return "HIPPED_GABLE_ROOF"
+    if el.shape == "mansard":
+        return "GAMBREL_ROOF" if el.ridge is not None else "MANSARD_ROOF"
+    return {
+        "gable": "GABLE_ROOF",
+        "shed": "SHED_ROOF",
+        "hip": "HIP_ROOF",
+        "flat": "FLAT_ROOF",
+    }[el.shape]
 
 
 class Writer:
@@ -404,8 +418,9 @@ class Writer:
 
     def roof(self, rf: RoofGeo) -> None:
         el = self.d.model[rf.id]
+        assert isinstance(el, Roof)
         lv = self.g.levels[rf.level]
-        shape = {"gable": "GABLE_ROOF", "shed": "SHED_ROOF", "hip": "HIP_ROOF"}[rf.shape]
+        shape = roof_type(el)
         roof = self.entity("IfcRoof", rf.id, rf.id, shape)
         self._common(roof, rf.id, el.label)
         roof.ObjectPlacement = self.placement(self.storeys[rf.level].ObjectPlacement)
@@ -419,7 +434,7 @@ class Writer:
             s = self.entity("IfcSlab", f"{rf.id}/{i}", f"{rf.id}.{i + 1}", "ROOF")
             s.ObjectPlacement = self.placement(roof.ObjectPlacement)
             rel = Lin(plane.a, plane.b, plane.c - lv.z)
-            bottom, top = rel.minus(rf.lining), rel.minus(-rf.skin)
+            bottom, top = rel.minus(rf.lining_of(plane)), rel.minus(-rf.skin_of(plane))
             s.Representation = self.body([self.prism(poly, bottom, top)], "Tessellation")
             parts.append(s)
         if parts:

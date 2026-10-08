@@ -24,6 +24,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0018 | [Walls in any direction](0018-raw-walls.md) | Accepted |
 | 0019 | [Stairs with a landing or winders](0019-stair-shapes.md) | Accepted |
 | 0020 | [Roofs over outlines that are not rectangles](0020-roof-parts.md) | Accepted |
+| 0021 | [Half-hip, mansard and flat roofs](0021-roof-shapes.md) | Accepted |
 
 Template:
 
