@@ -90,8 +90,11 @@ Positions (metres, core faces). anchor±distance; the sign says from which face 
   on=w1         same footprint as w1 (a wall on the wall below)
   at=w4+1,w1+1  a point: x anchor, y anchor
   x=3.2+        raw coordinate (escape hatch)
-Anchors: grids, walls, openings, stairs, separators. Faces: .n .s .e .w, centre .c.
-Walls: one axis is a position, the other a span. Openings: their edge along the wall.
+  a=w4.c,w1.c b=3,5.5  wall in any direction: its axis from point a to point b
+  s=1.2+        opening in such a wall: from its start a (s=d1+0.5: from an opening)
+Anchors: grids, walls, openings, stairs, separators. Faces: .n .s .e .w, centre .c; a wall at an
+angle has .l .r (left, right of a to b) and no x=/y= anchors. Walls: a position and a span, or
+a=/b=. Openings: their edge along the wall.
 Heights: a level's z is its FFL (finished floor level, OKFF; ±0.00 = FFL of the ground
 storey). Its SSL (structural slab level, OK Rohdecke) = z - fb. Windows hang from the
 level's head= (head height, Sturzhöhe); sill= only if one deviates. Doors stand on the FFL.

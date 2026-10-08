@@ -76,7 +76,7 @@ The exact graph is fixed per pack and checked by the core. It must stay acyclic.
 
 ## 3. Model principles
 
-1. **Intent over coordinates.** Walls run between grid points or relative to other walls (for example at a distance from another wall's face), openings sit at a distance along their host wall, sockets sit on a wall at a height, rooms are bounded by walls. A solver derives the actual geometry. Raw coordinates are the escape hatch for drafted elements and the normal case for imported ones (§9).
+1. **Intent over coordinates.** Walls run between grid points or relative to other walls (for example at a distance from another wall's face), openings sit at a distance along their host wall, sockets sit on a wall at a height, rooms are bounded by walls. A solver derives the actual geometry. Raw coordinates are the escape hatch for drafted elements and the normal case for imported ones (§9); walls in any direction are placed by their axis from point a to point b (`docs/decisions/0018-raw-walls.md`).
 2. **Derived, never stored.** Areas, lengths, volumes, joins and cable lengths are computed on demand. Only decisions are stored.
 3. **Datums.** Plan positions are core faces (the faces of a type's core layer, the German Rohbau); finished sizes are derived from the other layers (plaster, screed, linings), and both are available everywhere. Heights count from the storey's FFL, its finished floor level. Windows hang from the storey's head height. See `docs/decisions/0012-datums-and-positions.md`.
 4. **Types and instances.** An instance references a type (`AW-365`, `NYM-J3x1.5`). Types come from the pack's catalogue or are defined in the project file. Changing a type changes every instance.
@@ -265,7 +265,7 @@ Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>`
 
 - Buildings are mostly extrusions. UEA uses 2D plan geometry (Shapely) plus heights, and builds simple 3D bodies only for export and rendering.
 - Wall joins, room boundaries, opening voids and device positions are derived from intent. Rooms are the free regions between walls and separators around their seed point (`docs/decisions/0015-rooms-and-finishes.md`).
-- Roofs are where plain extrusion stops: pitched roof planes cut the walls below them (gables, knee walls) and set the clear height of the rooms under them, which the Wohnfläche depends on. UEA handles this with plane cuts on the extruded bodies, still without a general geometry kernel (`docs/decisions/0016-roofs.md`).
+- Roofs are where plain extrusion stops: pitched roof planes cut the walls below them (gables, knee walls) and set the clear height of the rooms under them, which the Wohnfläche depends on. UEA handles this with plane cuts on the extruded bodies, still without a general geometry kernel (`docs/decisions/0016-roofs.md`, `0020-roof-parts.md`: one roof per wing for L-, T- and U-shaped houses).
 - No general geometry kernel. Anything that needs real solids (mechanical parts, see `FUTURE.md`) goes into a separate pack on an existing kernel.
 
 ## 11. Tech stack

@@ -22,12 +22,22 @@ def el(text: str):  # type: ignore[no-untyped-def]
         "wall w1 EG AW-365 y=S+ x=W..E lb",
         "wall w4 EG AW-365 x=W+ y=w1..w3 lb",
         "wall w8 OG AW-365 on=w1 lb existing",
+        "wall w9 EG AW-365 a=1,1 b=4.5,5 lb",
+        "wall w9 EG AW-365 a=w4.c,w1.c b=E-1,N+0.5 top=rf1",
         "door d1 w2 1.135x2.26 y=w5+0.385 into=r5 hand=l type=TH-1",
         "win f2 w4 1.26x1.135 y=S+1.76",
+        "win f3 w9 1x1 s=d1+0.5",
+        "door d2 w9 0.9x2.01 s=1.2+ into=r1 hand=r",
         "niche ni1 w5.n 0.6x0.75 x=w7+0.4 sill=0.3 d=0.11",
         "void v1 sl2 over=st1",
         "roof rf1 DB DA-25 gable ridge=x pitch=25 knee=0.2 eave=0.5 verge=0.3",
+        "roof rf2 DB DA-25 hip pitch=30 x=W..m2 y=S..N",
+        "roof rf3 DB DA-25 gable ridge=y pitch=40 halfhip=1.5",
+        "roof rf4 DB DA-25 mansard ridge=x pitch=70 upper=25 rise=2.5",
+        "roof rf5 DB DA-25 flat knee=2.8 eave=0.3",
         "stair st1 EG OG x=w2-1.125 y=w3- up=w w=1 n=16 tread=0.26",
+        "stair st2 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 shape=l turn=r n1=7 winders=3",
+        "stair st3 EG OG x=1+ y=1+ up=e w=0.9 n=18 tread=0.27 shape=u turn=l gap=0.15",
         'room r1 EG kitchen "Küche" at=w4+1,w1+1 floor=FB-fli',
         'req q1 heat w5 "Nische" done=13',
         'waive wv1 W-ELEC-010 r5 "Wunsch Bauherr" by=elektroplaner',
@@ -63,6 +73,15 @@ def test_label_goes_after_positionals() -> None:
         ("type X wall layers=a:0.1", "core layer"),
         ("type X cable", "unknown category"),
         ("roof rf1 DB T gable pitch=30", "needs ridge"),
+        ("roof rf1 DB T hip", "needs pitch="),
+        ("roof rf1 DB T flat pitch=5 knee=2.5", "a flat roof has no pitch"),
+        ("roof rf1 DB T flat", "a flat roof needs knee="),
+        ("roof rf1 DB T hip pitch=30 halfhip=1", "halfhip= is only for gable roofs"),
+        ("roof rf1 DB T gable ridge=x pitch=30 halfhip=0", "halfhip= must be more than 0"),
+        ("roof rf1 DB T mansard pitch=60 rise=2", "needs upper= "),
+        ("roof rf1 DB T mansard pitch=30 upper=40 rise=2", "upper= must be between"),
+        ("roof rf1 DB T hip pitch=30 upper=20 rise=2", "only for mansard roofs"),
+        ("roof rf1 DB T hip pitch=30 ridge=x", "only for gable and mansard roofs"),
         ("niche ni1 w5 0.6x0.75 x=W+1 d=0.1", "host needs a face"),
         ("door d1 w2 1x2", "x= or y="),
         ("req q1 heat w5", "needs its text"),
@@ -104,3 +123,29 @@ wall w2 EG A y=N- x=W..E
         "grid N y=8",
     ]
     assert [line.split()[1] for line in m.pack_text("arch").splitlines()] == ["A", "B", "w2", "w10"]
+
+
+@pytest.mark.parametrize(
+    ("line", "message"),
+    [
+        ("wall w9 EG AW a=1,1", "a= and b= go together"),
+        ("wall w9 EG AW a=1,1 b=2,2 y=S+ x=W..E", "not both"),
+        ("wall w9 EG AW a=1,1 b=2,2 on=w1", "leave out x=, y=, a= and b="),
+        ("win f1 w1 1x1", "x= or y= (wall along that axis), or s="),
+        ("win f1 w1 1x1 x=W+1 s=1+", "x= or y= (wall along that axis), or s="),
+        ("roof rf1 DB DA gable ridge=x pitch=25 x=W..E", "both x= and y= spans, or neither"),
+        ("stair st1 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 shape=l", "needs turn=l or turn=r"),
+        ("stair st1 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 turn=l", "for shape=l and shape=u"),
+        (
+            "stair st1 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 shape=u turn=l winders=3",
+            "winders= (2 to 6) is for shape=l",
+        ),
+        (
+            "stair st1 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 shape=l turn=l n1=15",
+            "n1 must leave",
+        ),
+    ],
+)
+def test_new_forms_reject_nonsense(line: str, message: str) -> None:
+    with pytest.raises(LineError, match=message.replace("(", r"\(").replace(")", r"\)")):
+        el(line)

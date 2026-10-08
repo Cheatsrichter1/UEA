@@ -1,6 +1,7 @@
 """Small 2D helpers on top of Shapely: rectangles, half-planes and linear height fields."""
 
-from collections.abc import Iterable
+import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 import shapely
@@ -108,9 +109,11 @@ def halfplane(g: BaseGeometry, f: Lin) -> BaseGeometry:
         if (fp >= 0) != (fq >= 0):
             t = fp / (fp - fq)
             clipped.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])))
-    if len(clipped) < 3:
+    # a corner exactly on the line is added twice: drop repeats, or the clip polygon is invalid
+    pts = [c for i, c in enumerate(clipped) if math.dist(c, clipped[i - 1]) > 1e-9]
+    if len(pts) < 3:
         return Polygon()
-    return clean(g.intersection(Polygon(clipped)))
+    return clean(g.intersection(Polygon(pts)))
 
 
 def lower_envelope_regions(g: BaseGeometry, fs: list[Lin]) -> list[tuple[Lin, BaseGeometry]]:
@@ -131,22 +134,109 @@ def lower_envelope_regions(g: BaseGeometry, fs: list[Lin]) -> list[tuple[Lin, Ba
     return out
 
 
-def min_field_at_least(g: BaseGeometry, fs: list[Lin], h: float) -> BaseGeometry:
-    """The part of g where min(fs) >= h."""
-    part = g
-    for f in fs:
-        part = halfplane(part, f.minus(h))
-    return part
+@dataclass(frozen=True, slots=True)
+class Part:
+    """A height field that exists over `foot` and is the lowest of its planes."""
+
+    foot: Polygon
+    planes: tuple[Lin, ...]
+
+    def at(self, x: float, y: float) -> float:
+        return min(p(x, y) for p in self.planes)
 
 
-def integrate_min(g: BaseGeometry, fs: list[Lin]) -> float:
-    """Integral of max(0, min(fs)) over g (exact for linear pieces)."""
-    pos = min_field_at_least(g, fs, 0.0)
-    total = 0.0
-    for f, part in lower_envelope_regions(pos, fs):
-        c = part.centroid
-        total += part.area * f(c.x, c.y)
-    return total
+Piece = tuple[Lin, Polygon]
+"""A polygon over which a height field is the plane `Lin`."""
+
+
+def part_pieces(part: Part, g: BaseGeometry) -> list[Piece]:
+    region = clean(g.intersection(part.foot))
+    if region.is_empty:
+        return []
+    return [
+        (f, p) for f, geo in lower_envelope_regions(region, list(part.planes)) for p in polys(geo)
+    ]
+
+
+def union_pieces(parts: Sequence[Part], g: BaseGeometry) -> list[tuple[int, Lin, Polygon]]:
+    """Pieces of the highest of the parts over g, each part only where it exists.
+
+    Each piece comes with the index of its part. Where two planes are equal, the part listed
+    first wins.
+    """
+    per = [part_pieces(p, g) for p in parts]
+    out: list[tuple[int, Lin, Polygon]] = []
+    for i, mine in enumerate(per):
+        for f, poly in mine:
+            rest: BaseGeometry = poly
+            for j, theirs in enumerate(per):
+                if i == j:
+                    continue
+                margin = -1e-7 if j < i else 1e-7
+                for f2, poly2 in theirs:
+                    if rest.is_empty:
+                        break
+                    beaten = halfplane(clean(rest.intersection(poly2)), (f2 - f).minus(margin))
+                    if not beaten.is_empty and beaten.area > 0:
+                        rest = clean(rest.difference(beaten))
+            out.extend((i, f, p) for p in polys(rest))
+    return out
+
+
+@dataclass(frozen=True, slots=True)
+class Ceil:
+    """Clear height above the FFL: the lowest of the caps and of the highest roof part.
+
+    A cap is a plane that holds everywhere (the slab above). Roof parts hold where they exist;
+    where several overlap, the highest counts (valleys and hips of a roof with wings).
+    """
+
+    caps: tuple[Lin, ...] = ()
+    parts: tuple[Part, ...] = ()
+
+    def __bool__(self) -> bool:
+        return bool(self.caps or self.parts)
+
+    def pieces(self, g: BaseGeometry) -> list[Piece]:
+        if g.is_empty or not self:
+            return []
+        out: list[Piece] = []
+        outside = g
+        if self.parts:
+            cover = union(p.foot for p in self.parts)
+            for _, f, poly in union_pieces(self.parts, clean(g.intersection(cover))):
+                fs = [f, *self.caps]
+                out.extend(
+                    (h, p) for h, geo in lower_envelope_regions(poly, fs) for p in polys(geo)
+                )
+            outside = clean(g.difference(cover))
+        if self.caps and not outside.is_empty:
+            fs = list(self.caps)
+            out.extend((h, p) for h, geo in lower_envelope_regions(outside, fs) for p in polys(geo))
+        return out
+
+    def flat(self, g: BaseGeometry) -> bool:
+        return all(f.flat for f, _ in self.pieces(g))
+
+    def at_least(self, g: BaseGeometry, h: float) -> BaseGeometry:
+        """The part of g where the clear height is h or more."""
+        return union(halfplane(p, f.minus(h)) for f, p in self.pieces(g))
+
+    def height_range(self, g: BaseGeometry) -> tuple[float, float] | None:
+        vals: list[float] = []
+        for f, p in self.pieces(g):
+            vals.extend(f(x, y) for x, y in p.exterior.coords)
+        if not vals:
+            return None
+        return (max(min(vals), 0.0), max(vals))
+
+    def volume(self, g: BaseGeometry) -> float:
+        total = 0.0
+        for f, p in self.pieces(g):
+            for q in polys(halfplane(p, f), 0.0):
+                c = q.centroid
+                total += q.area * f(c.x, c.y)
+        return total
 
 
 __all__ = [

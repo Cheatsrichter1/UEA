@@ -1,6 +1,6 @@
 # 0016: Roofs as planes over the storey outline
 
-Status: Accepted
+Status: Accepted (roofs over outlines that are not rectangles: `0020-roof-parts.md`; more shapes: `0021-roof-shapes.md`)
 Date: 2026-10-07
 
 ## Context
@@ -9,8 +9,8 @@ Roofs are where plain extrusion stops (`ARCHITECTURE.md` §10). Pitched roof pla
 
 ## Decision
 
-- A roof covers the bounding box of its storey's outline. If the outline is not a rectangle, UEA warns.
-- The rafter underside is a set of planes, one per eave edge. Each plane starts at `knee` above the SSL at the outer wall face and rises inward with the pitch; the roof is their minimum. A `gable` roof has two eave edges (`ridge=x` or `ridge=y`), a `shed` roof one (`up=` is the side it rises to), a `hip` roof four.
+- A roof covers the bounding box of its storey's outline, or the rectangle it is given with `x=` and `y=` (`0020-roof-parts.md`). If the outline is not a rectangle and no rectangle is given, UEA warns.
+- The rafter underside is a set of planes, one per eave edge. Each plane starts at `knee` above the SSL at the outer wall face and rises inward with the pitch; the roof is their minimum. A `gable` roof has two eave edges (`ridge=x` or `ridge=y`), a `shed` roof one (`up=` is the side it rises to), a `hip` roof four. Half-hip, mansard and flat roofs are made from the same planes (`0021-roof-shapes.md`).
 - The overhang is `eave` at eave edges and `verge` at the others.
 - A wall with `top=<roof>` ends at the rafter underside along its centre line. A room under a roof takes the roof's inner surface (rafter underside minus any lining) as its ceiling, together with the flat ceiling of a storey above where there is one.
 - Derived values: the eaves height is the top of the roof skin above the outer wall face, the ridge height the top of the skin at the highest point. Heights under the roof are integrated exactly, piece by piece, for volumes and the WoFlV height zones.
@@ -24,5 +24,5 @@ Roofs are where plain extrusion stops (`ARCHITECTURE.md` §10). Pitched roof pla
 ## Consequences
 
 - Gable, shed and hip roofs over a rectangular house work. Haus Müller gives eaves +6.12 and ridge +8.10, as computed by hand.
-- Roofs with valleys and hips over L-shaped houses, dormers, and a roof that spans two storeys with a knee wall need further work.
+- Roofs over L-shaped houses are several roofs, one per wing (`0020-roof-parts.md`). Dormers and a roof that spans two storeys with a knee wall need further work.
 - The IFC export writes each roof plane as an `IfcSlab` (ROOF) under the `IfcRoof`, and clips gable walls with half-spaces.

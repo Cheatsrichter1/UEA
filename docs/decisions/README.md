@@ -21,6 +21,10 @@ One file per major decision: what was decided, what else was considered, and why
 | 0015 | [Rooms, finished sizes and slab outlines are derived from walls](0015-rooms-and-finishes.md) | Accepted |
 | 0016 | [Roofs as planes over the storey outline](0016-roofs.md) | Accepted |
 | 0017 | [The format is English; exports for humans stay German](0017-english-format.md) | Accepted |
+| 0018 | [Walls in any direction](0018-raw-walls.md) | Accepted |
+| 0019 | [Stairs with a landing or winders](0019-stair-shapes.md) | Accepted |
+| 0020 | [Roofs over outlines that are not rectangles](0020-roof-parts.md) | Accepted |
+| 0021 | [Half-hip, mansard and flat roofs](0021-roof-shapes.md) | Accepted |
 
 Template:
 

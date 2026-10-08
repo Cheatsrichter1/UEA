@@ -72,8 +72,11 @@ Positions (metres, core faces). anchor±distance; the sign says from which face 
   on=w1         same footprint as w1 (a wall on the wall below)
   at=w4+1,w1+1  a point: x anchor, y anchor
   x=3.2+        raw coordinate (escape hatch)
-Anchors: grids, walls, openings, stairs, separators. Faces: .n .s .e .w, centre .c.
-Walls: one axis is a position, the other a span. Openings: their edge along the wall.
+  a=w4.c,w1.c b=3,5.5  wall in any direction: its axis from point a to point b
+  s=1.2+        opening in such a wall: from its start a (s=d1+0.5: from an opening)
+Anchors: grids, walls, openings, stairs, separators. Faces: .n .s .e .w, centre .c; a wall at an
+angle has .l .r (left, right of a to b) and no x=/y= anchors. Walls: a position and a span, or
+a=/b=. Openings: their edge along the wall.
 Heights: a level's z is its FFL (finished floor level, OKFF; ±0.00 = FFL of the ground
 storey). Its SSL (structural slab level, OK Rohdecke) = z - fb. Windows hang from the
 level's head= (head height, Sturzhöhe); sill= only if one deviates. Doors stand on the FFL.
@@ -194,7 +197,7 @@ Door type. A door without type= uses the type marked default.
 
 #### `wall`
 
-A straight wall. One of x=/y= is its position (a core face, e.g. y=S+ or x=w4+2.26), the other its span (x=W..E, y=w1..w3). on= stacks it on a wall below.
+A wall. One of x=/y= is its position (a core face, e.g. y=S+ or x=w4+2.26), the other its span (x=W..E, y=w1..w3); or a=/b=, the points x,y its axis runs between, in any direction. on= stacks it on a wall below.
 
 `wall <id> <level> <type>` · ids `w1`, `w2`, … assigned by UEA
 
@@ -204,6 +207,8 @@ A straight wall. One of x=/y= is its position (a core face, e.g. y=S+ or x=w4+2.
 | type | positional |  | wall type |
 | x | `x=` | m | x position (anchor±d) or span (a..b) |
 | y | `y=` | m | y position (anchor±d) or span (a..b) |
+| a | `a=` |  | start of the axis, a point x,y (wall in any direction) |
+| b | `b=` |  | end of the axis, a point x,y (wall in any direction) |
 | on | `on=` |  | same footprint as this wall |
 | top | `top=` |  | roof that cuts the wall's top |
 | h | `h=` | m | height above the SSL, if not up to the slab above |
@@ -223,6 +228,7 @@ A door in a wall. Stands on the FFL. into= is the room it opens into; hand= its 
 | size | positional | m | structural opening width x height (Rohbaurichtmaß) |
 | x | `x=` | m | edge position along a wall running along x |
 | y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
 | sill | `sill=` | m | bottom above the FFL, if not on the floor |
 | into | `into=` |  | room the leaf opens into |
 | hand | `hand=` | `l` `r` | handing: l or r, seen from the into room |
@@ -241,6 +247,7 @@ A window in a wall. It hangs from the storey's head height (head=); sill= only i
 | size | positional | m | structural opening width x height (Rohbaurichtmaß) |
 | x | `x=` | m | edge position along a wall running along x |
 | y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
 | sill | `sill=` | m | sill height above the FFL, if not from head |
 | type | `type=` |  | window type; default type if left out |
 | status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
@@ -257,6 +264,7 @@ A niche in one face of a wall (host w5.n), d deep.
 | size | positional | m | structural opening width x height (Rohbaurichtmaß) |
 | x | `x=` | m | edge position along a wall running along x |
 | y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
 | sill | `sill=` | m | bottom above the FFL |
 | d | `d=` | m | depth into the wall (required) |
 | status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
@@ -289,7 +297,7 @@ An opening in a slab: over a stair (over=st1) or given by x= and y= spans.
 
 #### `roof`
 
-A roof over a storey's outline. gable (Satteldach, ridge=x|y), shed (Pultdach, up= the side it rises to), hip (Walmdach). knee: underside of the rafters at the outer face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the outer wall face) and ridge height.
+A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof: L, T). gable (Satteldach, ridge=x|y; halfhip=<run> hips the ends, Krüppelwalm), shed (Pultdach, up= the side it rises to), hip (Walmdach; a square gives a Zeltdach), mansard (pitch up to rise= above the eaves, then upper=; ridge=x|y gables the ends), flat (knee= is its underside). knee: underside of the rafters at the outer face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the outer wall face) and ridge height.
 
 `roof <id> <level> <type> <shape>` · ids `rf1`, `rf2`, … assigned by UEA
 
@@ -297,18 +305,23 @@ A roof over a storey's outline. gable (Satteldach, ridge=x|y), shed (Pultdach, u
 |---|---|---|---|
 | level | positional |  | storey the roof sits on |
 | type | positional |  | roof type |
-| shape | positional | `gable` `shed` `hip` | gable, shed or hip |
-| ridge | `ridge=` | `x` `y` | ridge direction of a gable roof |
+| shape | positional | `gable` `shed` `hip` `mansard` `flat` | gable, shed, hip, mansard or flat |
+| ridge | `ridge=` | `x` `y` | ridge direction of a gable or mansard roof |
 | up | `up=` | `n` `s` `e` `w` | side a shed roof rises to |
-| pitch | `pitch=` | ° | roof pitch (required) |
+| pitch | `pitch=` | ° | roof pitch, of a mansard below the break; not for flat |
+| halfhip | `halfhip=` | m | horizontal run of the hipped ends of a gable roof |
+| upper | `upper=` | ° | pitch of a mansard roof above the break |
+| rise | `rise=` | m | height of a mansard roof's break above the eaves |
 | knee | `knee=` | m | rafter underside at the eaves wall's outer face, above the SSL |
 | eave | `eave=` | m | overhang at the eaves |
 | verge | `verge=` | m | overhang at the verge |
+| x | `x=` | m | x span of the rectangle it covers, if not the outline |
+| y | `y=` | m | y span of the rectangle it covers, if not the outline |
 | status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
 
 #### `stair`
 
-A straight single-flight stair from one storey to another. x=/y= place its footprint like a wall; up= is the direction it climbs; n risers, run (n-1) x tread.
+A stair between two storeys: straight, or shape=l|u (quarter, half turn) with a landing, or winders=. x=/y= place its footprint like a wall; up= is the direction the first flight climbs; n risers, n-1 treads.
 
 `stair <id> <level> <to>` · ids `st1`, `st2`, … assigned by UEA
 
@@ -318,10 +331,15 @@ A straight single-flight stair from one storey to another. x=/y= place its footp
 | to | positional |  | storey it arrives at |
 | x | `x=` | m | x position of the footprint (required) |
 | y | `y=` | m | y position of the footprint (required) |
-| up | `up=` | `n` `s` `e` `w` | direction it climbs (required) |
+| up | `up=` | `n` `s` `e` `w` | direction the first flight climbs (required) |
 | w | `w=` | m | width (required) |
 | n | `n=` |  | number of risers (required) |
 | tread | `tread=` | m | tread depth (required) |
+| shape | `shape=` | `straight` `l` `u` | straight, l (quarter turn), u (half turn) |
+| turn | `turn=` | `l` `r` | which way the second flight turns, seen while climbing |
+| n1 | `n1=` |  | risers of the first flight, up to the turn (default: half) |
+| winders | `winders=` |  | winder treads in the turn instead of a landing (shape l) |
+| gap | `gap=` | m | well between the two flights, shape u (default 0.1) |
 | status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
 
 #### `sep`
@@ -414,6 +432,8 @@ E is an error, W a warning.
 | W-ARCH-035 | stair not inside a room |
 | E-ARCH-040 | roof without an outline |
 | W-ARCH-041 | roof outline is not a rectangle |
+| W-ARCH-042 | part of the outline is under no roof |
+| E-ARCH-043 | roof shape does not fit its rectangle |
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 

@@ -2,9 +2,12 @@
 
 from collections.abc import Iterable
 
+from shapely.geometry import Point as SPoint
+
 from uea.core.issues import Issue
 from uea.derive import Derived
 from uea.fmt import ar, ln
+from uea.geom import union
 from uea.packs.arch.geometry import ArchGeo
 from uea.packs.arch.kinds import Door, FloorType, Room, Win
 
@@ -31,6 +34,8 @@ CODES: dict[str, str] = {
     "W-ARCH-035": "stair not inside a room",
     "E-ARCH-040": "roof without an outline",
     "W-ARCH-041": "roof outline is not a rectangle",
+    "W-ARCH-042": "part of the outline is under no roof",
+    "E-ARCH-043": "roof shape does not fit its rectangle",
     "W-ARCH-050": "two default types in one category",
     "W-ARCH-051": "door or window without type and no default type",
 }
@@ -137,7 +142,14 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
         for b in ws[i + 1 :]:
             if b.level != a.level or not b.active:
                 continue
-            ov = a.poly.intersection(b.poly).area
+            overlap = a.core.intersection(b.core)
+            if (a.raw or b.raw) and not overlap.is_empty:
+                # raw walls meet on their axes and overlap there by design
+                joins = union(
+                    SPoint(*pt).buffer(a.t + b.t) for w in (a, b) if w.raw for pt in w.end_points()
+                )
+                overlap = overlap.difference(joins)
+            ov = overlap.area
             if ov > 1e-4:
                 add(
                     "E-ARCH-011",
