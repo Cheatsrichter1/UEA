@@ -42,7 +42,7 @@ Still open for phase 1:
 
 ### Phase 2: where it stands
 
-The design is `docs/decisions/0022-plans-and-tables.md`. Built: the XLSX tables (`uea export xlsx [level]`): rooms, walls, openings, slabs, roofs, stairs and quantities per type, in German. Next, in this order: the floor plan per storey as DXF and PDF in German drafting conventions (scale, line weights, hatches, dimension chains, room stamps, title block), then sections, then elevations.
+The design is `docs/decisions/0022-plans-and-tables.md`. Built: the XLSX tables (`uea export xlsx [level]`): rooms, walls, openings, slabs, roofs, stairs and quantities per type, in German. The floor plan sheet per storey (`uea export pdf|dxf|svg|png [level]`): A3 1:100 or the first sheet and scale that fit, cut walls with real openings, door swings and window symbols, stairs, room stamps, three dimension chains per side, grid axes, an unsigned title block; DXF in mm on German layers. Next, in this order: sections, then elevations. Open on the plan: a north arrow (needs a north direction in the project), roof outlines, dashed windows above the cut plane, notches in an L-shaped facade, client and author fields for the title block.
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 

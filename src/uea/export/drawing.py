@@ -1,12 +1,18 @@
-"""A neutral 2D drawing: polygons, lines, arcs and text in plan metres.
+"""A neutral 2D drawing: polygons, lines, arcs, circles and text in plan metres.
 
-Plans are built once as a Drawing and rendered to SVG and PNG (later DXF and PDF), so every
-output shows the same thing.
+Plans are built once as a Drawing and rendered to SVG, PNG, DXF and PDF, so every output shows
+the same thing. A drawing with a `Sheet` is a sheet of paper at a scale (a plan to print): pen
+widths and text sizes are then metres at that scale, and the renderers cut the view to the
+paper.
 """
 
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PIL import Image, ImageFont
 
 Pt = tuple[float, float]
 
@@ -49,6 +55,15 @@ class Arc:
 
 
 @dataclass
+class Circle:
+    c: Pt
+    r: float
+    pen: Pen
+    fill: str | None = None
+    layer: str = "0"
+
+
+@dataclass
 class Text:
     at: Pt
     text: str
@@ -56,22 +71,58 @@ class Text:
     """Height in metres."""
     color: str = "#000000"
     anchor: str = "middle"
+    """Horizontal anchor of the baseline point `at`: start, middle or end."""
     bold: bool = False
     layer: str = "0"
+    rot: float = 0.0
+    """Rotation in degrees, counter-clockwise."""
 
 
-Item = Poly | Line | Arc | Text
+Item = Poly | Line | Arc | Circle | Text
+
+
+@dataclass(frozen=True)
+class Sheet:
+    """A sheet of paper laid over the drawing, at a scale."""
+
+    size: str
+    """Paper format, e.g. A3."""
+    paper: tuple[float, float]
+    """Width and height in mm, landscape."""
+    scale: int
+    """The drawing is 1:scale on paper."""
+    origin: Pt
+    """Where the lower-left corner of the paper lies, in plan metres."""
+
+    def m(self, mm: float) -> float:
+        """A length on paper in mm, as plan metres."""
+        return mm * self.scale / 1000
+
+    def mm(self, m: float) -> float:
+        """A length in plan metres, as mm on paper."""
+        return m * 1000 / self.scale
+
+    def pt(self, x_mm: float, y_mm: float) -> Pt:
+        """A point on paper (mm from the lower-left corner), as plan metres."""
+        return (self.origin[0] + self.m(x_mm), self.origin[1] + self.m(y_mm))
+
+    def bounds(self) -> tuple[float, float, float, float]:
+        x0, y0 = self.origin
+        return (x0, y0, x0 + self.m(self.paper[0]), y0 + self.m(self.paper[1]))
 
 
 @dataclass
 class Drawing:
     title: str
     items: list[Item] = field(default_factory=list[Item])
+    sheet: Sheet | None = None
 
     def add(self, item: Item) -> None:
         self.items.append(item)
 
     def bounds(self) -> tuple[float, float, float, float]:
+        if self.sheet is not None:
+            return self.sheet.bounds()
         xs: list[float] = []
         ys: list[float] = []
         for it in self.items:
@@ -81,7 +132,7 @@ class Drawing:
             elif isinstance(it, Line):
                 xs += [it.a[0], it.b[0]]
                 ys += [it.a[1], it.b[1]]
-            elif isinstance(it, Arc):
+            elif isinstance(it, Arc | Circle):
                 xs += [it.c[0] - it.r, it.c[0] + it.r]
                 ys += [it.c[1] - it.r, it.c[1] + it.r]
             else:
@@ -96,10 +147,22 @@ def _esc(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def to_svg(dw: Drawing, scale: float = 50.0, margin: float = 1.0) -> str:
+PX_PER_MM = 96 / 25.4
+"""Pixels per mm of paper when a sheet is drawn at 96 dpi."""
+
+
+def _view(dw: Drawing, scale: float, margin: float) -> tuple[float, float, float, float, float]:
+    """Plan bounds with margin, the pixel scale and the height of the title strip (pixels)."""
     x0, y0, x1, y1 = dw.bounds()
-    x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
-    w, h = (x1 - x0) * scale, (y1 - y0) * scale + 30
+    if dw.sheet is not None:
+        return x0, y0, x1, y1, PX_PER_MM * 1000 / dw.sheet.scale
+    return x0 - margin, y0 - margin, x1 + margin, y1 + margin, scale
+
+
+def to_svg(dw: Drawing, scale: float = 50.0, margin: float = 1.0) -> str:
+    x0, y0, x1, y1, scale = _view(dw, scale, margin)
+    foot = 0 if dw.sheet is not None else 30
+    w, h = (x1 - x0) * scale, (y1 - y0) * scale + foot
 
     def X(x: float) -> float:
         return (x - x0) * scale
@@ -132,6 +195,12 @@ def to_svg(dw: Drawing, scale: float = 50.0, margin: float = 1.0) -> str:
                 f'<line x1="{X(it.a[0]):.1f}" y1="{Y(it.a[1]):.1f}" x2="{X(it.b[0]):.1f}"'
                 f' y2="{Y(it.b[1]):.1f}" {pen(it.pen)}/>'
             )
+        elif isinstance(it, Circle):
+            fill = it.fill or "none"
+            out.append(
+                f'<circle cx="{X(it.c[0]):.1f}" cy="{Y(it.c[1]):.1f}" r="{it.r * scale:.1f}"'
+                f' fill="{fill}" {pen(it.pen)}/>'
+            )
         elif isinstance(it, Arc):
             a0, a1 = math.radians(it.a0), math.radians(it.a1)
             sx, sy = it.c[0] + it.r * math.cos(a0), it.c[1] + it.r * math.sin(a0)
@@ -143,13 +212,16 @@ def to_svg(dw: Drawing, scale: float = 50.0, margin: float = 1.0) -> str:
             )
         else:
             weight = ' font-weight="bold"' if it.bold else ""
+            tx, ty = X(it.at[0]), Y(it.at[1])
+            turn = f' transform="rotate({-it.rot:.1f} {tx:.1f} {ty:.1f})"' if it.rot else ""
             for i, line in enumerate(it.text.split("\n")):
                 out.append(
-                    f'<text x="{X(it.at[0]):.1f}" y="{Y(it.at[1]) + i * it.size * scale * 1.2:.1f}"'
+                    f'<text x="{tx:.1f}" y="{ty + i * it.size * scale * 1.2:.1f}"'
                     f' font-size="{it.size * scale:.1f}" fill="{it.color}"'
-                    f' text-anchor="{it.anchor}"{weight}>{_esc(line)}</text>'
+                    f' text-anchor="{it.anchor}"{weight}{turn}>{_esc(line)}</text>'
                 )
-    out.append(f'<text x="8" y="{h - 10:.0f}" font-size="14">{_esc(dw.title)}</text>')
+    if dw.sheet is None:
+        out.append(f'<text x="8" y="{h - 10:.0f}" font-size="14">{_esc(dw.title)}</text>')
     out.append("</svg>")
     return "\n".join(out)
 
@@ -157,10 +229,10 @@ def to_svg(dw: Drawing, scale: float = 50.0, margin: float = 1.0) -> str:
 def to_png(dw: Drawing, path: Path, max_px: int = 1400, margin: float = 1.0) -> tuple[int, int]:
     from PIL import Image, ImageDraw, ImageFont
 
-    x0, y0, x1, y1 = dw.bounds()
-    x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
+    x0, y0, x1, y1, _ = _view(dw, 1.0, margin)
     scale = max_px / max(x1 - x0, y1 - y0)
-    w, h = round((x1 - x0) * scale), round((y1 - y0) * scale) + 30
+    foot = 0 if dw.sheet is not None else 30
+    w, h = round((x1 - x0) * scale), round((y1 - y0) * scale) + foot
     img = Image.new("RGB", (w, h), "white")
     dr = ImageDraw.Draw(img)
 
@@ -219,6 +291,15 @@ def to_png(dw: Drawing, path: Path, max_px: int = 1400, margin: float = 1.0) -> 
                         seg(a, b, it.pen)
         elif isinstance(it, Line):
             seg(it.a, it.b, it.pen)
+        elif isinstance(it, Circle):
+            cx, cy = P(it.c)
+            rr = it.r * scale
+            dr.ellipse(
+                [cx - rr, cy - rr, cx + rr, cy + rr],
+                fill=it.fill,
+                outline=it.pen.color,
+                width=max(1, round(it.pen.width * scale)),
+            )
         elif isinstance(it, Arc):
             cx, cy = P(it.c)
             rr = it.r * scale
@@ -231,12 +312,44 @@ def to_png(dw: Drawing, path: Path, max_px: int = 1400, margin: float = 1.0) -> 
                 width=max(1, round(it.pen.width * scale)),
             )
         else:
-            px = max(9, round(it.size * scale))
+            px = max(6 if dw.sheet is not None else 9, round(it.size * scale))
             f = font(px, it.bold)
             x, y = P(it.at)
             for i, line in enumerate(it.text.split("\n")):
                 anchor = {"middle": "ms", "start": "ls", "end": "rs"}[it.anchor]
-                dr.text((x, y + i * px * 1.2), line, fill=it.color, font=f, anchor=anchor)
-    dr.text((8, h - 22), dw.title, fill="black", font=font(14, False))
+                if it.rot:
+                    _turned_text(img, (x, y + i * px * 1.2), line, f, px, it)
+                else:
+                    dr.text((x, y + i * px * 1.2), line, fill=it.color, font=f, anchor=anchor)
+    if dw.sheet is None:
+        dr.text((8, h - 22), dw.title, fill="black", font=font(14, False))
     img.save(path)
     return w, h
+
+
+def _turned_text(
+    img: "Image.Image",
+    at: Pt,
+    line: str,
+    f: "ImageFont.FreeTypeFont | ImageFont.ImageFont",
+    size: int,
+    it: Text,
+) -> None:
+    """Draw text turned by it.rot degrees so that its baseline anchor lands on `at`."""
+    from PIL import Image, ImageDraw
+
+    width = f.getlength(line)
+    pad = 2
+    layer = Image.new("L", (round(width) + 2 * pad, round(size * 1.6) + 2 * pad), 0)
+    base = pad + round(size * 1.15)
+    ImageDraw.Draw(layer).text((pad, base), line, fill=255, font=f, anchor="ls")
+    k = {"start": 0.0, "middle": 0.5, "end": 1.0}[it.anchor]
+    ax, ay = pad + width * k, float(base)
+    turned = layer.rotate(it.rot, expand=True, resample=Image.Resampling.BICUBIC)
+    th = math.radians(it.rot)
+    dx, dy = ax - layer.width / 2, ay - layer.height / 2
+    # rotating counter-clockwise on screen, with y pointing down
+    rx = dx * math.cos(th) + dy * math.sin(th)
+    ry = -dx * math.sin(th) + dy * math.cos(th)
+    px, py = turned.width / 2 + rx, turned.height / 2 + ry
+    img.paste(it.color, (round(at[0] - px), round(at[1] - py)), turned)

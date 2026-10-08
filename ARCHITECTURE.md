@@ -249,9 +249,9 @@ UEA's own exports are views. They are never read back into the model. Humans who
 |---|---|---|
 | IFC4 | IfcOpenShell (LGPL) | Built. Stable GlobalIds derived from project and element id; walls, openings, slabs, roof planes, stairs, spaces with quantities |
 | Plan image | Pillow (MIT-CMU), and SVG | Built. Cheap pictures for agents to check their own layouts, from a neutral 2D drawing |
-| DXF | ezdxf (MIT) | Phase 2. From the same 2D drawing; layer structure per discipline |
+| DXF | ezdxf (MIT) | Built for the floor plan sheet. From the same 2D drawing; mm, German layers per element (`0022-plans-and-tables.md`) |
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
-| PDF plans | reportlab (BSD), from the same 2D drawing | Phase 2. Floor plans, sections and elevations per storey and discipline |
+| PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet; sections and elevations next |
 | XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); sockets and circuits come with the electrical pack |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
@@ -276,7 +276,7 @@ Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>`
 | Schemas and validation | Pydantic v2 |
 | Packaging and tooling | uv, ruff, pytest |
 | Geometry | Shapely |
-| Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl; later ezdxf, reportlab; Blender and DWG converters as separate processes |
+| Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl, ezdxf, reportlab; Blender and DWG converters as separate processes |
 | Licence | Apache-2.0 |
 
 Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) comes in only for measured hot paths, behind the same API (`docs/decisions/0003-python.md`).

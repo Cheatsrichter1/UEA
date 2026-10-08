@@ -14,7 +14,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea check [discipline]", "open issues, requests and waivers"),
     ("uea calc [name] [scope]", "calculators, e.g. calc wofl (help calc)"),
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
-    ("uea export <format> [scope]", "for humans: ifc, xlsx, svg, png (help export)"),
+    ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png (help export)"),
     ("uea log [n]", "recent batches"),
     ("uea help [topic]", "this help, or a topic"),
 )
@@ -120,12 +120,14 @@ norm-compliant. Project calculators live in calc/ (custom).
 """
 
 EXPORT = """\
-uea render <level> [-o file]        plan image (PNG) for you to look at
-uea export ifc [-o file]            IFC4 model for humans and other software
-uea export svg|png [level] [-o f]   plan drawings for humans; all levels if none is given
+uea render <level> [-o file]        working plan (PNG) with element ids, for you to look at
+uea export pdf|dxf [level] [-o f]   floor plan sheet per storey: A3 1:100, dimensions, title
+                                    block left unsigned; all levels if none is given
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
-Files go to out/ unless -o says otherwise; the output names them. Drawings and tables are
-labelled in German, for the people who read them. dxf and pdf come later.
+uea export ifc [-o file]            IFC4 model for humans and other software
+uea export svg|png [level] [-o f]   the same sheet as a picture, to check what the PDF shows
+Files go to out/ unless -o says otherwise; the output names them. Sheets and tables are
+labelled in German, for the people who read them. The title block stays unsigned: a human signs.
 """
 
 
