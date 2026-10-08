@@ -1,8 +1,9 @@
 """Geometry from intent, against hand-computed values.
 
-The box: grids W=0 E=10 S=0 N=8, exterior walls with 0.01 Gips inside, a 0.30 core and 0.02
-Putz outside, placed on the outer grids. So the inside Rohbau runs x 0.3..9.7, y 0.3..7.7
-(9.4 x 7.4 = 69.56 m²) and Fertig x 0.31..9.69, y 0.31..7.69 (9.38 x 7.38 = 69.2244 m²).
+The box: grids W=0 E=10 S=0 N=8, exterior walls with 0.01 plaster inside, a 0.30 core and
+0.02 render outside, placed on the outer grids. So the inside shell runs x 0.3..9.7, y 0.3..7.7
+(9.4 x 7.4 = 69.56 m²) and the finished room x 0.31..9.69, y 0.31..7.69 (9.38 x 7.38 =
+69.2244 m²).
 """
 
 import pytest
@@ -48,7 +49,7 @@ def test_interior_wall_splits_rooms() -> None:
     g = d.arch
     assert (g.walls["w5"].lo, g.walls["w5"].hi) == pytest.approx((4.3, 4.415))
     assert g.walls["w5"].ext is None
-    # r1: x 0.3..4.3; Fertig minus 0.01 on each side
+    # r1: x 0.3..4.3; finished minus 0.01 on each side
     assert g.rooms["r1"].area_fin == pytest.approx(3.98 * 7.38)
     # r2: x 4.415..9.7 = 5.285
     assert g.rooms["r2"].area == pytest.approx(5.285 * 7.4)
@@ -61,7 +62,7 @@ def test_openings() -> None:
         BOX
         + SLABS
         + "wall w5 EG IW x=w4+4 y=w1..w3\n"
-        + "door d1 w5 0.885x2.01 y=w1+1 into=r2 din=l\n"
+        + "door d1 w5 0.885x2.01 y=w1+1 into=r2 hand=l\n"
         + "win f1 w1 1.26x1.26 x=W+1.51\n"
         + "win f2 w1 1x1 x=f1+0.5\n"
         + "win f3 w3 1x1 x=f1.c\n"
@@ -164,7 +165,7 @@ def test_door_into_must_be_next_to_it() -> None:
         BOX
         + SLABS
         + "wall w5 EG IW x=w4+4 y=w1..w3\nwall w6 EG IW y=w1+3 x=w5..w2\n"
-        + "door d1 w5 0.885x2.01 y=w1+1 into=r3 din=l\n"
+        + "door d1 w5 0.885x2.01 y=w1+1 into=r3 hand=l\n"
         + "room r1 EG living at=W+1,S+1\nroom r2 EG bedroom at=E-1,S+1\n"
         + "room r3 EG bath at=E-1,N-1\n"
     )
@@ -196,7 +197,7 @@ wall w1 EG AW y=S+ x=W..E top=rf1
 wall w2 EG AW x=E- y=w1..w3 top=rf1
 wall w3 EG AW y=N- x=W..E top=rf1
 wall w4 EG AW x=W+ y=w1..w3 top=rf1
-roof rf1 EG DA gable ridge=x pitch=45 kn=0.5
+roof rf1 EG DA gable ridge=x pitch=45 knee=0.5
 room r1 EG living at=W+1,S+1
 """
 
@@ -218,7 +219,7 @@ def test_gable_roof() -> None:
         (pytest.approx(7.7), pytest.approx(0.8)),
     ]
     r = d.arch.rooms["r1"]
-    # clear height h(y) = min(0.5 + y, 8.5 - y) over y 0.31..7.69 (Fertig)
+    # clear height h(y) = min(0.5 + y, 8.5 - y) over y 0.31..7.69 (finished)
     assert r.height is None
     assert r.height_range() == (pytest.approx(0.81), pytest.approx(4.5))
     integral = 2 * ((0.5 * 4 + 4**2 / 2) - (0.5 * 0.31 + 0.31**2 / 2))

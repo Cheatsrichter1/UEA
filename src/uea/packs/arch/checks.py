@@ -1,4 +1,4 @@
-"""Architektur validators."""
+"""Architecture validators."""
 
 from collections.abc import Iterable
 
@@ -13,8 +13,8 @@ CODES: dict[str, str] = {
     "E-ARCH-002": "openings overlap in one wall",
     "E-ARCH-003": "opening higher than its wall",
     "E-ARCH-004": "door opens into a room that is not next to it",
-    "W-ARCH-005": "door handing incomplete (into= without din= or the other way round)",
-    "E-ARCH-006": "window sill below OKFF",
+    "W-ARCH-005": "door handing incomplete (into= without hand= or the other way round)",
+    "E-ARCH-006": "window sill below the FFL",
     "E-ARCH-007": "niche as deep as its wall or deeper",
     "E-ARCH-008": "new opening in a demolished wall",
     "W-ARCH-010": "wall without a height yet (no storey or roof above)",
@@ -27,7 +27,7 @@ CODES: dict[str, str] = {
     "W-ARCH-031": "two slabs on one storey",
     "W-ARCH-032": "void outside its slab",
     "W-ARCH-033": "stair runs into a slab without a void",
-    "W-ARCH-034": "stair outside the Schrittmaßregel 2h+a = 0.59-0.65 m",
+    "W-ARCH-034": "stair outside the step rule 2h+a = 0.59-0.65 m (Schrittmaßregel)",
     "W-ARCH-035": "stair not inside a room",
     "E-ARCH-040": "roof without an outline",
     "W-ARCH-041": "roof outline is not a rectangle",
@@ -89,7 +89,7 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
             add(
                 "E-ARCH-006",
                 o.id,
-                f"sill at {ln(o.sill)} is below OKFF",
+                f"sill at {ln(o.sill)} is below the FFL",
                 "make it lower or set sill=",
             )
         if isinstance(el, Door):
@@ -102,12 +102,12 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
                     "point into= at one of them",
                     el.into.id,
                 )
-            if (el.into is None) != (el.din is None):
+            if (el.into is None) != (el.hand is None):
                 add(
                     "W-ARCH-005",
                     o.id,
-                    "has into= without din= or din= without into=",
-                    "give both: into=<room> din=l|r",
+                    "has into= without hand= or hand= without into=",
+                    "give both: into=<room> hand=l|r",
                 )
     for host, ids in by_host.items():
         ids = sorted(ids, key=lambda k: g.openings[k].lo)
@@ -229,11 +229,11 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
         if cat in defaults:
             continue
         for el in m.of_kind(kind):
-            if getattr(el, "typ", None) is None:
+            if getattr(el, "type", None) is None:
                 add(
                     "W-ARCH-051",
                     el.id,
-                    f"has no typ= and there is no default {cat} type",
-                    f"give typ= or mark a {cat} type default",
+                    f"has no type= and there is no default {cat} type",
+                    f"give type= or mark a {cat} type default",
                 )
     return out

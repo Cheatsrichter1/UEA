@@ -16,6 +16,10 @@ The core is domain-neutral, so new domain packs can be added on top of it:
 - **Leistungsverzeichnis and Ausschreibung:** generate the LV from the model and export it as GAEB, for public Vergabe (VOB/A, VgV) and private tenders. Compare the bids that come back.
 - **Fees:** an Honorar calculation per HOAI for the offer.
 
+## Existing buildings
+
+- **Survey into a model:** turn point clouds from a laser scanner, or photos, into a model of the existing building (status `existing`) for conversions and refurbishments.
+
 ## Autonomous office workflows
 
 An agent works the business side, with a human approving every outgoing step:

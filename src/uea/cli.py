@@ -17,13 +17,18 @@ from uea.core.schema import Element, fmt_value, spec
 from uea.core.values import Ref, RefList
 from uea.derive import Derived, Report, report
 from uea.fmt import ar, ids
-from uea.help import help_text
+from uea.help import TOPICS, help_text
 from uea.project import LoadError, NotAProject, Project
 
 FIND_LIMIT = 60
 
 
 class Parser(argparse.ArgumentParser):
+    def __init__(self, *args: Any, **kw: Any) -> None:
+        super().__init__(*args, **kw)
+        self.commands: dict[str, Parser] = {}
+        """The subcommands, for docs/reference.md."""
+
     def error(self, message: str) -> NoReturn:
         sys.stderr.write(f"uea: {message}. See: uea help\n")
         raise SystemExit(2)
@@ -206,7 +211,7 @@ def derived_notes(d: Derived, new_ids: set[str]) -> list[str]:
     lines: list[str] = []
     rooms = [g.rooms[k] for k in sorted(new_ids, key=natural) if k in g.rooms]
     if rooms:
-        lines.append(" ".join(f"{r.id} {ar(r.area_fin)}" for r in rooms) + " m² Fertig")
+        lines.append(" ".join(f"{r.id} {ar(r.area_fin)}" for r in rooms) + " m² fin")
     for k in sorted(new_ids, key=natural):
         s = g.stairs.get(k)
         if s is not None:
@@ -243,7 +248,7 @@ def cmd_help(ctx: Ctx) -> int:
     topic: str | None = ctx.args.topic
     text = help_text(default_registry(), topic)
     if text is None:
-        out(f"no help for {topic!r}. Topics: start ops positions arch codes calc, or a kind")
+        out(f"no help for {topic!r}. Topics: {TOPICS}")
         return 1
     out(text.rstrip())
     return 0
@@ -597,27 +602,28 @@ def build_parser() -> Parser:
         sp.add_argument("-C", metavar="DIR", default=argparse.SUPPRESS)
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
         sp.set_defaults(func=fn)
+        p.commands[name] = sp
         return sp
 
     add("help", cmd_help).add_argument("topic", nargs="?")
     add("version", cmd_version)
     add("init", cmd_init).add_argument("dir")
     add("show", cmd_show).add_argument("scope", nargs="?")
-    add("get", cmd_get).add_argument("ids", nargs="+")
+    add("get", cmd_get).add_argument("ids", nargs="+", metavar="id")
     f = add("find", cmd_find)
     f.add_argument("kind")
     f.add_argument("filters", nargs="*")
-    f.add_argument("--skip", type=int, default=0)
+    f.add_argument("--skip", type=int, default=0, metavar="N")
     f.add_argument("--ids", action="store_true")
     a = add("apply", cmd_apply)
-    a.add_argument("--by")
-    a.add_argument("-m")
+    a.add_argument("--by", metavar="WHO")
+    a.add_argument("-m", metavar="WHY")
     a.add_argument("-f", "--file")
     a.add_argument("--dry-run", action="store_true")
     r = add("revert", cmd_revert)
     r.add_argument("batch", type=int)
-    r.add_argument("--by")
-    r.add_argument("-m")
+    r.add_argument("--by", metavar="WHO")
+    r.add_argument("-m", metavar="WHY")
     add("check", cmd_check).add_argument("discipline", nargs="?")
     add("log", cmd_log).add_argument("n", nargs="?", type=int, default=10)
     c = add("calc", cmd_calc)
@@ -626,11 +632,11 @@ def build_parser() -> Parser:
     rd = add("render", cmd_render)
     rd.add_argument("scope")
     rd.add_argument("view", nargs="?")
-    rd.add_argument("-o", "--out")
+    rd.add_argument("-o", "--out", metavar="FILE")
     ex = add("export", cmd_export)
     ex.add_argument("format")
     ex.add_argument("scope", nargs="?")
-    ex.add_argument("-o", "--out")
+    ex.add_argument("-o", "--out", metavar="FILE")
     return p
 
 

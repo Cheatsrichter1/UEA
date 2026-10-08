@@ -86,7 +86,7 @@ for k in order:
         if name in NAMEFIELDS:
             refs += [x.split(".")[0] for x in v.split(",")]
     for kk, v in el["kv"].items():
-        if kk in {"floor", "src"} or kk == "typ" and el["kind"] in {"door", "win", "lum"}:
+        if kk in {"floor", "src"} or kk == "type" and el["kind"] in {"door", "win", "lum"}:
             refs.append(v)
         elif kk in EXPRKEYS:
             for part in re.split(r",|\.\.|\+(?=[a-z])", v):
@@ -398,11 +398,11 @@ for d in devices.values():
         w = walls[o["host"]]
         rc = rooms[e["kv"]["into"]]["center"]
         if w["o"] == "h":
-            hmin = (e["kv"]["din"] == "l") == (rc[1] < w["pos"][0])
+            hmin = (e["kv"]["hand"] == "l") == (rc[1] < w["pos"][0])
         else:
-            hmin = (e["kv"]["din"] == "l") == (rc[0] > w["pos"][1])
+            hmin = (e["kv"]["hand"] == "l") == (rc[0] > w["pos"][1])
         if (d["along"] < lo) == hmin:
-            problems.append(f"{d['id']} is on the hinge side of {o['id']} (din={e['kv']['din']})")
+            problems.append(f"{d['id']} is on the hinge side of {o['id']} (hand={e["kv"]["hand"]})")
 
 # stair checks
 for k, s in stairs.items():
@@ -537,7 +537,7 @@ def svg_level(lvl, title):
                 face_y = y1 if rc[1] > y1 else y0
                 sgn = 1 if rc[1] > y1 else -1
                 viewer_left_is_minx = sgn < 0  # viewer in room facing the wall
-                hinge_min = (e["kv"]["din"] == "l") == viewer_left_is_minx
+                hinge_min = (e["kv"]["hand"] == "l") == viewer_left_is_minx
                 hx = lo if hinge_min else hi
                 ox_ = hi if hinge_min else lo
                 px_, py_ = hx, face_y + sgn * wd
@@ -548,7 +548,7 @@ def svg_level(lvl, title):
                 face_x = x1 if rc[0] > x1 else x0
                 sgn = 1 if rc[0] > x1 else -1
                 viewer_left_is_miny = sgn > 0  # in room east of wall, facing west: left is -y
-                hinge_min = (e["kv"]["din"] == "l") == viewer_left_is_miny
+                hinge_min = (e["kv"]["hand"] == "l") == viewer_left_is_miny
                 hy = lo if hinge_min else hi
                 oy_ = hi if hinge_min else lo
                 px_, py_ = face_x + sgn * wd, hy

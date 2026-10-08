@@ -343,7 +343,7 @@ class Writer:
 
     def _opening_type(self, el: Any) -> DoorType | WinType | None:
         m = self.d.model
-        typ = getattr(el, "typ", None)
+        typ = getattr(el, "type", None)
         if typ is not None and typ.id in m:
             t = m[typ.id]
             return t if isinstance(t, DoorType | WinType) else None

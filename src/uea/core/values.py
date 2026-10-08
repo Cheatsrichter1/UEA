@@ -242,7 +242,7 @@ class Layer:
 
 @dataclass(frozen=True, slots=True)
 class Layers(Value):
-    """A build-up: `putz:0.015,*ziegel:0.365,putz:0.02`. `*` marks the core layer(s)."""
+    """A build-up: `plaster:0.015,*brick:0.365,render:0.02`. `*` marks the core layer(s)."""
 
     items: tuple[Layer, ...]
 
@@ -256,7 +256,7 @@ class Layers(Value):
             m = _LAYER.match(part)
             if not m:
                 raise ValueError(
-                    f"layer {part!r}: write material:thickness, core with *, e.g. *ziegel:0.365"
+                    f"layer {part!r}: write material:thickness, core with *, e.g. *brick:0.365"
                 )
             t = float(m["t"])
             if t <= 0:

@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** phase 1 in progress. The core and the Architektur pack work: an agent can build, check and calculate the shell of an Einfamilienhaus and export it as IFC. Elektro, TGA and Statik are still designs. See `ROADMAP.md`.
+**Status:** phase 1 in progress. The core and the architecture pack work: an agent can build, check and calculate the shell of an Einfamilienhaus and export it as IFC. Electrical, the other building services and structural are still designs. See `ROADMAP.md`.
 
 ## Why
 
@@ -14,7 +14,7 @@ Engineering software was built for humans clicking buttons. An AI agent driving 
 
 ## Token cost
 
-What it costs an agent to read one complete Einfamilienhaus, with Architektur, Elektro, Heizung, Sanitär and Lüftung (the [Haus Müller prototype](docs/prototype/haus-mueller/README.md), 226 elements):
+What it costs an agent to read one complete Einfamilienhaus, with architecture, electrical, heating, plumbing and ventilation (the [Haus Müller prototype](docs/prototype/haus-mueller/README.md), 226 elements):
 
 | Same house as… | Tokens | vs. UEA |
 |---|---|---|
@@ -23,7 +23,7 @@ What it costs an agent to read one complete Einfamilienhaus, with Architektur, E
 | IFC exported from Revit (estimate) | ~1–5 million | ~250–1,000× |
 | Agent working in Revit via API and screenshots (estimate) | ~0.5–2 million for the whole house | ~100–400× |
 
-Building the Architektur of that house through the CLI, storeys and roof included, takes about 2,400 tokens of commands and UEA output (`bench/results.md`).
+Building the architecture of that house through the CLI, storeys and roof included, takes about 2,400 tokens of commands and UEA output (`bench/results.md`).
 
 The UEA figures are counted with `tiktoken`; the others are rough estimates, not measurements. In UEA a wall is one line; in IFC it takes 20–40 entity lines, and a Revit export adds geometry for every device, quantities and its own property sets. The benchmark in `ROADMAP.md` (phase 5) will measure the comparison properly.
 
@@ -48,7 +48,7 @@ uea apply --by arch-agent -m "Geschosse, Achsen, Typen" <<'EOF'
 + grid E x=10.49
 + grid S y=0
 + grid N y=8.49
-+ type AW-365 wall layers=putz:0.015,*ziegel:0.365,putz:0.02
++ type AW-365 wall layers=plaster:0.015,*brick:0.365,render:0.02
 EOF
 uea apply --by arch-agent -m "Außenwände" <<'EOF'
 + wall @s EG AW-365 y=S+ x=W..E lb
@@ -57,7 +57,7 @@ uea apply --by arch-agent -m "Außenwände" <<'EOF'
 + wall @o EG AW-365 x=E- y=@s..@n lb
 + room _ EG living at=@w+1,@s+1
 EOF
-uea get r1          # Rohbau 9.76x7.76=75.74 | Fertig 9.73x7.73=75.21 | ...
+uea get r1          # shell 9.76x7.76=75.74 | fin 9.73x7.73=75.21 | ...
 uea render EG       # out/plan-EG.png
 uea export ifc      # out/haus.ifc
 ```
@@ -66,7 +66,7 @@ Development: `uv run pytest`, `uv run ruff check`, `uv run pyright`, and `uv run
 
 ## Scope
 
-Buildings first: Architektur, Elektro, Sanitär, Heizung, Lüftung, lighting and Statik, each as a domain pack on a shared core. Later directions are in `FUTURE.md`.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Later directions are in `FUTURE.md`.
 
 ## Docs
 
@@ -81,7 +81,8 @@ Buildings first: Architektur, Elektro, Sanitär, Heizung, Lüftung, lighting and
 | `docs/validation/` | Validation reports of the `norm` calculators |
 | `src/uea/` | The code: core, packs, CLI, calculators, exports |
 | `tests/` | Tests with hand-computed expected values |
-| `bench/` | The token task set and its last results |
+| `docs/reference.md` | Every command, element kind, field and issue code, generated from the code |
+| `bench/` | The token task set and its last results; `bench/agent/` lets an agent build Haus Müller from a brief |
 | `tools/` | Throwaway prototype scripts that check the prototype and generate its plans |
 
 ## Licence

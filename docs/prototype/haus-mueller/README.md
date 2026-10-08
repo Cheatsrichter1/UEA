@@ -8,7 +8,7 @@ Status: draft, 2026-10-07. The syntax will change. Types, cables, protective dev
 
 Two full storeys and a cold Spitzboden under a 25° Satteldach. Masonry, 36,5 cm Ziegel outside, 10,49 × 8,49 m in Oktameter. Heated by an air-to-water heat pump with Fußbodenheizung, ventilated by two pairs of decentral units.
 
-| Room | Fertig m² | | Room | Fertig m² |
+| Room | Finished m² | | Room | Finished m² |
 |---|---|---|---|---|
 | r1 Küche | 15.66 | | r6 Schlafen | 17.83 |
 | r2 Wohnen/Essen | 27.93 | | r7 Kind 1 | 12.79 |
@@ -19,7 +19,7 @@ Two full storeys and a cold Spitzboden under a 25° Satteldach. Masonry, 36,5 cm
 
 Floor areas between finished wall surfaces. Not the Wohnfläche: WoFlV deductions (stair, hole) are a calculator's job.
 
-Elektro: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 switches, 20 luminaires, 3 data outlets, 5 Rauchwarnmelder, feeds for the heat pump, the indoor unit and four fans.
+Electrical: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 switches, 20 luminaires, 3 data outlets, 5 Rauchwarnmelder, feeds for the heat pump, the indoor unit and four fans.
 
 ![EG](exports/grundriss-EG.png)
 ![OG](exports/grundriss-OG.png)
@@ -31,7 +31,7 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | Export | Content |
 |---|---|
 | [Grundrisse](exports/grundriss-EG.png) | EG and OG with every element of every discipline |
-| [Ansichten](exports/ansichten.png) | North, east, south and west elevations, with heights from the roof geometry (First +8,10, Traufe +6,12) |
+| [Ansichten](exports/ansichten.png) | North, east, south and west elevations, with heights from the roof geometry (ridge +8.10, eaves +6.12) |
 | [Elektro EG](exports/elektro-EG.png), [OG](exports/elektro-OG.png) | Installationspläne with simplified DIN EN 60617 symbols, circuits and switching lines. Aus-, Serien-, Wechsel- and Kreuzschaltung are derived from how many switches control each luminaire |
 | [Verteilungsplan](exports/verteilung-b1.png) | Single-line diagram of b1 and its Belegung (6 rows of 12 TE). The phase assignment is derived |
 | [Heizungsschema](exports/heizungsschema.png) | Heat pump, indoor unit, manifolds with FBH loops per room, drinking-water fixtures |
@@ -51,7 +51,7 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | `issues.uea` | 7 | 593 |
 | **Total** | **226** | **8,646** |
 
-`session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks Elektro, a revert, and a calculation that leads to a design change.
+`session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, and a calculation that leads to a design change.
 
 ### Tokens
 
@@ -72,16 +72,16 @@ Decided in `docs/decisions/0012-datums-and-positions.md`; this prototype is the 
 
 ### Datums
 
-- **Plan positions are Rohbau:** the faces of a type's core layer, marked `*` in its layers. Fertigmaß is derived from the other layers.
-- **Heights count from the storey's OKFF.** A level's `z` is its OKFF (±0,00 = OKFF EG). `fb` is the Fußbodenaufbau, so OK Rohdecke = `z − fb`.
-- **Openings** have Rohbaurichtmaße `W x H`. Windows hang from the storey's Sturzhöhe (`level EG ... head=2.26`), so their sill is derived; `sill=` is written only for a window that deviates. Doors stand on OKFF.
-- **Devices:** `z` is the box centre above OKFF. A device's position along its wall is its centre; an opening's position is its edge, as in a Maßkette.
+- **Plan positions are core faces** (Rohbau): the faces of a type's core layer, marked `*` in its layers. Finished sizes are derived from the other layers.
+- **Heights count from the storey's FFL** (OKFF). A level's `z` is its FFL (±0.00 = FFL of the ground storey). `fb` is the floor build-up, so the SSL (OK Rohdecke) = `z − fb`.
+- **Openings** have structural sizes `W x H` (Rohbaurichtmaße). Windows hang from the storey's head height (`level EG ... head=2.26`), so their sill is derived; `sill=` is written only for a window that deviates. Doors stand on OKFF.
+- **Devices:** `z` is the box centre above the FFL. A device's position along its wall is its centre; an opening's position is its edge, as in a dimension chain (Maßkette).
 
 ### Positions
 
 | Expression | Meaning |
 |---|---|
-| `x=w4+2.26` | My −x side is 2.26 beyond w4's +x face; I extend in +x. A clear dimension, as in a Maßkette |
+| `x=w4+2.26` | My −x side is 2.26 beyond w4's +x face; I extend in +x. A clear dimension, as in a dimension chain |
 | `x=E-` | My +x side is on grid E; I extend in −x |
 | `y=w5.n-` | Explicit face: my +y side on w5's north face |
 | `x=d4+0.25` | 0.25 past the + edge of opening d4 |
@@ -124,7 +124,7 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 
 ## What the exercise showed
 
-1. A masonry EFH needs only four grids for its outline. Everything else is placed like a Maßkette: a clear dimension from a wall face.
+1. A masonry EFH needs only four grids for its outline. Everything else is placed like a dimension chain: a clear dimension from a wall face.
 2. The sign in every position (`+` or `−`) is what makes it unambiguous: it says from which face and in which direction.
 3. Name fields and position fields must stay apart. That is why names contain no `-`.
 4. `on=` was needed for every wall stacked on the one below (5 of 17 walls).
@@ -132,13 +132,13 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 6. The review script found its first validator rules: unknown references, a device inside or within 10 cm of an opening, back-to-back boxes in an 11,5 cm wall, and a switch on the hinge side of a door that opens into its room. The model passes all of them.
 7. Six requests came up naturally (two niches, a Durchbruch, core drillings, door handing, Betoneinbaugehäuse for downlights). A request can name several targets (q4).
 8. Every export asked for something the model lacked, and each gap was one small field: the terrain height (`ground=`) for the Ansichten; SLS, SPD and meters on the board for the Verteilungsplan; `src=` links for the Heizungsschema; luminaire types with flux and distribution, plus targets (`illum`), for the Lichtberechnung.
-9. Drawing the door swings in the Elektro plan showed five doors hinged on the side of their light switch. The check became a validator rule. The warning belongs to Elektro, which placed the switches; it asked Architektur to turn the doors (q5), and Architektur did.
+9. Drawing the door swings in the electrical plan showed five doors hinged on the side of their light switch. The check became a validator rule. The warning belongs to Elektro, which placed the switches; it asked Architektur to turn the doors (q5), and Architektur did.
 10. The Lichtberechnung ran the loop the architecture intends: code calculated, variant A missed the target, the agent added four dimmed downlights, code calculated again. The downlights then needed a request to Architektur (q6), because the ceiling is concrete.
 11. The Heizungsschema derives 9 FBH loops for the EG manifold. Whether they fit the 0,60 m niche that heat asked for in q1 is a cross-discipline check that needs manufacturer data.
 
 ## Not in the prototype
 
-- Statik: lintels, Ringanker, Lastabtrag. It needs its own design session with a Tragwerksplaner.
+- Structure: lintels, ring beams, load paths. It needs its own design session with a Tragwerksplaner.
 - Pipe and duct networks, Fallleitung, Grundleitungen, Hausanschluss. Cable routes are derived.
 - Furniture and the kitchen layout; devices are placed directly.
 - Attic access, railings, Außenanlagen, Schnitte. Window sash divisions, Sockel, gutters.
@@ -146,6 +146,6 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 
 ## Decided after the prototype
 
-- Datums, the position grammar, window heads from the storey's Sturzhöhe, the roof's `kn` as a construction value, and names for numeric axes: `docs/decisions/0012-datums-and-positions.md`.
-- `into=` and `din=` are enough to draw every door swing.
+- Datums, the position grammar, window heads from the storey's head height, the roof's `knee` (then `kn`) as a construction value, and names for numeric axes: `docs/decisions/0012-datums-and-positions.md`.
+- `into=` and `hand=` are enough to draw every door swing.
 - A check that involves two disciplines belongs to the downstream one, which asks upstream with a request (`ARCHITECTURE.md` §7).

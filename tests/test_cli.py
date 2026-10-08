@@ -50,6 +50,39 @@ def test_init_and_help(sh: Shell) -> None:
     assert "flags: lb flip existing demolish temp" in sh("help", "wall")[1]
 
 
+def test_help_answers_what_agents_had_to_guess(sh: Shell) -> None:
+    """The first agent run (bench/agent) guessed these; the help must say them."""
+    start = sh("help", "start")[1]
+    assert "+ project " in start and "layers=plaster:0.015,*brick:0.365" in start
+    # project is a pack and a kind; the kind's fields win
+    code, out = sh("help", "project")
+    assert code == 0 and "postcode=" in out and "ground=" in out and "level grid" in out
+    assert "layers=" in sh("help", "type")[1]
+    for topic in ("export", "render"):
+        code, out = sh("help", topic)
+        assert code == 0 and "uea export ifc" in out
+    assert "x=w6-0.135" in sh("help", "positions")[1]
+
+
+def test_format_is_english(sh: Shell) -> None:
+    build(sh)
+    code, out = sh("apply", "--by", "t", "-m", "x", stdin="+ door _ w1 1x2 x=W+1 din=l\n")
+    assert code == 1 and "unknown field 'din'" in out and "hand" in out
+    ops = "+ door _ w1 1x2 x=W+1 into=r1 hand=l type=TI\n"
+    assert sh("apply", "--by", "t", "-m", "x", stdin=ops)[0] == 0
+    out = sh("show", "EG")[1] + sh("get", "r1", "d1")[1]
+    assert "hand=l type=TI" in out
+    for word in ("Fertig", "Rohbau", "Traufe", "First", "OKFF", "rd="):
+        assert word not in out
+
+
+def test_default_type_counts_implicit_users(sh: Shell) -> None:
+    build(sh)
+    sh("apply", "--by", "t", "-m", "x", stdin="+ win _ w1 1x1 x=W+1\n+ win _ w2 1x1 y=S+1\n")
+    assert sh("get", "FE")[1].splitlines()[1] == " used by f1 f2"
+    assert sh("get", "TI")[1].splitlines()[1] == " unused"
+
+
 def test_apply_output(sh: Shell) -> None:
     code, out = sh("apply", "--by", "t", "-m", "setup", stdin=SETUP)
     assert code == 0 and out.startswith("ok batch 1 (project, arch): +")
@@ -57,7 +90,7 @@ def test_apply_output(sh: Shell) -> None:
     assert out.splitlines()[:3] == [
         "ok batch 2 (arch): +5",
         " @s=w1 @o=w2 @n=w3 @w=w4 r1",
-        "r1 69.22 m² Fertig",
+        "r1 69.22 m² fin",
     ]
 
 
@@ -95,9 +128,9 @@ def test_read_commands(sh: Shell) -> None:
     code, out = sh("show")
     assert code == 0 and "EG z=0" in out and "r1 living 69.22" in out
     code, out = sh("show", "EG")
-    assert out.startswith("EG z=0 fb=0.15 rd=-0.15 head=2.26 h=2.75")
+    assert out.startswith("EG z=0 fb=0.15 ssl=-0.15 head=2.26 h=2.75")
     code, out = sh("get", "r1", "w1")
-    assert "Rohbau 9.4x7.4=69.56 | Fertig 9.38x7.38=69.22" in out
+    assert "shell 9.4x7.4=69.56 | fin 9.38x7.38=69.22" in out
     assert "wall w1 EG AW y=S+ x=W..E lb" in out
     assert sh("get", "w99")[0] == 1
     code, out = sh("find", "wall", "ext", "lb")

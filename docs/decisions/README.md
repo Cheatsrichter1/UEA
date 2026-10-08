@@ -18,8 +18,9 @@ One file per major decision: what was decided, what else was considered, and why
 | 0012 | [Datums, positions and openings](0012-datums-and-positions.md) | Accepted (syntax still draft) |
 | 0013 | [Canonical line format](0013-canonical-line-format.md) | Accepted |
 | 0014 | [Operations, history and edits outside UEA](0014-operations-and-history.md) | Accepted |
-| 0015 | [Rooms, Fertigmaß and slab outlines are derived from walls](0015-rooms-and-finishes.md) | Accepted |
+| 0015 | [Rooms, finished sizes and slab outlines are derived from walls](0015-rooms-and-finishes.md) | Accepted |
 | 0016 | [Roofs as planes over the storey outline](0016-roofs.md) | Accepted |
+| 0017 | [The format is English; exports for humans stay German](0017-english-format.md) | Accepted |
 
 Template:
 

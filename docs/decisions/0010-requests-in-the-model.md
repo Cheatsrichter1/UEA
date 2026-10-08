@@ -5,7 +5,7 @@ Date: 2026-10-07
 
 ## Context
 
-References only point upstream, and validators only find what is already wrong. But a downstream discipline often needs something from upstream: Elektro needs space for a Unterverteilung, TGA needs a Schlitz or a Durchbruch, Statik needs a thicker wall. Planning goes round in a circle: each discipline drafts, asks the others, and improves, until nothing is open.
+References only point upstream, and validators only find what is already wrong. But a downstream discipline often needs something from upstream: electrical needs space for a sub-distribution board, plumbing needs a chase or a wall opening, structural needs a thicker wall. Planning goes round in a circle: each discipline drafts, asks the others, and improves, until nothing is open.
 
 ## Decision
 
@@ -22,7 +22,7 @@ waive wv1 W-ELEC-004 s5 "Steckdose neben Tür auf Kundenwunsch" by=elektroplaner
 ## Alternatives
 
 - **Only agent-to-agent chat:** lost when the session ends, invisible to the human, and tied to one agent framework.
-- **Downstream agents edit upstream files:** fast, but breaks file ownership and lets Elektro move walls.
+- **Downstream agents edit upstream files:** fast, but breaks file ownership and lets electrical move walls.
 
 ## Consequences
 

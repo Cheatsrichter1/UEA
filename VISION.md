@@ -50,10 +50,10 @@ UEA starts with buildings and the disciplines of a German planning office:
 
 | Discipline | Examples |
 |---|---|
-| Architektur | Walls, openings, rooms, floors, roofs, stairs, build-ups and materials, interior design |
-| Elektro | Sockets, switches, luminaires, data outlets, circuits, distribution boards, cable sizing |
-| Sanitär, Heizung, Lüftung | Pipe and duct networks, Heizlast, sizing |
-| Statik | Load-bearing structure and structural calculation |
+| Architecture | Walls, openings, rooms, floors, roofs, stairs, build-ups and materials, interior design |
+| Electrical | Sockets, switches, luminaires, data outlets, circuits, distribution boards, cable sizing |
+| Plumbing, heating, ventilation | Pipe and duct networks, Heizlast, sizing |
+| Structural | Load-bearing structure and structural calculation |
 | Lighting (after v1) | Lighting design: atmosphere, luminaire choice, and calculation |
 
 New buildings and Bestand: every element can be marked as existing or to be demolished, so Umbau projects work in the same model.

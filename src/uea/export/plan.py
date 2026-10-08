@@ -82,7 +82,7 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
     assert isinstance(el, Door)
     for s in (o.lo, o.hi):
         dw.add(Line(w.plan_point(s, w.lo), w.plan_point(s, w.hi), THIN, "openings"))
-    if el.into is None or el.din is None:
+    if el.into is None or el.hand is None:
         return
     into = el.into.id
     if o.sides[1] == into:
@@ -94,9 +94,9 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
     face = w.hi if side == "hi" else w.lo
     sgn = 1.0 if side == "hi" else -1.0
     if w.o == "h":
-        hinge_hi = (el.din == "l") == (side == "hi")
+        hinge_hi = (el.hand == "l") == (side == "hi")
     else:
-        hinge_hi = (el.din == "l") == (side == "lo")
+        hinge_hi = (el.hand == "l") == (side == "lo")
     hs, free = (o.hi, o.lo) if hinge_hi else (o.lo, o.hi)
     h = w.plan_point(hs, face)
     e = w.plan_point(hs, face + sgn * o.width)
@@ -116,8 +116,8 @@ def plan(d: Derived, level: str, batch: int | None = None) -> Drawing:
     lv = g.levels[level]
     proj = m.of_kind("project")
     name = (proj[0].label or proj[0].id) if proj else "UEA"
-    state = f", batch {batch}" if batch is not None else ""
-    dw = Drawing(f"{name}: {level} {zz(lv.z)} · Rohbau, m · UEA plan image{state}")
+    state = f", Stand Batch {batch}" if batch is not None else ""
+    dw = Drawing(f"{name}: {level} {zz(lv.z)} · Rohbaumaße in m · UEA{state}")
     walls = [w for w in g.walls.values() if w.level == level]
     # grids
     x0, y0, x1, y1 = (0.0, 0.0, 1.0, 1.0)

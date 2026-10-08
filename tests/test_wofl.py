@@ -24,8 +24,8 @@ room r2 OG bedroom at=W+1,S+1
 room r3 DB attic at=W+1,S+1
 """
 )
-FIN = 9.38 * 7.38  # Fertig area of the box room
-STAIR = 3.9 * (7.69 - 6.7)  # stair x 4.8..8.7, y 6.7..7.7, cut at the Fertig face y = 7.69
+FIN = 9.38 * 7.38  # finished area of the box room
+STAIR = 3.9 * (7.69 - 6.7)  # stair x 4.8..8.7, y 6.7..7.7, cut at the finished face y = 7.69
 
 
 def test_stair_and_hole_are_deducted() -> None:

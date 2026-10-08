@@ -1,12 +1,12 @@
-"""Architektur geometry derived from intent.
+"""Architecture geometry derived from intent.
 
 Walls, openings, stairs and separators are resolved from their positions (anchor±distance,
 spans). Slabs take their outline from the walls below, roofs from their storey's outline.
-Rooms are the regions around their seed points, bounded by walls and separators; Fertigmaß
-subtracts the finish layers of the walls. Heights come from the slab or roof above.
+Rooms are the regions around their seed points, bounded by walls and separators; finished
+sizes subtract the finish layers of the walls. Heights come from the slab or roof above.
 
 Coordinates are global plan metres; heights (`z`, `bottom`, `top` of walls, roof planes) are
-absolute metres relative to ±0.00. Opening sills and tops are relative to the storey's OKFF.
+absolute metres relative to ±0.00. Opening sills and tops are relative to the storey's FFL.
 """
 
 import math
@@ -74,8 +74,8 @@ class LevelGeo:
     above: str | None = None
 
     @property
-    def rd(self) -> float:
-        """OK Rohdecke (absolute)."""
+    def ssl(self) -> float:
+        """Structural slab level, the top of the slab core (absolute)."""
         return self.z - self.fb
 
 
@@ -183,9 +183,9 @@ class OpeningGeo:
     lo: float
     hi: float
     sill: float
-    """Bottom above OKFF."""
+    """Bottom above the FFL."""
     top: float
-    """Top above OKFF."""
+    """Top above the FFL."""
     depth: float
     face: Side | None
     status: str
@@ -227,7 +227,7 @@ class StairGeo:
 
     @property
     def step(self) -> float:
-        """Schrittmaß 2h + a."""
+        """Step length 2h + a (Schrittmaß)."""
         return 2 * self.riser + self.tread
 
 
@@ -254,14 +254,14 @@ class SlabGeo:
     outline: BaseGeometry
     layers: Layers
     top: float
-    """Absolute height of the core's top (the storey's OK Rohdecke)."""
+    """Absolute height of the core's top (the storey's SSL)."""
     status: str
     net: BaseGeometry = field(default_factory=Polygon)
     """Outline minus voids."""
 
     @property
     def underside(self) -> float:
-        """Underside of the core (Rohbau)."""
+        """Underside of the core."""
         return self.top - self.layers.core
 
     @property
@@ -309,12 +309,12 @@ class RoofGeo:
 
     @property
     def eaves_z(self) -> float:
-        """Traufhöhe: top of the roof skin above the outer face of the eaves wall."""
+        """Eaves height: top of the roof skin above the outer face of the eaves wall."""
         return self.base + self.skin
 
     @property
     def ridge_z(self) -> float:
-        """Firsthöhe: top of the roof skin at the ridge (highest point)."""
+        """Ridge height: top of the roof skin at the ridge (highest point)."""
         return self.base + self.slope * self.d_max + self.skin
 
 
@@ -324,12 +324,12 @@ class RoomGeo:
     level: str
     seed: tuple[float, float]
     poly: Polygon
-    """Rohbau outline."""
+    """Shell outline, between core faces."""
     fin: BaseGeometry
-    """Fertig outline (finish layers of the walls removed)."""
+    """Finished outline (finish layers of the walls removed)."""
     bounds: list[str]
     ceiling: list[Lin]
-    """Clear height above OKFF as planes; the height is their minimum. Empty: no ceiling."""
+    """Clear height above the FFL as planes; the height is their minimum. Empty: no ceiling."""
 
     @property
     def area(self) -> float:
@@ -345,7 +345,7 @@ class RoomGeo:
 
     @property
     def height(self) -> float | None:
-        """Clear height (Fertig) if it is the same everywhere."""
+        """Clear height (finished) if it is the same everywhere."""
         if not self.ceiling or not self.flat:
             return None
         return min(p.c for p in self.ceiling)
@@ -370,9 +370,9 @@ class RoomGeo:
             return None
         return integrate_min(self.fin, self.ceiling)
 
-    def dims(self, which: Literal["rohbau", "fertig"]) -> tuple[float, float] | None:
+    def dims(self, which: Literal["shell", "fin"]) -> tuple[float, float] | None:
         """Width and depth if the outline is a rectangle."""
-        g = self.poly if which == "rohbau" else self.fin
+        g = self.poly if which == "shell" else self.fin
         x0, y0, x1, y1 = g.bounds
         if abs((x1 - x0) * (y1 - y0) - g.area) > 1e-6:
             return None
@@ -658,7 +658,7 @@ class Resolver:
                 sill = lvl.head - el.size.h
             else:
                 raise GeoError(
-                    f"{lvl.id} has no Sturzhöhe (head=) and {key} no sill=",
+                    f"{lvl.id} has no head height (head=) and {key} no sill=",
                     f"~ {lvl.id} head=2.26 or ~ {key} sill=0.9",
                 )
         elif isinstance(el, Niche):
@@ -803,7 +803,7 @@ class Resolver:
                 )
                 continue
             self.g.slabs[el.id] = SlabGeo(
-                el.id, lv.id, outline, st.layers, lv.rd, el.status, outline
+                el.id, lv.id, outline, st.layers, lv.ssl, el.status, outline
             )
 
     def _voids(self) -> None:
@@ -881,9 +881,9 @@ class Resolver:
             el = self.m[w.id]
             assert isinstance(el, Wall)
             lv = self.g.levels[w.level]
-            w.bottom = lv.rd
+            w.bottom = lv.ssl
             if el.h is not None:
-                w.top = [(w.s0, lv.rd + el.h), (w.s1, lv.rd + el.h)]
+                w.top = [(w.s0, lv.ssl + el.h), (w.s1, lv.ssl + el.h)]
             elif el.top is not None:
                 roof = self.g.roofs.get(el.top.id)
                 if roof is not None:
@@ -891,7 +891,7 @@ class Resolver:
             elif lv.above is not None:
                 above = self.g.levels[lv.above]
                 slab = self.g.slab_on(above.id)
-                z = slab.underside if slab is not None else above.rd
+                z = slab.underside if slab is not None else above.ssl
                 w.top = [(w.s0, z), (w.s1, z)]
             else:
                 self.d.add(
@@ -988,7 +988,7 @@ class Resolver:
         if lv.above is not None:
             above = self.g.levels[lv.above]
             slab = self.g.slab_on(above.id)
-            z = slab.ceiling if slab is not None else above.rd
+            z = slab.ceiling if slab is not None else above.ssl
             planes.append(Lin(0.0, 0.0, z - lv.z))
         for roof in self.g.roofs.values():
             rl = self.g.levels[roof.level]
@@ -1011,7 +1011,7 @@ def make_roof(
 ) -> RoofGeo:
     t = math.tan(math.radians(el.pitch))
     cos = math.cos(math.radians(el.pitch))
-    base = lv.rd + el.kn
+    base = lv.ssl + el.knee
     # eave edges: (name, inward normal, a point on the edge)
     edges: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
         "s": ((0.0, 1.0), (x0, y0)),

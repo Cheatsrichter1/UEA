@@ -5,7 +5,7 @@ Date: 2026-10-07
 
 ## Context
 
-Elektro and TGA offices rarely start from nothing. They receive the architect's model, usually as IFC, and plan on it, with a new version every few weeks. Without an import, an agent would have to remodel the architecture from plans before it could do any Fachplanung, and UEA could not be used on these offices' real projects.
+Electrical and building services offices rarely start from nothing. They receive the architect's model, usually as IFC, and plan on it, with a new version every few weeks. Without an import, an agent would have to remodel the architecture from plans before it could do any Fachplanung, and UEA could not be used on these offices' real projects.
 
 ## Decision
 
@@ -24,4 +24,4 @@ Elektro and TGA offices rarely start from nothing. They receive the architect's 
 
 - Imported walls do not sit on grids. The model must take raw coordinates as a normal input for imported elements, not only as an escape hatch.
 - Imported elements belong to the architect outside UEA. Requests on them are meant for that architect; exporting them as BCF is the natural format.
-- The import comes right after Elektro in the roadmap (`docs/decisions/0006-pack-order.md`).
+- The import comes right after electrical in the roadmap (`docs/decisions/0006-pack-order.md`).

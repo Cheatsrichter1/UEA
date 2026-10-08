@@ -1,7 +1,8 @@
-"""Short text views of derived Architektur values, for `uea get` and `uea show`."""
+"""Short text views of derived architecture values, for `uea get` and `uea show`."""
 
 from typing import Literal
 
+from uea.core.registry import natural
 from uea.core.schema import Element
 from uea.derive import Derived
 from uea.fmt import ar, ids, iv, ln, zz
@@ -45,13 +46,11 @@ def describe_room(d: Derived, rg: RoomGeo) -> list[str]:
     g = d.arch
     out: list[str] = []
     parts: list[str] = []
-    sizes: tuple[tuple[Literal["rohbau", "fertig"], str], ...] = (
-        ("rohbau", "Rohbau"),
-        ("fertig", "Fertig"),
-    )
-    for which, label in sizes:
+    sizes: tuple[Literal["shell", "fin"], ...] = ("shell", "fin")
+    for which in sizes:
+        label = which
         dims = rg.dims(which)
-        area = rg.area if which == "rohbau" else rg.area_fin
+        area = rg.area if which == "shell" else rg.area_fin
         parts.append(
             f"{label} {ln(dims[0])}x{ln(dims[1])}={ar(area)}" if dims else f"{label} {ar(area)}"
         )
@@ -124,9 +123,7 @@ def describe(d: Derived, el: Element) -> list[str]:
         pos = f"{w.across} {iv(w.lo, w.hi)} {w.along} {iv(w.s0, w.s1)}"
         fin = w.t + w.layers.before_core() + w.layers.after_core()
         kind = "ext" if w.ext else "int"
-        out = [
-            f"{pos} | L {ln(w.length)} t {ln(w.t)} (Fertig {ln(fin)}) | {_wall_height(w)} | {kind}"
-        ]
+        out = [f"{pos} | L {ln(w.length)} t {ln(w.t)} (fin {ln(fin)}) | {_wall_height(w)} | {kind}"]
         faces = _faces(g, w)
         hosts = [o.id for o in g.openings.values() if o.host == w.id]
         line = faces
@@ -171,8 +168,9 @@ def describe(d: Derived, el: Element) -> list[str]:
     if el.kind == "roof" and el.id in g.roofs:
         rf = g.roofs[el.id]
         return [
-            f"outline x {iv(rf.x0, rf.x1)} y {iv(rf.y0, rf.y1)} | eaves {' '.join(rf.eave_edges)}"
-            f" | Traufe {zz(rf.eaves_z)} First {zz(rf.ridge_z)} | rafter underside at eaves"
+            f"outline x {iv(rf.x0, rf.x1)} y {iv(rf.y0, rf.y1)}"
+            f" | eaves on {' '.join(rf.eave_edges)}"
+            f" | eaves {zz(rf.eaves_z)} ridge {zz(rf.ridge_z)} | rafter underside at eaves"
             f" {zz(rf.base)}"
         ]
     if el.kind == "sep" and el.id in g.seps:
@@ -184,6 +182,9 @@ def describe(d: Derived, el: Element) -> list[str]:
         return level_summary(d, el.id)
     if el.kind == "type":
         users = m.referrers(el.id)
+        if getattr(el, "default", False) and el.category is not None:
+            implicit = [o.id for o in m.of_kind(el.category) if getattr(o, "type", None) is None]
+            users = sorted({*users, *implicit}, key=natural)
         layers = getattr(el, "layers", None)
         out: list[str] = []
         if layers is not None:
@@ -214,9 +215,9 @@ def level_summary(d: Derived, level: str) -> list[str]:
     total = sum(rg.area_fin for rg in rooms)
     hs = {round(rg.height, 3) for rg in rooms if rg.height is not None}
     h = f" h={ln(next(iter(hs)))}" if len(hs) == 1 else ""
-    head_line = f"{level} z={ln(lv.z)} fb={ln(lv.fb)} rd={ln(lv.rd)}{head}{h}"
+    head_line = f"{level} z={ln(lv.z)} fb={ln(lv.fb)} ssl={ln(lv.ssl)}{head}{h}"
     parts = " ".join(f"{n} {k}" for k, n in counts.items())
-    out = [f"{head_line} | {parts or 'empty'} | {len(rooms)} room {ar(total)} m² Fertig"]
+    out = [f"{head_line} | {parts or 'empty'} | {len(rooms)} room {ar(total)} m² fin"]
     if rooms:
         items: list[str] = []
         for rg in rooms:
