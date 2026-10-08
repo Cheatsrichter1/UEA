@@ -21,7 +21,7 @@ Place = Annotated[Anchor | Span | None, BeforeValidator(_place)]
 
 def _position_first(el: Element, x: object, y: object) -> tuple[str, ...]:
     """Write the position before the span: y=S+ x=W..E."""
-    rest = tuple(k for k in spec(type(el)).kv if k not in ("x", "y"))
+    rest = tuple(k for k in spec(type(el)).kv if k not in ("x", "y", "a", "b"))
     return ("y", "x", *rest) if isinstance(y, Anchor) else ("x", "y", *rest)
 
 
@@ -107,13 +107,16 @@ class Wall(Element):
     prefix: ClassVar[str | None] = "w"
     positional: ClassVar[tuple[str, ...]] = ("level", "type")
     doc: ClassVar[str] = (
-        "A straight wall. One of x=/y= is its position (a core face, e.g. y=S+ or"
-        " x=w4+2.26), the other its span (x=W..E, y=w1..w3). on= stacks it on a wall below."
+        "A wall. One of x=/y= is its position (a core face, e.g. y=S+ or x=w4+2.26), the other"
+        " its span (x=W..E, y=w1..w3); or a=/b=, the points x,y its axis runs between, in any"
+        " direction. on= stacks it on a wall below."
     )
     level: Annotated[Ref, F("storey", targets=("level",))]
     type: Annotated[Ref, F("wall type", targets=("type:wall",))]
     x: Annotated[Place, F("x position (anchor±d) or span (a..b)", unit="m")] = None
     y: Annotated[Place, F("y position (anchor±d) or span (a..b)", unit="m")] = None
+    a: Annotated[Point | None, F("start of the axis, a point x,y (wall in any direction)")] = None
+    b: Annotated[Point | None, F("end of the axis, a point x,y (wall in any direction)")] = None
     on: Annotated[Ref | None, F("same footprint as this wall", targets=("wall",))] = None
     top: Annotated[Ref | None, F("roof that cuts the wall's top", targets=("roof",))] = None
     h: Annotated[float | None, F("height above the SSL, if not up to the slab above", unit="m")] = (
@@ -125,23 +128,33 @@ class Wall(Element):
 
     @model_validator(mode="after")
     def _check(self) -> Self:
+        raw = self.a is not None or self.b is not None
         if self.on is not None:
-            if self.x is not None or self.y is not None:
-                raise ValueError("on= gives the footprint; leave out x= and y=")
+            if self.x is not None or self.y is not None or raw:
+                raise ValueError("on= gives the footprint; leave out x=, y=, a= and b=")
             return self
-        ok = (isinstance(self.x, Anchor) and isinstance(self.y, Span)) or (
-            isinstance(self.y, Anchor) and isinstance(self.x, Span)
-        )
-        if not ok:
-            raise ValueError(
-                "give a position on one axis and a span on the other, e.g. y=S+ x=W..E,"
-                " or on=<wall>"
+        if raw:
+            if self.a is None or self.b is None:
+                raise ValueError("a= and b= go together: the start and end point of the axis")
+            if self.x is not None or self.y is not None:
+                raise ValueError("give a= and b=, or a position and a span (x=, y=), not both")
+        else:
+            ok = (isinstance(self.x, Anchor) and isinstance(self.y, Span)) or (
+                isinstance(self.y, Anchor) and isinstance(self.x, Span)
             )
+            if not ok:
+                raise ValueError(
+                    "give a position on one axis and a span on the other, e.g. y=S+ x=W..E,"
+                    " or a=<x,y> b=<x,y>, or on=<wall>"
+                )
         if self.h is not None and self.h <= 0:
             raise ValueError("h must be larger than 0")
         return self
 
     def kv_order(self) -> tuple[str, ...]:
+        if self.a is not None:
+            rest = tuple(k for k in spec(type(self)).kv if k not in ("x", "y", "a", "b"))
+            return ("a", "b", *rest)
         return _position_first(self, self.x, self.y)
 
 
@@ -151,16 +164,22 @@ class _Opening(Element):
     size: Annotated[Size, F("structural opening width x height (Rohbaurichtmaß)", unit="m")]
     x: Annotated[Anchor | None, F("edge position along a wall running along x", unit="m")] = None
     y: Annotated[Anchor | None, F("edge position along a wall running along y", unit="m")] = None
+    s: Annotated[
+        Anchor | None, F("edge position along a wall in any direction, from its start a", unit="m")
+    ] = None
 
     @model_validator(mode="after")
     def _one_axis(self) -> Self:
-        if (self.x is None) == (self.y is None):
-            raise ValueError("give its position along the host wall with x= or y=")
+        if sum(v is not None for v in (self.x, self.y, self.s)) != 1:
+            raise ValueError(
+                "give its position along the host wall with x= or y= (wall along that axis),"
+                " or s= (wall in any direction)"
+            )
         return self
 
     @property
     def along(self) -> Anchor:
-        a = self.x if self.x is not None else self.y
+        a = self.x or self.y or self.s
         assert a is not None
         return a
 
@@ -256,10 +275,11 @@ class Roof(Element):
     prefix: ClassVar[str | None] = "rf"
     positional: ClassVar[tuple[str, ...]] = ("level", "type", "shape")
     doc: ClassVar[str] = (
-        "A roof over a storey's outline. gable (Satteldach, ridge=x|y), shed (Pultdach, up="
-        " the side it rises to), hip (Walmdach). knee: underside of the rafters at the outer"
-        " face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height"
-        " (top of the roof skin above the outer wall face) and ridge height."
+        "A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof:"
+        " L, T). gable (Satteldach, ridge=x|y), shed (Pultdach, up= the side it rises to), hip"
+        " (Walmdach). knee: underside of the rafters at the outer face of the eaves wall, above"
+        " the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the"
+        " outer wall face) and ridge height."
     )
     level: Annotated[Ref, F("storey the roof sits on", targets=("level",))]
     type: Annotated[Ref, F("roof type", targets=("type:roof",))]
@@ -272,10 +292,18 @@ class Roof(Element):
     ] = 0.0
     eave: Annotated[float, F("overhang at the eaves", unit="m")] = 0.0
     verge: Annotated[float, F("overhang at the verge", unit="m")] = 0.0
+    x: Annotated[
+        Span | None, F("x span of the rectangle it covers, if not the outline", unit="m")
+    ] = None
+    y: Annotated[
+        Span | None, F("y span of the rectangle it covers, if not the outline", unit="m")
+    ] = None
     status: Status = "new"
 
     @model_validator(mode="after")
     def _check(self) -> Self:
+        if (self.x is None) != (self.y is None):
+            raise ValueError("give both x= and y= spans, or neither")
         if not 0 < self.pitch < 75:
             raise ValueError("pitch must be between 0 and 75 degrees")
         if self.shape == "gable" and self.ridge is None:
@@ -295,17 +323,33 @@ class Stair(Element):
     prefix: ClassVar[str | None] = "st"
     positional: ClassVar[tuple[str, ...]] = ("level", "to")
     doc: ClassVar[str] = (
-        "A straight single-flight stair from one storey to another. x=/y= place its footprint"
-        " like a wall; up= is the direction it climbs; n risers, run (n-1) x tread."
+        "A stair between two storeys: straight, or shape=l|u (quarter, half turn) with a landing,"
+        " or winders=. x=/y= place its footprint like a wall; up= is the direction the first"
+        " flight climbs; n risers, n-1 treads."
     )
     level: Annotated[Ref, F("storey it starts on", targets=("level",))]
     to: Annotated[Ref, F("storey it arrives at", targets=("level",))]
     x: Annotated[Anchor, F("x position of the footprint", unit="m")]
     y: Annotated[Anchor, F("y position of the footprint", unit="m")]
-    up: Annotated[Literal["n", "s", "e", "w"], F("direction it climbs")]
+    up: Annotated[Literal["n", "s", "e", "w"], F("direction the first flight climbs")]
     w: Annotated[float, F("width", unit="m")]
     n: Annotated[int, F("number of risers")]
     tread: Annotated[float, F("tread depth", unit="m")]
+    shape: Annotated[
+        Literal["straight", "l", "u"], F("straight, l (quarter turn), u (half turn)")
+    ] = "straight"
+    turn: Annotated[
+        Literal["l", "r"] | None, F("which way the second flight turns, seen while climbing")
+    ] = None
+    n1: Annotated[int | None, F("risers of the first flight, up to the turn (default: half)")] = (
+        None
+    )
+    winders: Annotated[
+        int | None, F("winder treads in the turn instead of a landing (shape l)")
+    ] = None
+    gap: Annotated[
+        float | None, F("well between the two flights, shape u (default 0.1)", unit="m")
+    ] = None
     status: Status = "new"
 
     @model_validator(mode="after")
@@ -314,6 +358,23 @@ class Stair(Element):
             raise ValueError("n must be at least 2")
         if self.w <= 0 or self.tread <= 0:
             raise ValueError("w and tread must be larger than 0")
+        if self.shape == "straight":
+            if any(v is not None for v in (self.turn, self.n1, self.winders, self.gap)):
+                raise ValueError("turn=, n1=, winders= and gap= are for shape=l and shape=u")
+            return self
+        if self.turn is None:
+            raise ValueError("a stair with a turn needs turn=l or turn=r")
+        if self.winders is not None and (self.shape != "l" or not 2 <= self.winders <= 6):
+            raise ValueError("winders= (2 to 6) is for shape=l")
+        if self.gap is not None and (self.shape != "u" or self.gap < 0):
+            raise ValueError("gap= (not negative) is for shape=u")
+        m = self.winders or 1
+        n1 = self.n1 if self.n1 is not None else (self.n - m + 1) // 2
+        if n1 < 2 or self.n - n1 - m < 1:
+            raise ValueError(
+                f"n1 must leave at least two risers before the turn and one tread after it"
+                f" (2 to {self.n - m - 1})"
+            )
         return self
 
 

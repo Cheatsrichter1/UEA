@@ -889,7 +889,7 @@ requires-dist = [
     { name = "ifcopenshell", marker = "extra == 'ifc'", specifier = ">=0.8" },
     { name = "pillow", specifier = ">=10.1" },
     { name = "pydantic", specifier = ">=2.7" },
-    { name = "shapely", specifier = ">=2.0" },
+    { name = "shapely", specifier = ">=2.1" },
 ]
 provides-extras = ["ifc"]
 

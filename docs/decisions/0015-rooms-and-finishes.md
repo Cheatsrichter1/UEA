@@ -28,4 +28,4 @@ Rooms store only a seed point (`at=`), and slabs no outline at all (`ARCHITECTUR
 
 - L-shaped and open-plan rooms need nothing extra. Rooms follow when walls move, because only the seed is stored.
 - The Haus Müller room areas computed by hand for the prototype come out the same (`tests/test_prototype.py`).
-- Walls are axis-aligned for now: the position grammar places them on x or y. Imported walls with raw coordinates in any direction need the same region approach with general polygons (phase 4).
+- Walls in any direction (`0018-raw-walls.md`) go through the same region approach: their bodies are general polygons, and the corners where they join other walls are part of the body.

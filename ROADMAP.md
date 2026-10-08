@@ -27,7 +27,8 @@ Built and tested (`src/uea/`, `tests/`):
 - Requests and waivers, validation with issue codes, the reference graph between disciplines.
 - Read commands: `show`, `get`, `find`, `check`, `log`, layered `help`; every command and kind listed in `docs/reference.md`, generated from the code.
 - An English-only format and CLI; exports for humans stay German (`docs/decisions/0017-english-format.md`).
-- Levels, grids, build-ups, walls, openings, niches, slabs, voids, gable, shed and hip roofs, straight stairs, separators, rooms with shell and finished areas, heights and volumes (`docs/decisions/0015-rooms-and-finishes.md`, `0016-roofs.md`). Bestand status.
+- Levels, grids, build-ups, walls, openings, niches, slabs, voids, gable, shed and hip roofs, separators, rooms with shell and finished areas, heights and volumes (`docs/decisions/0015-rooms-and-finishes.md`, `0016-roofs.md`). Bestand status.
+- Walls in any direction between two points, with joins to the walls they touch and openings placed along them (`docs/decisions/0018-raw-walls.md`). Straight, quarter-turn, winder and half-turn stairs (`0019-stair-shapes.md`). Roofs over L-, T- and U-shaped outlines, one roof per wing (`0020-roof-parts.md`).
 - Wohnfläche per WoFlV as the first `norm` calculator, with a validation report (`docs/validation/wofl.md`); custom calculators from a project's `calc/`.
 - Plan images (PNG, SVG) per storey and the IFC4 export, schema-valid by IfcOpenShell's validator.
 - The token task set (`bench/`) with reference solutions: the Haus Müller shell, roof included, costs about 2,400 tokens of commands and output.
@@ -37,7 +38,7 @@ Still open for phase 1:
 
 - An off-the-shelf agent builds the EFH shell from a brief. First run, 2026-10-07 (`bench/agent/results.md`): Claude Opus matched the reference in all 58 checked facts, Sonnet in 55 (it added eaves walls in the attic), Haiku did not finish. Open: a rerun on the English format, and how to model the attic over the eaves walls.
 - A human opens the IFC in a free viewer (it validates and every shape builds in IfcOpenShell).
-- Walls in any direction with raw coordinates (needed for the IFC import in phase 4); stairs other than one straight flight; roofs over outlines that are not rectangles.
+- Not covered yet: roofs over outlines turned by another angle or trapezoid, curved and spiral stairs, winders in a half turn, and wall joins other than "run to the far face of the wall it touches" (no mitre control, no join order).
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 
@@ -52,14 +53,14 @@ To be scheduled into the phases above.
 - **Standard library.** A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" below), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **Openings without a fill.** Wall and slab penetrations, chases and core drillings (Durchbrüche, Schlitze, Kernbohrungen; `IfcOpeningElement`). Today only niches and slab voids exist. They are the main handoff from the Fachplaner to the architect: a request asks for a chase, and the architect answers with the element.
 - **Shafts and installation walls.** Vertical shafts through several storeys, and pre-wall installations (Vorwandinstallation) in WC and bath. Plumbing and ventilation run through them (phases 6 and 7).
-- **More roof elements.** Dormers (Gauben), roof windows, flat roofs with falls and a parapet (Attika). Roofs over outlines that are not rectangles are open for phase 1 above.
+- **More roof elements.** Dormers (Gauben), roof windows, flat roofs with falls and a parapet (Attika). Roofs over a turned or trapezoid outline are open (`docs/decisions/0020-roof-parts.md`).
 - **Railings and parapets** (`IfcRailing`) on stairs, galleries and balconies.
 - **Sun shading.** Roller shutters and external venetian blinds (`IfcShadingDevice`), standard on German houses. Electrical feeds their motors, and they count for summer heat protection.
 - **Suspended ceilings and other coverings** (`IfcCovering`). They set a room's clear height and leave space for services above them.
 - **Furniture and the kitchen** (`IfcFurnishingElement`). Design drawings show them, and the electrical design places sockets by them.
 - **A generic object:** a box with a footprint and a height (`IfcBuildingElementProxy`), for anything that has no kind of its own yet.
 - **Balconies, terraces, and a second building** on the site, such as a garage or carport.
-- **Curved walls.** Walls on an arc (bay windows, round stair walls) are still extrusions: the footprint is an arc, kept as a true arc in the IFC and approximated by segments for areas. Builds on walls in any direction (open for phase 1 above). Open: how the position grammar places an arc (centre and radius, or two ends and a bulge), how openings are positioned along it, and finished areas with curved finish layers.
+- **Curved walls.** Walls on an arc (bay windows, round stair walls) are still extrusions: the footprint is an arc, kept as a true arc in the IFC and approximated by segments for areas. Builds on walls in any direction (`docs/decisions/0018-raw-walls.md`). Open: how the position grammar places an arc (centre and radius, or two ends and a bulge), how openings are positioned along it, and finished areas with curved finish layers.
 - **Facades.** Curtain walls (Pfosten-Riegel, `IfcCurtainWall`): a grid of mullions and transoms with glass or opaque panels, placed like a wall. Render, ETICS (WDVS) and ventilated cladding can already be written as layers of a wall type. Free-form, double-curved facades stay out: they need a general geometry kernel (`VISION.md`), so they would be a separate pack on an existing kernel, like mechanical parts (`FUTURE.md`).
 
 ### Larger buildings

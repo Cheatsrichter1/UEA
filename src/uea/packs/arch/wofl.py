@@ -25,7 +25,7 @@ from shapely.geometry.base import BaseGeometry
 from uea.calc import Calculator, Output
 from uea.derive import Derived
 from uea.fmt import ar
-from uea.geom import clean, min_field_at_least, union
+from uea.geom import clean, union
 from uea.packs.arch.geometry import RoomGeo
 from uea.packs.arch.kinds import Niche, Room
 
@@ -99,8 +99,8 @@ def room_area(d: Derived, rg: RoomGeo) -> RoomArea:
     if not rg.ceiling:
         ra.no_ceiling = True
         return ra
-    a2 = min_field_at_least(net, rg.ceiling, 2.0).area
-    a1 = min_field_at_least(net, rg.ceiling, 1.0).area
+    a2 = rg.ceiling.at_least(net, 2.0).area
+    a1 = rg.ceiling.at_least(net, 1.0).area
     ra.full, ra.half, ra.low = a2, a1 - a2, net.area - a1
     for o in g.openings.values():
         if o.kind != "niche" or rg.id not in o.sides or o.status == "demolish":

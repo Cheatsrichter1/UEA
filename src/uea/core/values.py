@@ -17,7 +17,7 @@ from uea.core.syntax import fmt_num
 NAME = r"@?[A-Za-z][A-Za-z0-9_]*"
 REFNAME = r"@?[A-Za-z][A-Za-z0-9_.-]*?"
 NUM = r"\d+(?:\.\d+)?"
-FACES = "nsewc"
+FACES = "nsewclr"
 
 _ANCHOR = re.compile(
     rf"^(?:(?P<ref>{NAME})(?:\.(?P<face>[{FACES}]))?|(?P<coord>-?{NUM}))"

@@ -1,8 +1,9 @@
 """IFC4 export with IfcOpenShell (LGPL, used as a library).
 
 Stable GlobalIds come from the project name and the element id, so a re-export of the same
-element keeps its GlobalId. Geometry is explicit: extrusions for walls, slabs, spaces and stairs,
-boolean clippings where a roof cuts a wall or a room, triangulated solids for roof planes.
+element keeps its GlobalId. Geometry is explicit: extrusions for walls, slabs and stairs, a
+boolean clipping where one roof cuts a wall, triangulated solids for roof planes, for walls
+under several roofs and for rooms under a sloped ceiling.
 """
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false, reportAttributeAccessIssue=false
 
@@ -22,14 +23,15 @@ import ifcopenshell.api.root
 import ifcopenshell.api.spatial
 import ifcopenshell.api.type
 import ifcopenshell.guid
+import shapely
 from shapely.geometry import Polygon
 from shapely.geometry.polygon import orient
 
 from uea import __version__
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.geom import Lin, lower_envelope_regions, polys
-from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, WallGeo
+from uea.geom import Lin, Part, halfplane, polys, union_pieces
+from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, StairGeo, StairPartGeo, WallGeo
 from uea.packs.arch.kinds import Door, DoorType, Room, Win, WinType
 
 NS = uuid.UUID("6f1d2a8e-3c4b-5d6e-8f90-a1b2c3d4e5f6")
@@ -46,6 +48,7 @@ class Writer:
         self.materials: dict[str, Entity] = {}
         self.types: dict[str, Entity] = {}
         self.counts: dict[str, int] = {}
+        self._roof_pieces: dict[str, list[tuple[int, Lin, Polygon]]] = {}
 
     # ---------- basics ----------
 
@@ -247,15 +250,30 @@ class Writer:
         hi = w.hi + w.finish("hi")
         z0 = w.bottom - lv.z
         top = max((z for _, z in w.top), default=w.bottom + 2.5) - lv.z
-        solid = self.extrude(w.box(lo, hi), z0, max(top - z0, 0.01))
+        body = w.box(lo, hi)
         top_el = getattr(el, "top", None)
-        if top_el is not None and top_el.id in self.g.roofs:
-            rf = self.g.roofs[top_el.id]
-            solid = self.clip(solid, [Lin(p.a, p.b, p.c - lv.z) for p in rf.planes])
+        parts = (
+            self.g.roof_parts(self.g.roofs[top_el.id].level)
+            if top_el is not None and top_el.id in self.g.roofs
+            else []
+        )
+        items: list[Entity] = []
+        kind = "SweptSolid"
+        if len(parts) == 1:
+            solid = self.extrude(body, z0, max(top - z0, 0.01))
+            items = [self.clip(solid, [Lin(p.a, p.b, p.c - lv.z) for p in parts[0].planes])]
             kind = "Clipping"
-        else:
+        elif parts:
+            under = [
+                Part(rf.foot, tuple(Lin(p.a, p.b, p.c - lv.z) for p in rf.planes)) for rf in parts
+            ]
+            floor = Lin(0.0, 0.0, z0)
+            items = [self.prism(poly, floor, f) for _, f, poly in union_pieces(under, body)]
+            kind = "Tessellation"
+        if not items:
+            items = [self.extrude(body, z0, max(top - z0, 0.01))]
             kind = "SweptSolid"
-        e.Representation = self.body([solid], kind)
+        e.Representation = self.body(items, kind)
         t = self.type_of("IfcWallType", el.type.id, w.layers)
         ifcopenshell.api.type.assign_type(
             self.f, related_objects=[e], relating_type=t, should_map_representations=False
@@ -375,6 +393,15 @@ class Writer:
         )
         self.contained[sl.level].append(e)
 
+    def roof_pieces(self, level: str) -> list[tuple[int, Lin, Polygon]]:
+        """The planes of all roofs of a storey, cut against each other where they meet."""
+        if level not in self._roof_pieces:
+            roofs = self.g.roofs_on(level)
+            parts = [Part(rf.over, tuple(rf.planes)) for rf in roofs]
+            x0, y0, x1, y1 = shapely.union_all([rf.over for rf in roofs]).bounds
+            self._roof_pieces[level] = union_pieces(parts, shapely.box(x0, y0, x1, y1))
+        return self._roof_pieces[level]
+
     def roof(self, rf: RoofGeo) -> None:
         el = self.d.model[rf.id]
         lv = self.g.levels[rf.level]
@@ -383,15 +410,18 @@ class Writer:
         self._common(roof, rf.id, el.label)
         roof.ObjectPlacement = self.placement(self.storeys[rf.level].ObjectPlacement)
         parts: list[Entity] = []
-        for i, (plane, piece) in enumerate(lower_envelope_regions(rf.over, rf.planes)):
-            for poly in polys(piece):
-                s = self.entity("IfcSlab", f"{rf.id}/{i}", f"{rf.id}.{i + 1}", "ROOF")
-                s.ObjectPlacement = self.placement(roof.ObjectPlacement)
-                rel = Lin(plane.a, plane.b, plane.c - lv.z)
-                s.Representation = self.body(
-                    [self.prism(poly, rel, -rf.lining, rf.skin)], "Tessellation"
-                )
-                parts.append(s)
+        if rf.status == "demolish":
+            pieces = union_pieces([Part(rf.over, tuple(rf.planes))], rf.over)
+        else:
+            index = [r.id for r in self.g.roofs_on(rf.level)].index(rf.id)
+            pieces = [p for p in self.roof_pieces(rf.level) if p[0] == index]
+        for i, (_, plane, poly) in enumerate(pieces):
+            s = self.entity("IfcSlab", f"{rf.id}/{i}", f"{rf.id}.{i + 1}", "ROOF")
+            s.ObjectPlacement = self.placement(roof.ObjectPlacement)
+            rel = Lin(plane.a, plane.b, plane.c - lv.z)
+            bottom, top = rel.minus(rf.lining), rel.minus(-rf.skin)
+            s.Representation = self.body([self.prism(poly, bottom, top)], "Tessellation")
+            parts.append(s)
         if parts:
             ifcopenshell.api.aggregate.assign_object(self.f, products=parts, relating_object=roof)
         rt = el.type.id
@@ -404,61 +434,62 @@ class Writer:
         self.pset(roof, "Pset_RoofCommon", {"IsExternal": True, "Status": STATUS[rf.status]})
         self.contained[rf.level].append(roof)
 
-    def prism(self, poly: Polygon, plane: Lin, below: float, above: float) -> Entity:
-        """A closed triangulated solid between plane+below and plane+above over a convex polygon."""
+    def prism(self, poly: Polygon, bottom: Lin, top: Lin) -> Entity:
+        """A closed triangulated solid between two planes over a polygon."""
         p = orient(poly, 1.0)
-        pts = list(p.exterior.coords)[:-1]
-        n = len(pts)
-        coords = [(x, y, plane(x, y) + below) for x, y in pts] + [
-            (x, y, plane(x, y) + above) for x, y in pts
-        ]
+        rings = [[(c[0], c[1]) for c in list(r.coords)[:-1]] for r in (p.exterior, *p.interiors)]
+        index: dict[tuple[float, float], int] = {}
+        coords: list[tuple[float, float, float]] = []
+        for ring in rings:
+            for x, y in ring:
+                index[(x, y)] = len(coords) // 2 + 1
+                coords += [(x, y, bottom(x, y)), (x, y, top(x, y))]
         tri: list[tuple[int, int, int]] = []
-        for i in range(1, n - 1):
-            tri.append((1, i + 2, i + 1))  # bottom, facing down
-            tri.append((n + 1, n + i + 1, n + i + 2))  # top, facing up
-        for i in range(n):
-            j = (i + 1) % n
-            tri.append((i + 1, j + 1, n + j + 1))
-            tri.append((i + 1, n + j + 1, n + i + 1))
+        for t in shapely.constrained_delaunay_triangles(p).geoms:
+            assert isinstance(t, Polygon)
+            corners = [(c[0], c[1]) for c in list(orient(t, 1.0).exterior.coords)[:3]]
+            a, b, c = (index[v] for v in corners)
+            tri.append((2 * a, 2 * b, 2 * c))  # top, facing up
+            tri.append((2 * a - 1, 2 * c - 1, 2 * b - 1))  # bottom, facing down
+        for ring in rings:
+            for i, a in enumerate(ring):
+                b = ring[(i + 1) % len(ring)]
+                ia, ib = index[a], index[b]
+                tri.append((2 * ia - 1, 2 * ib - 1, 2 * ib))
+                tri.append((2 * ia - 1, 2 * ib, 2 * ia))
         pl = self.f.createIfcCartesianPointList3D([[float(c) for c in xyz] for xyz in coords])
         return self.f.createIfcTriangulatedFaceSet(pl, None, True, [list(t) for t in tri], None)
 
     def stair(self, key: str) -> None:
         s = self.g.stairs[key]
         el = self.d.model[key]
-        stair = self.entity("IfcStair", key, key, "STRAIGHT_RUN_STAIR")
+        kinds = {
+            ("straight", False): "STRAIGHT_RUN_STAIR",
+            ("l", False): "QUARTER_TURN_STAIR",
+            ("l", True): "QUARTER_WINDING_STAIR",
+            ("u", False): "HALF_TURN_STAIR",
+        }
+        stair = self.entity("IfcStair", key, key, kinds[(s.shape, s.winders > 0)])
         self._common(stair, key, el.label)
         place = self.storeys[s.level].ObjectPlacement
         stair.ObjectPlacement = self.placement(place)
-        flight = self.entity("IfcStairFlight", f"{key}/flight", f"{key}.1", "STRAIGHT")
-        flight.ObjectPlacement = self.placement(stair.ObjectPlacement)
-        flight.NumberOfRisers = s.n
-        flight.NumberOfTreads = s.n - 1
-        flight.RiserHeight = float(s.riser)
-        flight.TreadLength = float(s.tread)
-        climb = {"e": (1.0, 0.0), "w": (-1.0, 0.0), "n": (0.0, 1.0), "s": (0.0, -1.0)}[s.up]
-        across = (climb[1], -climb[0])
-        origin = {
-            "e": (s.x0, s.y1),
-            "w": (s.x1, s.y0),
-            "n": (s.x0, s.y0),
-            "s": (s.x1, s.y1),
-        }[s.up]
-        prof: list[tuple[float, float]] = [(0.0, 0.0)]
-        for i in range(s.n):
-            u = i * s.tread
-            prof.append((u, (i + 1) * s.riser))
-            if i < s.n - 1:
-                prof.append((u + s.tread, (i + 1) * s.riser))
-        prof.append((s.run, s.n * s.riser - 0.2))
-        prof.append((0.3, 0.0))
-        profile = self.f.createIfcArbitraryClosedProfileDef("AREA", None, self.ring(prof))
-        pos = self.axis(
-            (origin[0], origin[1], 0.0), (across[0], across[1], 0.0), (climb[0], climb[1], 0.0)
-        )
-        solid = self.f.createIfcExtrudedAreaSolid(profile, pos, self.dir(0, 0, 1), float(s.w))
-        flight.Representation = self.body([solid], "SweptSolid")
-        ifcopenshell.api.aggregate.assign_object(self.f, products=[flight], relating_object=stair)
+        children: list[Entity] = []
+        for i, part in enumerate(p for p in s.parts if p.kind == "flight"):
+            children.append(self.flight(stair, s, part, i))
+        for part in (p for p in s.parts if p.kind == "landing"):
+            slab = self.entity("IfcSlab", f"{key}/landing", f"{key}.landing", "LANDING")
+            slab.ObjectPlacement = self.placement(stair.ObjectPlacement)
+            slab.Representation = self.body([self.tread(s, part)], "SweptSolid")
+            children.append(slab)
+        winders = [p for p in s.parts if p.kind == "winder"]
+        if winders:
+            wf = self.entity("IfcStairFlight", f"{key}/winders", f"{key}.winders", "WINDER")
+            wf.ObjectPlacement = self.placement(stair.ObjectPlacement)
+            wf.NumberOfRisers = len(winders)
+            wf.RiserHeight = float(s.riser)
+            wf.Representation = self.body([self.tread(s, p) for p in winders], "SweptSolid")
+            children.append(wf)
+        ifcopenshell.api.aggregate.assign_object(self.f, products=children, relating_object=stair)
         self.pset(
             stair,
             "Pset_StairCommon",
@@ -472,6 +503,41 @@ class Writer:
         )
         self.contained[s.level].append(stair)
 
+    def tread(self, s: StairGeo, part: StairPartGeo) -> Entity:
+        """A landing or a winder: a slab 0.2 thick whose top is at the tread's height."""
+        top = part.tread * s.riser
+        return self.extrude(part.poly, top - 0.2, 0.2)
+
+    def flight(self, stair: Entity, s: StairGeo, part: StairPartGeo, i: int) -> Entity:
+        """One straight flight: the stepped profile extruded across the width."""
+        flight = self.entity("IfcStairFlight", f"{s.id}/flight{i}", f"{s.id}.{i + 1}", "STRAIGHT")
+        flight.ObjectPlacement = self.placement(stair.ObjectPlacement)
+        n, riser, tread = part.risers, s.riser, s.tread
+        flight.NumberOfRisers = n
+        flight.NumberOfTreads = n - 1
+        flight.RiserHeight = float(riser)
+        flight.TreadLength = float(tread)
+        cx, cy = part.climb
+        across = (cy, -cx)
+        origin = (part.start[0] - across[0] * s.w / 2, part.start[1] - across[1] * s.w / 2)
+        prof: list[tuple[float, float]] = [(0.0, 0.0)]
+        for k in range(n):
+            u = k * tread
+            prof.append((u, (k + 1) * riser))
+            if k < n - 1:
+                prof.append((u + tread, (k + 1) * riser))
+        prof.append(((n - 1) * tread, n * riser - 0.2))
+        prof.append((0.3, 0.0))
+        profile = self.f.createIfcArbitraryClosedProfileDef("AREA", None, self.ring(prof))
+        pos = self.axis(
+            (origin[0], origin[1], part.tread * riser),
+            (across[0], across[1], 0.0),
+            (cx, cy, 0.0),
+        )
+        solid = self.f.createIfcExtrudedAreaSolid(profile, pos, self.dir(0, 0, 1), float(s.w))
+        flight.Representation = self.body([solid], "SweptSolid")
+        return flight
+
     def space(self, key: str) -> None:
         rg = self.g.rooms[key]
         el = self.d.model[key]
@@ -479,16 +545,17 @@ class Writer:
         e = self.entity("IfcSpace", key, key, "INTERNAL")
         e.LongName = el.label or el.use
         e.ObjectPlacement = self.placement(self.storeys[rg.level].ObjectPlacement)
-        hr = rg.height_range()
         items: list[Entity] = []
-        if hr is not None and hr[1] > 0:
-            for p in polys(rg.fin):
-                if rg.flat:
-                    items.append(self.extrude(p, 0.0, hr[0]))
+        flat = True
+        for plane, piece in rg.ceiling.pieces(rg.fin):
+            for poly in polys(halfplane(piece, plane.minus(0.01))):
+                if plane.flat:
+                    items.append(self.extrude(poly, 0.0, plane.c))
                 else:
-                    items.append(self.clip(self.extrude(p, 0.0, hr[1] + 0.01), rg.ceiling))
+                    flat = False
+                    items.append(self.prism(poly, Lin(0.0, 0.0, 0.0), plane))
         if items:
-            e.Representation = self.body(items, "SweptSolid" if rg.flat else "Clipping")
+            e.Representation = self.body(items, "SweptSolid" if flat else "Tessellation")
         self.pset(
             e,
             "Pset_SpaceCommon",

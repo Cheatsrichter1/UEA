@@ -1,5 +1,6 @@
 """Short text views of derived architecture values, for `uea get` and `uea show`."""
 
+import math
 from typing import Literal
 
 from uea.core.registry import natural
@@ -19,9 +20,8 @@ def _wall_height(w: WallGeo) -> str:
 
 
 def _faces(g: ArchGeo, w: WallGeo) -> str:
-    names = ("s", "n") if w.o == "h" else ("w", "e")
     parts: list[str] = []
-    for side, name in zip(("lo", "hi"), names, strict=True):
+    for side, name in zip(("lo", "hi"), w.faces, strict=True):
         if w.ext == side:
             parts.append(f"{name}: outside")
             continue
@@ -33,7 +33,7 @@ def _faces(g: ArchGeo, w: WallGeo) -> str:
 
 def _on_side(w: WallGeo, rg: RoomGeo, side: str) -> bool:
     c = rg.poly.centroid
-    v = c.y if w.o == "h" else c.x
+    v = w.c_of(c.x, c.y)
     return v < w.lo if side == "lo" else v > w.hi
 
 
@@ -120,7 +120,12 @@ def describe(d: Derived, el: Element) -> list[str]:
     m = d.model
     if el.kind == "wall" and el.id in g.walls:
         w = g.walls[el.id]
-        pos = f"{w.across} {iv(w.lo, w.hi)} {w.along} {iv(w.s0, w.s1)}"
+        if w.o == "d":
+            (ax, ay), (bx, by) = w.end_points()
+            angle = math.degrees(math.atan2(w.udir[1], w.udir[0]))
+            pos = f"a {ln(ax)},{ln(ay)} b {ln(bx)},{ln(by)} ({ln(round(angle, 1))}°)"
+        else:
+            pos = f"{w.across} {iv(w.lo, w.hi)} {w.along} {iv(w.s0, w.s1)}"
         fin = w.t + w.layers.before_core() + w.layers.after_core()
         kind = "ext" if w.ext else "int"
         out = [f"{pos} | L {ln(w.length)} t {ln(w.t)} (fin {ln(fin)}) | {_wall_height(w)} | {kind}"]
@@ -148,9 +153,15 @@ def describe(d: Derived, el: Element) -> list[str]:
         return describe_room(d, g.rooms[el.id])
     if el.kind == "stair" and el.id in g.stairs:
         s = g.stairs[el.id]
+        head = f"{s.n} risers {ln(s.riser)}, tread {ln(s.tread)}, 2h+a {ln(s.step)}"
+        where = f"x {iv(s.x0, s.x1)} y {iv(s.y0, s.y1)}"
+        if s.shape == "straight":
+            return [f"{head} | run {ln(s.run)} w {ln(s.w)} | {where}"]
+        turn = f"{s.winders} winders" if s.winders else "landing"
+        flights = "+".join(str(p.risers) for p in s.parts if p.kind == "flight")
         return [
-            f"{s.n} risers {ln(s.riser)}, tread {ln(s.tread)}, 2h+a {ln(s.step)} | run {ln(s.run)}"
-            f" w {ln(s.w)} | x {iv(s.x0, s.x1)} y {iv(s.y0, s.y1)}"
+            f"{head} | {s.shape} turn {s.turn}, {flights} risers, {turn} | w {ln(s.w)}"
+            f" | {where} = {ar(s.poly.area)} m²"
         ]
     if el.kind == "slab" and el.id in g.slabs:
         s = g.slabs[el.id]

@@ -10,11 +10,13 @@ absolute metres relative to ±0.00. Opening sills and tops are relative to the s
 """
 
 import math
+from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import Literal
 
+from shapely.affinity import affine_transform
 from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as SPoint
 from shapely.geometry.base import BaseGeometry
@@ -26,12 +28,12 @@ from uea.core.values import Anchor, Layers, Span
 from uea.derive import Derived, GeoError, Unresolved
 from uea.fmt import ar, ln
 from uea.geom import (
+    Ceil,
     Lin,
+    Part,
     clean,
     extend,
     filled,
-    integrate_min,
-    lower_envelope_regions,
     polys,
     r,
     rect,
@@ -53,11 +55,18 @@ from uea.packs.arch.kinds import (
     WallType,
     Win,
 )
+from uea.packs.arch.stairs import layout
 from uea.packs.project import Grid, Level
 
-Axis = Literal["x", "y"]
+Axis = Literal["x", "y", "s"]
+"""x and y: absolute plan axes. s: along a wall that runs at an angle, from its start a."""
 Side = Literal["lo", "hi"]
 OPENING_KINDS = ("door", "win", "niche")
+JOIN_TOL = 2e-3
+"""A wall end within 2 mm of another wall touches it."""
+JOIN_MIN_SIN = 0.2
+"""Walls closer than about 12° to parallel are not joined."""
+JOIN_MAX = 2.0
 
 
 def other_axis(a: Axis) -> Axis:
@@ -83,8 +92,8 @@ class LevelGeo:
 class WallGeo:
     id: str
     level: str
-    o: Literal["h", "v"]
-    """h: runs along x (its position is a y interval); v: runs along y."""
+    o: Literal["h", "v", "d"]
+    """h: runs along x (its position is a y interval); v: runs along y; d: any other direction."""
     lo: float
     hi: float
     s0: float
@@ -98,13 +107,38 @@ class WallGeo:
     """Top profile along the wall: (s, absolute z). Empty if unknown."""
     ext: Side | None = None
     """Outside face of an exterior wall."""
+    org: tuple[float, float] = (0.0, 0.0)
+    """Plan point of s=0, c=0: the origin for h and v walls, the start a of a d wall."""
+    udir: tuple[float, float] = (1.0, 0.0)
+    """Unit direction of s for a d wall (a to b)."""
+    raw: bool = False
+    """Given by a= and b=: its ends are joined to the walls they touch."""
+    ea: tuple[float, float] = (0.0, 0.0)
+    eb: tuple[float, float] = (0.0, 0.0)
+    """How far the lo and hi face reach beyond s0 and s1 where the ends join other walls."""
+
+    @property
+    def u(self) -> tuple[float, float]:
+        """Plan direction of s."""
+        return (1.0, 0.0) if self.o == "h" else (0.0, 1.0) if self.o == "v" else self.udir
+
+    @property
+    def n(self) -> tuple[float, float]:
+        """Plan direction of c, from the lo face to the hi face."""
+        if self.o == "h":
+            return (0.0, 1.0)
+        if self.o == "v":
+            return (1.0, 0.0)
+        return (-self.udir[1], self.udir[0])
 
     @property
     def along(self) -> Axis:
-        return "x" if self.o == "h" else "y"
+        return "x" if self.o == "h" else "y" if self.o == "v" else "s"
 
     @property
-    def across(self) -> Axis:
+    def across(self) -> Literal["x", "y"]:
+        """The axis a position across the wall is on; walls at an angle have none."""
+        assert self.o != "d"
         return "y" if self.o == "h" else "x"
 
     @property
@@ -123,21 +157,45 @@ class WallGeo:
     def active(self) -> bool:
         return self.status != "demolish"
 
-    def box(self, a: float, b: float) -> Polygon:
-        """Rectangle between across-coordinates a and b over the wall's span."""
-        if self.o == "h":
-            return rect(self.s0, self.s1, a, b)
-        return rect(a, b, self.s0, self.s1)
+    @property
+    def faces(self) -> tuple[str, str]:
+        """Names of the lo and hi face."""
+        return {"h": ("s", "n"), "v": ("w", "e"), "d": ("r", "l")}[self.o]
+
+    def box(self, a: float, b: float, grown: bool = True) -> Polygon:
+        """The wall between across-coordinates a and b over its span (and its joins)."""
+        if not grown or not (any(self.ea) or any(self.eb)):
+            if self.o == "h":
+                return rect(self.s0, self.s1, a, b)
+            if self.o == "v":
+                return rect(a, b, self.s0, self.s1)
+        # an end cut along the far face of the wall it joins is a straight line across the faces
+        pts = [self._at(-1, a, grown), self._at(1, a, grown), self._at(1, b, grown)]
+        pts.append(self._at(-1, b, grown))
+        return Polygon([(r(x), r(y)) for x, y in pts])
+
+    def _at(self, end: int, c: float, grown: bool) -> tuple[float, float]:
+        """The corner of the wall's end (-1: at s0, 1: at s1) at across-coordinate c."""
+        if not grown:
+            return self.plan_point(self.s0 if end < 0 else self.s1, c)
+        k = (c - self.lo) / self.t
+        if end < 0:
+            return self.plan_point(self.s0 - self.ea[0] - (self.ea[1] - self.ea[0]) * k, c)
+        return self.plan_point(self.s1 + self.eb[0] + (self.eb[1] - self.eb[0]) * k, c)
 
     @property
     def poly(self) -> Polygon:
         return self.box(self.lo, self.hi)
 
+    @property
+    def core(self) -> Polygon:
+        """The wall between its ends a and b, without the joins."""
+        return self.box(self.lo, self.hi, grown=False)
+
     def face_line(self, side: Side) -> LineString:
         c = self.lo if side == "lo" else self.hi
-        if self.o == "h":
-            return LineString([(r(self.s0), r(c)), (r(self.s1), r(c))])
-        return LineString([(r(c), r(self.s0)), (r(c), r(self.s1))])
+        (ax, ay), (bx, by) = self.plan_point(self.s0, c), self.plan_point(self.s1, c)
+        return LineString([(r(ax), r(ay)), (r(bx), r(by))])
 
     def inner(self) -> Side:
         """The side the first-listed layers are on."""
@@ -152,7 +210,18 @@ class WallGeo:
         return self.layers.before_core() if side == self.inner() else self.layers.after_core()
 
     def plan_point(self, s: float, c: float) -> tuple[float, float]:
-        return (s, c) if self.o == "h" else (c, s)
+        (ux, uy), (nx, ny), (ox, oy) = self.u, self.n, self.org
+        return (ox + s * ux + c * nx, oy + s * uy + c * ny)
+
+    def c_of(self, x: float, y: float) -> float:
+        """The across-coordinate of a plan point."""
+        return self.n[0] * (x - self.org[0]) + self.n[1] * (y - self.org[1])
+
+    def s_of(self, x: float, y: float) -> float:
+        return self.u[0] * (x - self.org[0]) + self.u[1] * (y - self.org[1])
+
+    def end_points(self) -> tuple[tuple[float, float], tuple[float, float]]:
+        return self.plan_point(self.s0, self.mid), self.plan_point(self.s1, self.mid)
 
     def top_at(self, s: float) -> float | None:
         if not self.top:
@@ -202,6 +271,21 @@ class OpeningGeo:
 
 
 @dataclass
+class StairPartGeo:
+    """A flight, the landing or one winder of a stair."""
+
+    kind: Literal["flight", "landing", "winder"]
+    poly: Polygon
+    tread: int
+    """Flight: the tread it starts on (0 is the lower floor). Landing, winder: its own number."""
+    risers: int = 0
+    start: tuple[float, float] = (0.0, 0.0)
+    """Flight: the middle of the edge it starts on."""
+    climb: tuple[float, float] = (0.0, 0.0)
+    """Flight: the unit direction it climbs."""
+
+
+@dataclass
 class StairGeo:
     id: str
     level: str
@@ -210,20 +294,29 @@ class StairGeo:
     x1: float
     y0: float
     y1: float
+    poly: Polygon
+    """Footprint of all flights, the landing and the well."""
     up: str
     n: int
     riser: float
     tread: float
     w: float
     status: str
+    shape: str = "straight"
+    turn: str | None = None
+    n1: int = 0
+    """Risers of the first flight (shapes l and u)."""
+    winders: int = 0
+    parts: list[StairPartGeo] = field(default_factory=list[StairPartGeo])
+    lines: list[LineString] = field(default_factory=list[LineString])
+    """Edges between treads."""
+    walk: list[tuple[float, float]] = field(default_factory=list[tuple[float, float]])
+    """Walking line, up the middle."""
 
     @property
     def run(self) -> float:
+        """Length of the treads of a straight stair."""
         return (self.n - 1) * self.tread
-
-    @property
-    def poly(self) -> Polygon:
-        return rect(self.x0, self.x1, self.y0, self.y1)
 
     @property
     def step(self) -> float:
@@ -287,6 +380,8 @@ class RoofGeo:
     x1: float
     y0: float
     y1: float
+    foot: Polygon
+    """The rectangle it covers."""
     base: float
     """Absolute height of the rafter underside at the eaves line."""
     planes: list[Lin]
@@ -328,8 +423,8 @@ class RoomGeo:
     fin: BaseGeometry
     """Finished outline (finish layers of the walls removed)."""
     bounds: list[str]
-    ceiling: list[Lin]
-    """Clear height above the FFL as planes; the height is their minimum. Empty: no ceiling."""
+    ceiling: Ceil
+    """Clear height above the FFL: the slab above and the roofs. Empty: no ceiling."""
 
     @property
     def area(self) -> float:
@@ -341,34 +436,24 @@ class RoomGeo:
 
     @property
     def flat(self) -> bool:
-        return all(p.flat for p in self.ceiling)
+        return self.ceiling.flat(self.fin)
 
     @property
     def height(self) -> float | None:
         """Clear height (finished) if it is the same everywhere."""
-        if not self.ceiling or not self.flat:
+        hr = self.height_range()
+        if hr is None or hr[1] - hr[0] > 1e-6:
             return None
-        return min(p.c for p in self.ceiling)
+        return hr[0]
 
     def height_range(self) -> tuple[float, float] | None:
-        if not self.ceiling:
-            return None
-        if self.flat:
-            h = min(p.c for p in self.ceiling)
-            return (h, h)
-        vals: list[float] = []
-        for _, part in lower_envelope_regions(self.fin, self.ceiling):
-            for p in polys(part, 0.0):
-                vals.extend(min(f(x, y) for f in self.ceiling) for x, y in p.exterior.coords)
-        if not vals:
-            return None
-        return (max(min(vals), 0.0), max(vals))
+        return self.ceiling.height_range(self.fin)
 
     @property
     def volume(self) -> float | None:
         if not self.ceiling:
             return None
-        return integrate_min(self.fin, self.ceiling)
+        return self.ceiling.volume(self.fin)
 
     def dims(self, which: Literal["shell", "fin"]) -> tuple[float, float] | None:
         """Width and depth if the outline is a rectangle."""
@@ -406,6 +491,13 @@ class ArchGeo:
 
     def walls_on(self, level: str, active: bool = True) -> list[WallGeo]:
         return [w for w in self.walls.values() if w.level == level and (w.active or not active)]
+
+    def roofs_on(self, level: str) -> list[RoofGeo]:
+        return [r for r in self.roofs.values() if r.level == level and r.status != "demolish"]
+
+    def roof_parts(self, level: str) -> list[RoofGeo]:
+        """The roofs of a storey; together they are one roof (0020-roof-parts)."""
+        return self.roofs_on(level)
 
     def slab_on(self, level: str) -> SlabGeo | None:
         for s in self.slabs.values():
@@ -455,6 +547,8 @@ class Resolver:
         if isinstance(el, Grid):
             if a.face is not None:
                 raise GeoError(f"{a.fmt()}: a grid has no faces", f"write {a.ref}{a.sign or ''}")
+            if axis == "s":
+                raise self._no_s(a)
             if el.axis != axis:
                 raise GeoError(
                     f"{axis}={a.fmt()}: grid {a.ref} is an {el.axis} line",
@@ -462,7 +556,7 @@ class Resolver:
                 )
             return el.coord
         if isinstance(el, Wall):
-            w = self.wall(a.ref)
+            w = self.axis_wall(a, axis)
             if w.across != axis:
                 raise GeoError(
                     f"{axis}={a.fmt()}: {a.ref} runs along {axis} and has no {axis} face",
@@ -487,6 +581,12 @@ class Resolver:
         if el.kind in OPENING_KINDS:
             o = self.opening(a.ref)
             if o.axis != axis:
+                if o.axis == "s":
+                    raise GeoError(
+                        f"{axis}={a.fmt()}: {a.ref} is in a wall that runs at an angle and has no"
+                        f" {axis} position",
+                        f"anchor {axis}= on a grid or on a wall along x or y",
+                    )
                 raise GeoError(
                     f"{axis}={a.fmt()}: {a.ref} lies along {o.axis}",
                     f"use {o.axis}= or anchor on something along {axis}",
@@ -500,6 +600,8 @@ class Resolver:
                 )
             return o.hi if side == "hi" else o.lo
         if isinstance(el, Stair):
+            if axis == "s":
+                raise self._no_s(a)
             s = self.stair(a.ref)
             lo, hi = (s.x0, s.x1) if axis == "x" else (s.y0, s.y1)
             if side == "c":
@@ -510,6 +612,8 @@ class Resolver:
                 )
             return hi if side == "hi" else lo
         if isinstance(el, Sep):
+            if axis == "s":
+                raise self._no_s(a)
             s = self.sep(a.ref)
             if (s.o == "h") != (axis == "y"):
                 raise GeoError(
@@ -519,6 +623,26 @@ class Resolver:
         raise GeoError(
             f"{a.fmt()}: {a.ref} is a {el.kind}; positions anchor on grids, walls, openings,"
             " stairs and separators"
+        )
+
+    def axis_wall(self, a: Anchor, axis: Axis) -> WallGeo:
+        """The wall an anchor points at, if it can give a position on an axis."""
+        assert a.ref is not None
+        if axis == "s":
+            raise self._no_s(a)
+        w = self.wall(a.ref)
+        if w.o == "d":
+            raise GeoError(
+                f"{axis}={a.fmt()}: {a.ref} runs at an angle and has no {axis} position",
+                f"anchor {axis}= on a grid or on a wall along x or y",
+            )
+        return w
+
+    @staticmethod
+    def _no_s(a: Anchor) -> GeoError:
+        return GeoError(
+            f"s={a.fmt()}: s counts along one wall from its start a; {a.ref} cannot give it",
+            "use a number (s=1.2+) or an opening of the same wall (s=f1+0.5)",
         )
 
     @staticmethod
@@ -575,7 +699,7 @@ class Resolver:
             return self.point(a, axis)
         toward = self._rough(other, axis)
         if isinstance(el, Wall):
-            w = self.wall(el.id)
+            w = self.axis_wall(a, axis)
             if w.across != axis:
                 raise GeoError(
                     f"{axis} span end {a.fmt()}: {el.id} runs along {axis}",
@@ -593,7 +717,7 @@ class Resolver:
         if el is None:
             raise Unresolved(a.ref or "?", missing=True)
         if isinstance(el, Wall):
-            w = self.wall(el.id)
+            w = self.axis_wall(a, axis)
             return w.mid if w.across == axis else (w.s0 + w.s1) / 2
         if isinstance(el, Grid):
             return el.coord
@@ -619,8 +743,14 @@ class Resolver:
                     "use x=/y= to place it, or a type with the same core",
                     others=(src.id,),
                 )
-            o, lo, hi, s0, s1 = src.o, src.lo, src.hi, src.s0, src.s1
-        elif isinstance(el.y, Anchor):
+            return WallGeo(
+                key, el.level.id, src.o, src.lo, src.hi, src.s0, src.s1, wt.layers, el.flip,
+                el.status, el.lb, org=src.org, udir=src.udir, raw=src.raw,
+            )  # fmt: skip
+        if el.a is not None:
+            assert el.b is not None
+            return self._raw_wall(el, wt)
+        if isinstance(el.y, Anchor):
             assert isinstance(el.x, Span)
             o = "h"
             lo, hi = self.interval(el.y, "y", t)
@@ -632,6 +762,41 @@ class Resolver:
             s0, s1 = self.span(el.y, "y")
         return WallGeo(key, el.level.id, o, lo, hi, s0, s1, wt.layers, el.flip, el.status, el.lb)
 
+    def _raw_wall(self, el: Wall, wt: WallType) -> WallGeo:
+        """A wall from the point a to the point b: its axis, with the core centred on it."""
+        assert el.a is not None and el.b is not None
+        ax, ay = self.point(el.a.x, "x"), self.point(el.a.y, "y")
+        bx, by = self.point(el.b.x, "x"), self.point(el.b.y, "y")
+        t = wt.layers.core
+        length = math.hypot(bx - ax, by - ay)
+        if length < 1e-6:
+            raise GeoError(
+                f"a and b are the same point ({ln(ax)},{ln(ay)})", "give two different points"
+            )
+
+        def wall(
+            o: Literal["h", "v", "d"],
+            lo: float,
+            hi: float,
+            s0: float,
+            s1: float,
+            org: tuple[float, float] = (0.0, 0.0),
+            udir: tuple[float, float] = (1.0, 0.0),
+        ) -> WallGeo:
+            return WallGeo(
+                el.id, el.level.id, o, lo, hi, s0, s1, wt.layers, el.flip, el.status, el.lb,
+                org=org, udir=udir, raw=True,
+            )  # fmt: skip
+
+        if abs(by - ay) <= 1e-6:
+            y = (ay + by) / 2
+            return wall("h", y - t / 2, y + t / 2, min(ax, bx), max(ax, bx))
+        if abs(bx - ax) <= 1e-6:
+            x = (ax + bx) / 2
+            return wall("v", x - t / 2, x + t / 2, min(ay, by), max(ay, by))
+        u = ((bx - ax) / length, (by - ay) / length)
+        return wall("d", -t / 2, t / 2, 0.0, length, (ax, ay), u)
+
     def opening(self, key: str) -> OpeningGeo:
         return self.d.resolve(key, self.g.openings, lambda: self._opening(key))
 
@@ -641,12 +806,27 @@ class Resolver:
         self.need(el.host.id, "wall")
         w = self.wall(el.host.id)
         axis = w.along
-        given: Axis = "x" if el.x is not None else "y"
+        given: Axis = "x" if el.x is not None else "y" if el.y is not None else "s"
         if given != axis:
+            if axis == "s":
+                raise GeoError(
+                    f"{key} is in {w.id}, which runs at an angle: give s=, the distance from its"
+                    f" start a, not {given}=",
+                    f"~ {key} {given}= s={el.along.fmt()}",
+                )
             raise GeoError(
                 f"{key} is in {w.id}, which runs along {axis}: give {axis}=, not {given}=",
                 f"~ {key} {given}= {axis}={el.along.fmt()}",
             )
+        if axis == "s":
+            for ref in el.along.refs():
+                other = self.m.get(ref)
+                if isinstance(other, Door | Win | Niche) and other.host.id != w.id:
+                    raise GeoError(
+                        f"s={el.along.fmt()}: {ref} is in {other.host.id}, and s counts along"
+                        f" one wall ({w.id})",
+                        "anchor on an opening of the same wall, or use a number",
+                    )
         lo, hi = self.interval(el.along, axis, el.size.w)
         lvl = self.level(w.level)
         face: Side | None = None
@@ -664,13 +844,13 @@ class Resolver:
         elif isinstance(el, Niche):
             sill = el.sill
             assert el.host.face is not None
-            ok = "ns" if w.o == "h" else "ew"
-            if el.host.face not in ok:
+            lo_face, hi_face = w.faces
+            if el.host.face not in (lo_face, hi_face):
+                where = "runs at an angle" if w.o == "d" else f"runs along {w.along}"
                 raise GeoError(
-                    f"host {el.host.fmt()}: {w.id} runs along {w.along}; its faces are"
-                    f" .{ok[0]} and .{ok[1]}"
+                    f"host {el.host.fmt()}: {w.id} {where}; its faces are .{hi_face} and .{lo_face}"
                 )
-            face = "hi" if el.host.face in "ne" else "lo"
+            face = "hi" if el.host.face == hi_face else "lo"
             depth = el.d
         else:
             sill = el.sill if el.sill is not None else 0.0
@@ -703,15 +883,65 @@ class Resolver:
                 f"{el.to.id} (z={ln(b.z)}) is not above {el.level.id} (z={ln(a.z)})",
                 "swap the storeys: stair <id> <from> <to>",
             )
-        run = (el.n - 1) * el.tread
-        if el.up in ("w", "e"):
-            x0, x1 = self.interval(el.x, "x", run)
-            y0, y1 = self.interval(el.y, "y", el.w)
-        else:
-            x0, x1 = self.interval(el.x, "x", el.w)
-            y0, y1 = self.interval(el.y, "y", run)
+        lay = layout(el.shape, el.n, el.tread, el.w, el.n1, el.winders, el.gap or 0.1)
+        climb = {"n": (0.0, 1.0), "s": (0.0, -1.0), "e": (1.0, 0.0), "w": (-1.0, 0.0)}[el.up]
+        left = (-climb[1], climb[0])
+        q = left if el.turn != "r" else (-left[0], -left[1])
+        # local (p, q) to plan: p along the first flight, q toward the turn
+        to_plan = [climb[0], q[0], climb[1], q[1], 0.0, 0.0]
+        bx0, by0, bx1, by1 = affine_transform(lay.poly, to_plan).bounds
+        x0, x1 = self.interval(el.x, "x", bx1 - bx0)
+        y0, y1 = self.interval(el.y, "y", by1 - by0)
+        to_plan[4], to_plan[5] = x0 - bx0, y0 - by0
+
+        def put(g: Polygon) -> Polygon:
+            moved = affine_transform(g, to_plan)
+            assert isinstance(moved, Polygon)
+            return Polygon([(r(x), r(y)) for x, y in moved.exterior.coords])
+
+        def at(p: tuple[float, float]) -> tuple[float, float]:
+            return (
+                to_plan[0] * p[0] + to_plan[1] * p[1] + to_plan[4],
+                to_plan[2] * p[0] + to_plan[3] * p[1] + to_plan[5],
+            )
+
+        def turn_dir(v: tuple[float, float]) -> tuple[float, float]:
+            return (to_plan[0] * v[0] + to_plan[1] * v[1], to_plan[2] * v[0] + to_plan[3] * v[1])
+
+        parts: list[StairPartGeo] = []
+        for fl in lay.flights:
+            parts.append(
+                StairPartGeo(
+                    "flight", put(fl.poly), fl.tread0, fl.risers, at(fl.start), turn_dir(fl.climb)
+                )
+            )
+        landing = el.winders is None
+        for poly, number in lay.turn:
+            parts.append(StairPartGeo("landing" if landing else "winder", put(poly), number))
+        lines = [LineString([at((c[0], c[1])) for c in ln_.coords]) for ln_ in lay.lines]
+        n1 = lay.flights[0].risers
         return StairGeo(
-            key, a.id, b.id, x0, x1, y0, y1, el.up, el.n, rise / el.n, el.tread, el.w, el.status
+            key,
+            a.id,
+            b.id,
+            r(x0),
+            r(x1),
+            r(y0),
+            r(y1),
+            put(lay.poly),
+            el.up,
+            el.n,
+            rise / el.n,
+            el.tread,
+            el.w,
+            el.status,
+            el.shape,
+            el.turn,
+            n1 if el.shape != "straight" else 0,
+            el.winders or 0,
+            parts,
+            lines,
+            [at(pt) for pt in lay.walk],
         )
 
     def sep(self, key: str) -> SepGeo:
@@ -756,6 +986,7 @@ class Resolver:
             for el in self.m.of_kind(kind):
                 with suppress(Unresolved):
                     fn(el.id)
+        self._joins()
         self._slabs()
         self._voids()
         self._domains()
@@ -778,6 +1009,25 @@ class Resolver:
                 levels[i - 1].id if i > 0 else None,
                 levels[i + 1].id if i + 1 < len(levels) else None,
             )
+
+    def _joins(self) -> None:
+        """Grow the ends of raw walls to the far face of the wall they touch (0018-raw-walls)."""
+        for w in self.g.walls.values():
+            if not (w.raw and w.active):
+                continue
+            others = [o for o in self.g.walls_on(w.level) if o is not w]
+            for end, s_end, sign in (("a", w.s0, -1.0), ("b", w.s1, 1.0)):
+                p = w.plan_point(s_end, w.mid)
+                out = (sign * w.u[0], sign * w.u[1])
+                reach = (0.0, 0.0)
+                for o in others:
+                    if o.core.distance(SPoint(p)) <= JOIN_TOL:
+                        lo, hi = _reach(w, p, out, o)
+                        reach = (max(reach[0], lo), max(reach[1], hi))
+                if end == "a":
+                    w.ea = reach
+                else:
+                    w.eb = reach
 
     def _walls_union(self, level: str) -> BaseGeometry:
         return union(w.poly for w in self.g.walls_on(level))
@@ -866,15 +1116,41 @@ class Resolver:
                     f"add the slab of {lv.id} or its walls",
                 )
                 continue
-            x0, y0, x1, y1 = dom.bounds
-            if abs((x1 - x0) * (y1 - y0) - dom.area) > 1e-3:
-                self.d.add(
-                    "W-ARCH-041",
-                    el.id,
-                    f"the outline of {lv.id} is not a rectangle; the roof covers its bounding box"
-                    f" {ar(x1 - x0)} x {ar(y1 - y0)}",
-                )
+            if el.x is not None and el.y is not None:
+                try:
+                    x0, x1 = self.span(el.x, "x")
+                    y0, y1 = self.span(el.y, "y")
+                except Unresolved:
+                    continue
+                except GeoError as e:
+                    self.d.add(e.code, el.id, e.msg, e.fix)
+                    continue
+            else:
+                x0, y0, x1, y1 = dom.bounds
+                if abs((x1 - x0) * (y1 - y0) - dom.area) > 1e-3:
+                    self.d.add(
+                        "W-ARCH-041",
+                        el.id,
+                        f"the outline of {lv.id} is not a rectangle; the roof covers its bounding"
+                        f" box {ar(x1 - x0)} x {ar(y1 - y0)}",
+                        f"one roof per wing: ~ {el.id} x=<a>..<b> y=<c>..<d>, + roof for the rest",
+                    )
             self.g.roofs[el.id] = make_roof(el, rt, lv, x0, x1, y0, y1)
+        for lv in self.g.levels.values():
+            parts = self.g.roofs_on(lv.id)
+            dom = self.g.domains.get(lv.id)
+            if not parts or dom is None:
+                continue
+            bare = dom.difference(union(p.foot for p in parts))
+            if bare.area > 0.05:
+                c = max(polys(bare), key=lambda q: q.area).representative_point()
+                self.d.add(
+                    "W-ARCH-042",
+                    parts[0].id,
+                    f"{ar(bare.area)} m² of the outline of {lv.id} lie under no roof, e.g. at"
+                    f" ({ar(c.x)},{ar(c.y)})",
+                    "add a roof for that part, or extend the roofs' x=/y=",
+                )
 
     def _wall_tops(self) -> None:
         for w in self.g.walls.values():
@@ -887,7 +1163,7 @@ class Resolver:
             elif el.top is not None:
                 roof = self.g.roofs.get(el.top.id)
                 if roof is not None:
-                    w.top = roof_profile(w, roof)
+                    w.top = roof_profile(w, self.g.roof_parts(roof.level))
             elif lv.above is not None:
                 above = self.g.levels[lv.above]
                 slab = self.g.slab_on(above.id)
@@ -983,18 +1259,20 @@ class Resolver:
                         f"+ room _ {lv.id} <use> at={ar(c.x)},{ar(c.y)}",
                     )
 
-    def _ceiling(self, lv: LevelGeo) -> list[Lin]:
-        planes: list[Lin] = []
+    def _ceiling(self, lv: LevelGeo) -> Ceil:
+        caps: list[Lin] = []
         if lv.above is not None:
             above = self.g.levels[lv.above]
             slab = self.g.slab_on(above.id)
             z = slab.ceiling if slab is not None else above.ssl
-            planes.append(Lin(0.0, 0.0, z - lv.z))
+            caps.append(Lin(0.0, 0.0, z - lv.z))
+        parts: list[Part] = []
         for roof in self.g.roofs.values():
             rl = self.g.levels[roof.level]
             if rl.z <= lv.z + 1e-9 and roof.status != "demolish":
-                planes.extend(Lin(p.a, p.b, p.c - roof.lining - lv.z) for p in roof.planes)
-        return planes
+                planes = tuple(Lin(p.a, p.b, p.c - roof.lining - lv.z) for p in roof.planes)
+                parts.append(Part(roof.foot, planes))
+        return Ceil(tuple(caps), tuple(parts))
 
     def _opening_sides(self) -> None:
         for o in self.g.openings.values():
@@ -1004,6 +1282,23 @@ class Resolver:
             lo = w.plan_point(o.mid, w.lo - 0.05)
             hi = w.plan_point(o.mid, w.hi + 0.05)
             o.sides = (self.g.room_at(w.level, *lo), self.g.room_at(w.level, *hi))
+
+
+def _reach(
+    w: WallGeo, p: tuple[float, float], out: tuple[float, float], o: WallGeo
+) -> tuple[float, float]:
+    """How far the lo and hi face of w at its end p must grow along `out` to the far face of o."""
+    nx, ny = o.n
+    slope = nx * out[0] + ny * out[1]
+    if abs(slope) < JOIN_MIN_SIN:
+        return (0.0, 0.0)
+    inside = (p[0] - 0.1 * out[0], p[1] - 0.1 * out[1])
+    far = o.lo if o.c_of(*inside) > o.mid else o.hi
+    reach: list[float] = []
+    for offset in (w.lo - w.mid, w.hi - w.mid):
+        q = (p[0] + offset * w.n[0], p[1] + offset * w.n[1])
+        reach.append(min(max((far - o.c_of(*q)) / slope, 0.0), JOIN_MAX))
+    return (reach[0], reach[1])
 
 
 def make_roof(
@@ -1046,6 +1341,7 @@ def make_roof(
         x1,
         y0,
         y1,
+        rect(x0, x1, y0, y1),
         base,
         planes,
         eaves,
@@ -1057,24 +1353,42 @@ def make_roof(
     )
 
 
-def roof_profile(w: WallGeo, roof: RoofGeo) -> list[tuple[float, float]]:
-    """Top of a wall cut by a roof: the rafter underside along the wall's centre line."""
+def roof_profile(w: WallGeo, parts: Sequence[RoofGeo]) -> list[tuple[float, float]]:
+    """Top of a wall cut by the roofs of a storey: the rafter underside along its centre line."""
     c = w.mid
+    p0, p1 = w.plan_point(w.s0, c), w.plan_point(w.s1, c)
+    seg = LineString([p0, p1])
 
     def z(s: float) -> float:
-        return roof.underside(*w.plan_point(s, c))
+        x, y = w.plan_point(s, c)
+        at = SPoint(x, y)
+        covering = [rf for rf in parts if rf.foot.distance(at) < 1e-6]
+        if not covering:
+            covering = [min(parts, key=lambda rf: rf.foot.distance(at))]
+        return max(rf.underside(x, y) for rf in covering)
 
     ss = {w.s0, w.s1}
-    fs = roof.planes
-    for i, a in enumerate(fs):
-        for b in fs[i + 1 :]:
+    planes = [f for rf in parts for f in rf.planes]
+    for i, a in enumerate(planes):
+        for b in planes[i + 1 :]:
             # where a == b along the line: (a-b)(s) = 0, linear in s
             diff = a - b
-            f0 = diff(*w.plan_point(w.s0, c))
-            f1 = diff(*w.plan_point(w.s1, c))
+            f0, f1 = diff(*p0), diff(*p1)
             if (f0 > 0) != (f1 > 0) and f0 != f1:
                 ss.add(w.s0 + (w.s1 - w.s0) * f0 / (f0 - f1))
-    return [(s, z(s)) for s in sorted(ss)]
+    for rf in parts:
+        cut = seg.intersection(rf.foot.boundary)
+        pts = [cut] if isinstance(cut, SPoint) else list(getattr(cut, "geoms", []))
+        for g in pts:
+            if isinstance(g, SPoint) and w.s0 < w.s_of(g.x, g.y) < w.s1:
+                ss.add(w.s_of(g.x, g.y))
+    prof = [(s, z(s)) for s in sorted(ss)]
+    keep = prof[:1]
+    for (s, h), (s_next, h_next) in pairwise(prof[1:]):
+        s_last, h_last = keep[-1]
+        if abs((h - h_last) * (s_next - s_last) - (h_next - h_last) * (s - s_last)) > 1e-9:
+            keep.append((s, h))
+    return [*keep, prof[-1]]
 
 
 def derive_arch(d: Derived) -> None:
@@ -1091,10 +1405,12 @@ def arch_signatures(d: Derived) -> dict[str, tuple[float | str, ...]]:
     out: dict[str, tuple[float | str, ...]] = {}
     for w in g.walls.values():
         out[w.id] = (w.o, q(w.lo), q(w.hi), q(w.s0), q(w.s1))
+        if w.o == "d":
+            out[w.id] += (q(w.org[0]), q(w.org[1]), q(w.udir[0]), q(w.udir[1]))
     for o in g.openings.values():
         out[o.id] = (q(o.lo), q(o.hi), q(o.sill), q(o.top))
     for s in g.stairs.values():
-        out[s.id] = (q(s.x0), q(s.x1), q(s.y0), q(s.y1))
+        out[s.id] = (q(s.x0), q(s.x1), q(s.y0), q(s.y1), round(s.poly.area, 3))
     for p in g.seps.values():
         out[p.id] = (q(p.pos), q(p.s0), q(p.s1))
     for rm in g.rooms.values():

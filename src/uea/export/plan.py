@@ -5,13 +5,14 @@ A working plan for agents and a preview for humans. Plans in German drafting con
 """
 
 import math
+from itertools import pairwise
 
 from shapely.geometry import Polygon
 
 from uea.derive import Derived
 from uea.export.drawing import Arc, Drawing, Line, Pen, Poly, Pt, Text
 from uea.fmt import ar, zz
-from uea.geom import polys
+from uea.geom import polys, union
 from uea.packs.arch.geometry import OpeningGeo, WallGeo
 from uea.packs.arch.kinds import Door, Room
 from uea.packs.project import Grid
@@ -34,22 +35,28 @@ def _ring(p: Polygon) -> tuple[list[Pt], list[list[Pt]]]:
     )
 
 
-def _wall(dw: Drawing, w: WallGeo) -> None:
-    pts, _ = _ring(w.poly)
+def _wall(dw: Drawing, w: WallGeo, others: list[WallGeo]) -> None:
+    # where a raw wall runs into another wall, draw only what is outside that wall
+    cores = union(o.core for o in others if o is not w and o.active and w.raw)
+    pieces = polys(w.poly.difference(cores) if w.raw else w.poly, 0.0)
     if w.status == "demolish":
-        dw.add(Poly(pts, None, DEMO, "demolish"))
+        for p in pieces:
+            dw.add(Poly(_ring(p)[0], None, DEMO, "demolish"))
         return
     if w.status == "existing":
         fill = WALL_FILL["existing"]
     else:
         fill = WALL_FILL["lb"] if w.lb else WALL_FILL["nlb"]
-    dw.add(Poly(pts, fill, None, "walls"))
+    for p in pieces:
+        dw.add(Poly(_ring(p)[0], fill, None, "walls"))
     for side in ("lo", "hi"):
         f = w.finish(side)
         if f > 0:
             band = w.box(w.lo - f, w.lo) if side == "lo" else w.box(w.hi, w.hi + f)
-            bp, _ = _ring(band)
-            dw.add(Poly(bp, "#d8d8d0", None, "finish"))
+            if w.raw:
+                band = band.difference(cores)
+            for p in polys(band, 0.0):
+                dw.add(Poly(_ring(p)[0], "#d8d8d0", None, "finish"))
 
 
 def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
@@ -58,11 +65,12 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
     if o.kind == "niche":
         f = o.depth
         band = (w.hi - f, w.hi) if o.face == "hi" else (w.lo, w.lo + f)
-        p = (
-            [(o.lo, band[0]), (o.hi, band[0]), (o.hi, band[1]), (o.lo, band[1])]
-            if w.o == "h"
-            else [(band[0], o.lo), (band[1], o.lo), (band[1], o.hi), (band[0], o.hi)]
-        )
+        p = [
+            w.plan_point(o.lo, band[0]),
+            w.plan_point(o.hi, band[0]),
+            w.plan_point(o.hi, band[1]),
+            w.plan_point(o.lo, band[1]),
+        ]
         dw.add(Poly(p, "#ffffff", Pen("#2266cc", 0.012, (0.05, 0.05)), "openings"))
         return
     lo_f = w.lo - w.finish("lo")
@@ -93,10 +101,10 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
         return
     face = w.hi if side == "hi" else w.lo
     sgn = 1.0 if side == "hi" else -1.0
-    if w.o == "h":
-        hinge_hi = (el.hand == "l") == (side == "hi")
-    else:
-        hinge_hi = (el.hand == "l") == (side == "lo")
+    # seen from the room it opens into, the hinge is on the left for hand=l
+    m = w.n if side == "hi" else (-w.n[0], -w.n[1])
+    left = (m[1], -m[0])
+    hinge_hi = (left[0] * w.u[0] + left[1] * w.u[1] > 0) == (el.hand == "l")
     hs, free = (o.hi, o.lo) if hinge_hi else (o.lo, o.hi)
     h = w.plan_point(hs, face)
     e = w.plan_point(hs, face + sgn * o.width)
@@ -157,28 +165,23 @@ def plan(d: Derived, level: str, batch: int | None = None) -> Drawing:
             continue
         pts, _ = _ring(s.poly)
         dw.add(Poly(pts, "#ffffff", Pen("#333333", 0.015), "stairs"))
-        along_x = s.up in ("w", "e")
-        lo, hi = (s.x0, s.x1) if along_x else (s.y0, s.y1)
-        for i in range(1, s.n - 1):
-            t = lo + i * s.tread
-            a, b = ((t, s.y0), (t, s.y1)) if along_x else ((s.x0, t), (s.x1, t))
-            dw.add(Line(a, b, Pen("#999999", 0.008), "stairs"))
-        mid = (s.y0 + s.y1) / 2 if along_x else (s.x0 + s.x1) / 2
-        start, end = (hi, lo) if s.up in ("w", "s") else (lo, hi)
-        p0 = (start, mid) if along_x else (mid, start)
-        p1 = (end, mid) if along_x else (mid, end)
+        thin = Pen("#999999", 0.008)
+        for edge in s.lines:
+            a, b = edge.coords[0], edge.coords[-1]
+            dw.add(Line((a[0], a[1]), (b[0], b[1]), thin, "stairs"))
         red = Pen("#cc0000", 0.015)
-        dw.add(Line(p0, p1, red, "stairs"))
-        sgn = 1 if end > start else -1
+        for p0, p1 in pairwise(s.walk):
+            dw.add(Line(p0, p1, red, "stairs"))
+        p0, p1 = s.walk[-2], s.walk[-1]
+        length = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        ux, uy = (p1[0] - p0[0]) / length, (p1[1] - p0[1]) / length
         for k in (-1, 1):
-            tip = (
-                (end - sgn * 0.2, mid + k * 0.12) if along_x else (mid + k * 0.12, end - sgn * 0.2)
-            )
+            tip = (p1[0] - 0.2 * ux - k * 0.12 * uy, p1[1] - 0.2 * uy + k * 0.12 * ux)
             dw.add(Line(p1, tip, red, "stairs"))
-        dw.add(Text(p0, s.id, 0.13, "#cc0000", layer="labels"))
+        dw.add(Text(s.walk[0], s.id, 0.13, "#cc0000", layer="labels"))
     # walls and openings
     for w in walls:
-        _wall(dw, w)
+        _wall(dw, w, walls)
     for o in g.openings.values():
         if o.level == level:
             _opening(dw, d, o)
