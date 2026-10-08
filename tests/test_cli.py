@@ -202,6 +202,44 @@ def test_render_and_export(sh: Shell) -> None:
     assert (sh.root / "out" / "p.ifc").exists() or any((sh.root / "out").glob("*.ifc"))
 
 
+def test_export_xlsx(sh: Shell) -> None:
+    build(sh)
+    code, out = sh("export", "xlsx")
+    # four walls and a room; no openings, slabs, roofs or stairs; quantities: the walls, the room
+    assert code == 0
+    assert out.strip() == "p/out/box.xlsx Räume(1) Wände(4) Mengen(2)"
+    code, out = sh("export", "xlsx", "EG")
+    assert code == 0 and out.startswith("p/out/box-EG.xlsx ")
+    assert sorted(f.name for f in (sh.root / "out").glob("*.xlsx")) == ["box-EG.xlsx", "box.xlsx"]
+    code, out = sh("export", "xlsx", "XX")
+    assert code == 1 and "unknown level" in out
+    code, out = sh("export", "docx")
+    assert code == 1 and "xlsx" in out and "pdf" in out
+
+
+def test_export_sheets(sh: Shell) -> None:
+    build(sh)
+    out_dir = sh.root / "out"
+    code, out = sh("export", "pdf", "EG")
+    assert code == 0 and out.strip() == "p/out/plan-EG.pdf A3 1:100"
+    assert (out_dir / "plan-EG.pdf").read_bytes().startswith(b"%PDF")
+    code, out = sh("export", "dxf")
+    # the OG of the test project has no walls
+    assert code == 0 and out.splitlines() == [
+        "p/out/plan-EG.dxf A3 1:100",
+        "OG: no walls, nothing to draw",
+    ]
+    assert (out_dir / "plan-EG.dxf").read_text().startswith("  0\nSECTION")
+    code, out = sh("export", "svg", "EG")
+    assert (out_dir / "plan-EG.svg").read_text().startswith("<svg")
+    code, out = sh("export", "png", "EG")
+    assert code == 0 and (out_dir / "plan-EG.png").exists()
+    # render stays the working plan for the agent, with the ids of the elements
+    code, out = sh("render", "EG")
+    assert code == 0 and out.startswith("p/out/plan-EG.png ")
+    assert sh("export", "pdf", "XX")[0] == 1
+
+
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["-C", str(tmp_path), "show"]) == 2
     assert "no project.uea" in capsys.readouterr().out

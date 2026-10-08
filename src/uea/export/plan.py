@@ -5,6 +5,7 @@ A working plan for agents and a preview for humans. Plans in German drafting con
 """
 
 import math
+from dataclasses import dataclass
 from itertools import pairwise
 
 from shapely.geometry import Polygon
@@ -90,15 +91,41 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
     assert isinstance(el, Door)
     for s in (o.lo, o.hi):
         dw.add(Line(w.plan_point(s, w.lo), w.plan_point(s, w.hi), THIN, "openings"))
-    if el.into is None or el.hand is None:
+    sw = door_swing(d, o)
+    if sw is None:
         return
+    dw.add(Line(sw.hinge, sw.open_end, DOOR, "openings"))
+    dw.add(Arc(sw.hinge, o.width, sw.a0, sw.a1, Pen("#a04000", 0.01), "openings"))
+
+
+@dataclass
+class Swing:
+    """A door leaf opened by 90 degrees, and the arc its free end sweeps."""
+
+    hinge: Pt
+    open_end: Pt
+    """The free end of the leaf when it stands open."""
+    closed_end: Pt
+    """The free end of the leaf when it is shut."""
+    a0: float
+    a1: float
+    """The arc runs counter-clockwise from a0 to a1, in degrees."""
+
+
+def door_swing(d: Derived, o: OpeningGeo) -> Swing | None:
+    """Where the leaf of a door swings; none if the door says no room or no hand."""
+    w = d.arch.walls[o.host]
+    el = d.model[o.id]
+    assert isinstance(el, Door)
+    if el.into is None or el.hand is None:
+        return None
     into = el.into.id
     if o.sides[1] == into:
         side = "hi"
     elif o.sides[0] == into:
         side = "lo"
     else:
-        return
+        return None
     face = w.hi if side == "hi" else w.lo
     sgn = 1.0 if side == "hi" else -1.0
     # seen from the room it opens into, the hinge is on the left for hand=l
@@ -109,13 +136,11 @@ def _opening(dw: Drawing, d: Derived, o: OpeningGeo) -> None:
     h = w.plan_point(hs, face)
     e = w.plan_point(hs, face + sgn * o.width)
     f = w.plan_point(free, face)
-    dw.add(Line(h, e, DOOR, "openings"))
     ae = math.degrees(math.atan2(e[1] - h[1], e[0] - h[0]))
     af = math.degrees(math.atan2(f[1] - h[1], f[0] - h[0]))
     if (ae - af) % 360 <= 180:
-        dw.add(Arc(h, o.width, af, ae, Pen("#a04000", 0.01), "openings"))
-    else:
-        dw.add(Arc(h, o.width, ae, af, Pen("#a04000", 0.01), "openings"))
+        return Swing(h, e, f, af, ae)
+    return Swing(h, e, f, ae, af)
 
 
 def plan(d: Derived, level: str, batch: int | None = None) -> Drawing:

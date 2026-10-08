@@ -10,6 +10,12 @@ The core is domain-neutral, so new domain packs can be added on top of it:
 - **Mechanical parts:** this needs real solid geometry (B-rep), which the building model avoids. It would be a separate pack built on an existing kernel, never our own.
 - **Civil engineering (Tiefbau, Verkehrswegebau):** roads, earthworks, drainage. Alignment-based geometry (axis, gradient line, cross sections) instead of storeys.
 
+## Standard library
+
+A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" in `ROADMAP.md`), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
+
+Until then, an agent defines every type in the project file.
+
 ## From model to tender
 
 - **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276, with quantities taken from the model.

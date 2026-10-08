@@ -17,7 +17,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea check [discipline]` | open issues, requests and waivers |
 | `uea calc [name] [scope]` | calculators, e.g. calc wofl (help calc) |
 | `uea render <level>` | plan image (PNG) to look at (help export) |
-| `uea export <format> [scope]` | for humans: ifc, svg, png (help export) |
+| `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png (help export) |
 | `uea log [n]` | recent batches |
 | `uea help [topic]` | this help, or a topic |
 
@@ -447,4 +447,4 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 
 ## Exports
 
-`uea export` writes `ifc`, `svg`, `png`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.
+`uea export` writes `ifc`, `xlsx`, `pdf`, `dxf`, `svg`, `png`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.
