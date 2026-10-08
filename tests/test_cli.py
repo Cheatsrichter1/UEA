@@ -202,6 +202,21 @@ def test_render_and_export(sh: Shell) -> None:
     assert (sh.root / "out" / "p.ifc").exists() or any((sh.root / "out").glob("*.ifc"))
 
 
+def test_export_xlsx(sh: Shell) -> None:
+    build(sh)
+    code, out = sh("export", "xlsx")
+    # four walls and a room; no openings, slabs, roofs or stairs; quantities: the walls, the room
+    assert code == 0
+    assert out.strip() == "p/out/box.xlsx Räume(1) Wände(4) Mengen(2)"
+    code, out = sh("export", "xlsx", "EG")
+    assert code == 0 and out.startswith("p/out/box-EG.xlsx ")
+    assert sorted(f.name for f in (sh.root / "out").glob("*.xlsx")) == ["box-EG.xlsx", "box.xlsx"]
+    code, out = sh("export", "xlsx", "XX")
+    assert code == 1 and "unknown level" in out
+    code, out = sh("export", "dxf")
+    assert code == 1 and "xlsx" in out
+
+
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["-C", str(tmp_path), "show"]) == 2
     assert "no project.uea" in capsys.readouterr().out

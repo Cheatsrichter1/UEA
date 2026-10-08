@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import Literal
 
+import shapely
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as SPoint
@@ -39,9 +40,11 @@ from uea.geom import (
     rect,
     split_by,
     union,
+    union_pieces,
 )
 from uea.packs.arch.kinds import (
     Door,
+    DoorType,
     Niche,
     Roof,
     RoofType,
@@ -54,6 +57,7 @@ from uea.packs.arch.kinds import (
     Wall,
     WallType,
     Win,
+    WinType,
 )
 from uea.packs.arch.stairs import layout
 from uea.packs.project import Grid, Level
@@ -1432,6 +1436,32 @@ def roof_profile(w: WallGeo, parts: Sequence[RoofGeo]) -> list[tuple[float, floa
         if abs((h - h_last) * (s_next - s_last) - (h_next - h_last) * (s - s_last)) > 1e-9:
             keep.append((s, h))
     return [*keep, prof[-1]]
+
+
+def roof_pieces(g: ArchGeo, level: str) -> list[tuple[int, Lin, Polygon]]:
+    """The planes of all roofs of a storey, cut against each other where they meet.
+
+    Each piece is (index of its roof in `g.roofs_on(level)`, the plane, its plan outline).
+    """
+    roofs = g.roofs_on(level)
+    parts = [Part(rf.over, tuple(rf.planes)) for rf in roofs]
+    x0, y0, x1, y1 = shapely.union_all([rf.over for rf in roofs]).bounds
+    return union_pieces(parts, shapely.box(x0, y0, x1, y1))  # pyright: ignore[reportUnknownMemberType]
+
+
+def opening_type(m: Model, el: Element) -> DoorType | WinType | None:
+    """The type of a door or window: its own, else the type marked default."""
+    if not isinstance(el, Door | Win):
+        return None
+    typ = getattr(el, "type", None)
+    if typ is not None and typ.id in m:
+        t = m[typ.id]
+        return t if isinstance(t, DoorType | WinType) else None
+    cat = "door" if isinstance(el, Door) else "win"
+    for t in m.of_kind("type", cat):
+        if getattr(t, "default", False) and isinstance(t, DoorType | WinType):
+            return t
+    return None
 
 
 def derive_arch(d: Derived) -> None:

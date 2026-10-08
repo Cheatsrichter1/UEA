@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: phase 0 is done and phase 1 is in progress (see below).
+Status, October 2026: phase 0 is done, phase 1 is nearly done and phase 2 has started (see below).
 
 ## Phases
 
@@ -40,6 +40,10 @@ Still open for phase 1:
 - A human opens the IFC in a free viewer (it validates and every shape builds in IfcOpenShell).
 - Not covered yet: roofs over outlines turned by another angle or trapezoid, curved and spiral stairs, winders in a half turn, and wall joins other than "run to the far face of the wall it touches" (no mitre control, no join order).
 
+### Phase 2: where it stands
+
+The design is `docs/decisions/0022-plans-and-tables.md`. Built: the XLSX tables (`uea export xlsx [level]`): rooms, walls, openings, slabs, roofs, stairs and quantities per type, in German. Next, in this order: the floor plan per storey as DXF and PDF in German drafting conventions (scale, line weights, hatches, dimension chains, room stamps, title block), then sections, then elevations.
+
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 
 After v1, the light pack grows from luminaires into lighting design and photometric calculation (`docs/decisions/0006-pack-order.md`).
@@ -50,7 +54,6 @@ To be scheduled into the phases above.
 
 ### Model
 
-- **Standard library.** A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" below), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **Openings without a fill.** Wall and slab penetrations, chases and core drillings (Durchbrüche, Schlitze, Kernbohrungen; `IfcOpeningElement`). Today only niches and slab voids exist. They are the main handoff from the Fachplaner to the architect: a request asks for a chase, and the architect answers with the element.
 - **Shafts and installation walls.** Vertical shafts through several storeys, and pre-wall installations (Vorwandinstallation) in WC and bath. Plumbing and ventilation run through them (phases 6 and 7).
 - **More roof elements.** Dormers (Gauben), roof windows, a parapet (Attika) on flat roofs, butterfly and barrel roofs, a steeper pitch for the ends of a half-hip. Roofs over a turned or trapezoid outline are open (`docs/decisions/0020-roof-parts.md`, `0021-roof-shapes.md`).
@@ -78,7 +81,7 @@ To be scheduled into the phases above.
 ### Calculations
 
 - **Areas and volumes per DIN 277** (BGF, NRF, BRI) as a `norm` calculator. The building application needs them, and they are the basis of a cost estimate per DIN 276 (`FUTURE.md`).
-- **U-values per DIN EN ISO 6946** from the build-ups. This needs a thermal conductivity per material, from the standard library or from the office's tables (the DIN 4108-4 values are licensed). The Heizlast in phase 6 uses them too.
+- **U-values per DIN EN ISO 6946** from the build-ups. This needs a thermal conductivity per material, from the office's tables (the DIN 4108-4 values are licensed). The Heizlast in phase 6 uses them too.
 - **Setbacks and plot ratios:** Abstandsflächen per Landesbauordnung, GRZ and GFZ per BauNVO. Needs the site plan below; the rules differ per Land.
 - **GEG compliance** and the Energieausweis, later.
 

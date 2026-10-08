@@ -14,7 +14,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea check [discipline]", "open issues, requests and waivers"),
     ("uea calc [name] [scope]", "calculators, e.g. calc wofl (help calc)"),
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
-    ("uea export <format> [scope]", "for humans: ifc, svg, png (help export)"),
+    ("uea export <format> [scope]", "for humans: ifc, xlsx, svg, png (help export)"),
     ("uea log [n]", "recent batches"),
     ("uea help [topic]", "this help, or a topic"),
 )
@@ -123,8 +123,9 @@ EXPORT = """\
 uea render <level> [-o file]        plan image (PNG) for you to look at
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export svg|png [level] [-o f]   plan drawings for humans; all levels if none is given
-Files go to out/ unless -o says otherwise; the output names them. Drawings are labelled in
-German, for the people who read them. dxf, pdf and xlsx come later.
+uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
+Files go to out/ unless -o says otherwise; the output names them. Drawings and tables are
+labelled in German, for the people who read them. dxf and pdf come later.
 """
 
 

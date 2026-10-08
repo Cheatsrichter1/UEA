@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from uea.cli import Ctx
 
-FORMATS = ("ifc", "svg", "png")
+FORMATS = ("ifc", "svg", "png", "xlsx")
 
 
 def _levels(ctx: "Ctx", scope: str | None) -> list[str] | str:
@@ -50,6 +50,28 @@ def _rel(ctx: "Ctx", path: Path) -> Path:
         return path
 
 
+def _xlsx(ctx: "Ctx", scope: str | None, out_path: str | None) -> str | list[str]:
+    from uea.export.tables import tables
+    from uea.export.xlsx import write_xlsx
+
+    levels = _levels(ctx, scope)
+    if isinstance(levels, str):
+        return levels
+    d, _ = ctx.derived()
+    level = None if scope is None or scope == "all" else scope
+    sheets = tables(d, level)
+    if not sheets:
+        return "nothing to put in a table yet"
+    name = d.model.project_name() or "project"
+    ctx.project.out.mkdir(exist_ok=True)
+    default = f"{name}-{level}.xlsx" if level else f"{name}.xlsx"
+    path = Path(out_path) if out_path else ctx.project.out / default
+    proj = d.model.of_kind("project")
+    label = (proj[0].label or proj[0].id) if proj else name
+    write_xlsx(sheets, path, label, ctx.project.history.last())
+    return [f"{_rel(ctx, path)} " + " ".join(f"{t.name}({len(t.rows)})" for t in sheets)]
+
+
 def render(ctx: "Ctx", out: Callable[[Any], None]) -> int:
     res = _drawings(ctx, ctx.args.scope, "png", ctx.args.out)
     if isinstance(res, str):
@@ -62,11 +84,12 @@ def render(ctx: "Ctx", out: Callable[[Any], None]) -> int:
 def export(ctx: "Ctx", out: Callable[[Any], None]) -> int:
     fmt: str = ctx.args.format
     if fmt not in FORMATS:
-        out(
-            f"unknown format {fmt!r}. Formats: {' '.join(FORMATS)}"
-            " (dxf, pdf and xlsx come in phase 2)"
-        )
+        out(f"unknown format {fmt!r}. Formats: {' '.join(FORMATS)} (dxf and pdf come later)")
         return 1
+    if fmt == "xlsx":
+        res = _xlsx(ctx, ctx.args.scope, ctx.args.out)
+        out(res)
+        return 1 if isinstance(res, str) else 0
     if fmt in ("svg", "png"):
         res = _drawings(ctx, ctx.args.scope, fmt, ctx.args.out)
         if isinstance(res, str):

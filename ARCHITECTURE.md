@@ -30,7 +30,7 @@ Status: phase 1 in progress. The core, the architecture pack, the CLI, the first
 ```
 
 - The **core** knows nothing about walls or sockets. It handles elements, references, operations, validation, geometry resolution and the history.
-- A **domain pack** adds one discipline: its element kinds, its type catalogue, its validators, its calculators and how its elements map to each export.
+- A **domain pack** adds one discipline: its element kinds, its validators, its calculators and how its elements map to each export.
 - **Agents** only ever talk to the interfaces. Humans only ever see exports.
 
 ## 2. Project layout
@@ -79,7 +79,7 @@ The exact graph is fixed per pack and checked by the core. It must stay acyclic.
 1. **Intent over coordinates.** Walls run between grid points or relative to other walls (for example at a distance from another wall's face), openings sit at a distance along their host wall, sockets sit on a wall at a height, rooms are bounded by walls. A solver derives the actual geometry. Raw coordinates are the escape hatch for drafted elements and the normal case for imported ones (§9); walls in any direction are placed by their axis from point a to point b (`docs/decisions/0018-raw-walls.md`).
 2. **Derived, never stored.** Areas, lengths, volumes, joins and cable lengths are computed on demand. Only decisions are stored.
 3. **Datums.** Plan positions are core faces (the faces of a type's core layer, the German Rohbau); finished sizes are derived from the other layers (plaster, screed, linings), and both are available everywhere. Heights count from the storey's FFL, its finished floor level. Windows hang from the storey's head height. See `docs/decisions/0012-datums-and-positions.md`.
-4. **Types and instances.** An instance references a type (`AW-365`, `NYM-J3x1.5`). Types come from the pack's catalogue or are defined in the project file. Changing a type changes every instance.
+4. **Types and instances.** An instance references a type (`AW-365`, `NYM-J3x1.5`). Types are defined in the project file (a shipped standard library is in `FUTURE.md`). Changing a type changes every instance.
 5. **IFC vocabulary.** Element kinds and properties follow IFC names and property sets where they exist, so IFC export is near-lossless. The internal format stays far simpler than IFC.
 6. **Status.** Every element is new unless it carries the flag `existing` (Bestand), `demolish` or `temp`, matching IFC's status values. Plans, quantities and calculators respect the status (a demolished wall bounds no room), so Umbau projects work in the same model.
 7. **Ids** are short, stable and unique across the whole project (`w12`, `s4`, `c3`). UEA assigns them and never reuses one, because the history records every id ever assigned (§5). Each pack registers its id prefixes with the core, so packs cannot collide.
@@ -251,8 +251,8 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | Plan image | Pillow (MIT-CMU), and SVG | Built. Cheap pictures for agents to check their own layouts, from a neutral 2D drawing |
 | DXF | ezdxf (MIT) | Phase 2. From the same 2D drawing; layer structure per discipline |
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
-| PDF plans | from the same 2D drawing | Phase 2. Floor plans, sections and elevations per storey and discipline |
-| XLSX | openpyxl (MIT) | Phase 2. Tables: rooms, walls, sockets, circuits, quantities |
+| PDF plans | reportlab (BSD), from the same 2D drawing | Phase 2. Floor plans, sections and elevations per storey and discipline |
+| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); sockets and circuits come with the electrical pack |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
 New exports are a good place for outside contributions: each one only needs the read API.
@@ -276,7 +276,7 @@ Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>`
 | Schemas and validation | Pydantic v2 |
 | Packaging and tooling | uv, ruff, pytest |
 | Geometry | Shapely |
-| Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow; later ezdxf, openpyxl; Blender and DWG converters as separate processes |
+| Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl; later ezdxf, reportlab; Blender and DWG converters as separate processes |
 | Licence | Apache-2.0 |
 
 Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) comes in only for measured hot paths, behind the same API (`docs/decisions/0003-python.md`).

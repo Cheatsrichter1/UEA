@@ -31,8 +31,17 @@ from uea import __version__
 from uea.core.values import Layers
 from uea.derive import Derived
 from uea.geom import Lin, Part, halfplane, polys, union_pieces
-from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, StairGeo, StairPartGeo, WallGeo
-from uea.packs.arch.kinds import Door, DoorType, Roof, Room, Win, WinType
+from uea.packs.arch.geometry import (
+    ArchGeo,
+    OpeningGeo,
+    RoofGeo,
+    StairGeo,
+    StairPartGeo,
+    WallGeo,
+    opening_type,
+    roof_pieces,
+)
+from uea.packs.arch.kinds import DoorType, Roof, Room, WinType
 
 NS = uuid.UUID("6f1d2a8e-3c4b-5d6e-8f90-a1b2c3d4e5f6")
 STATUS = {"new": "NEW", "existing": "EXISTING", "demolish": "DEMOLISH", "temp": "TEMPORARY"}
@@ -350,7 +359,7 @@ class Writer:
         )
         e.Representation = self.body([self.extrude(panel, o.sill, o.top - o.sill)], "SweptSolid")
         ifcopenshell.api.feature.add_filling(self.f, opening=op, element=e)
-        typ = self._opening_type(el)
+        typ = opening_type(self.d.model, el)
         u = None
         if isinstance(typ, DoorType):
             u = typ.ud or typ.uw
@@ -372,18 +381,6 @@ class Writer:
             },
         )
         self.contained[w.level].append(e)
-
-    def _opening_type(self, el: Any) -> DoorType | WinType | None:
-        m = self.d.model
-        typ = getattr(el, "type", None)
-        if typ is not None and typ.id in m:
-            t = m[typ.id]
-            return t if isinstance(t, DoorType | WinType) else None
-        cat = "door" if isinstance(el, Door) else "win" if isinstance(el, Win) else None
-        for t in m.of_kind("type", cat):
-            if getattr(t, "default", False) and isinstance(t, DoorType | WinType):
-                return t
-        return None
 
     def slab(self, key: str) -> None:
         sl = self.g.slabs[key]
@@ -410,10 +407,7 @@ class Writer:
     def roof_pieces(self, level: str) -> list[tuple[int, Lin, Polygon]]:
         """The planes of all roofs of a storey, cut against each other where they meet."""
         if level not in self._roof_pieces:
-            roofs = self.g.roofs_on(level)
-            parts = [Part(rf.over, tuple(rf.planes)) for rf in roofs]
-            x0, y0, x1, y1 = shapely.union_all([rf.over for rf in roofs]).bounds
-            self._roof_pieces[level] = union_pieces(parts, shapely.box(x0, y0, x1, y1))
+            self._roof_pieces[level] = roof_pieces(self.g, level)
         return self._roof_pieces[level]
 
     def roof(self, rf: RoofGeo) -> None:
