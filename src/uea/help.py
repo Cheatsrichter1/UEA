@@ -20,7 +20,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 )
 """Every command with a one-line description: the root help and docs/reference.md."""
 
-TOPICS = "start | ops | positions | arch | <kind> | codes | calc | export"
+TOPICS = "start | ops | positions | arch | elec | <kind> | codes | calc | export"
 
 ROOT = (
     """\
@@ -112,6 +112,17 @@ fin: between finished surfaces), heights, volumes, slab outlines, stair risers, 
 ridge heights. Read them with uea get.
 """
 
+ELEC_NOTES = """\
+A device stands on a wall face: host w4 (an exterior wall: the room side) or w5.n (an interior
+wall needs its face), a position along it (x= or y= like an opening's; x=sw1+0.071 is one frame
+past switch sw1) and z=, the height of its centre above the FFL (sockets 0.3, switches 1.05 if
+left out). Luminaires are in light.uea. A switch wires the luminaires in its ctl=: they take its
+circuit, two switches make a two-way circuit, three an intermediate one. A circuit's load is
+its luminaires and the w= of its connections and feeds, against breaker x 230 V x phases.
+Cable sizing and voltage drop come with the calculators. The checks are planning rules and
+cite no norm.
+"""
+
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
@@ -171,6 +182,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(f"  {name:<12} {cls.doc}")
     if pack == "arch":
         lines.append(ARCH_NOTES.rstrip())
+    if pack == "elec":
+        lines.append(ELEC_NOTES.rstrip())
     lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 

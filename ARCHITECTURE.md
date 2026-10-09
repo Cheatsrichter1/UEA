@@ -164,7 +164,7 @@ So a batch is **not** rejected for errors it causes in other disciplines. Instea
 
 ```
 ok  batch 41: 1 changed (w7)
-affects elec: s4, s5 host w7 moved; s5 now 0.08 m from door d3 (E-ELEC-004)
+affects elec: s4, s5 host w7 moved; s5 now 0.08 m from door d3 (W-ELEC-004)
 ```
 
 This is how upstream changes reach downstream disciplines. Requests go the other way.

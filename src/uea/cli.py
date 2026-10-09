@@ -82,12 +82,13 @@ class Ctx:
 
 def describe(d: Derived, el: Element) -> list[str]:
     pack = d.model.reg.packs[type(el).pack]
+    out: list[str] = []
     for p in d.model.reg.packs.values():
-        if p.describe is not None and (p is pack or el.kind in ("level", "grid")):
-            lines = p.describe(d, el)
-            if lines:
-                return lines
-    return []
+        if (p.describe is not None and (p is pack or el.kind in p.also)) or (
+            p.describe is not None and el.kind in ("level", "grid") and not out
+        ):
+            out += p.describe(d, el)
+    return out
 
 
 def issue_lines(issues: Sequence[Issue], prefix: str = "") -> list[str]:

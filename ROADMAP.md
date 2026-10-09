@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: phase 0 is done, phase 1 is nearly done and phase 2 has started (see below).
+Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built and phase 3 has started (see below).
 
 ## Phases
 
@@ -43,6 +43,10 @@ Still open for phase 1:
 ### Phase 2: where it stands
 
 The designs are `docs/decisions/0022-plans-and-tables.md`, `0023-sections.md` and `0024-elevations.md`. Built: the XLSX tables (`uea export xlsx [level]`): rooms, walls, openings, slabs, roofs, stairs and quantities per type, in German. The floor plan sheet per storey (`uea export pdf|dxf|svg|png [level]`): A3 1:100 or the first sheet and scale that fit, cut walls with real openings, door swings and window symbols, stairs, room stamps, three dimension chains per side, grid axes, an unsigned title block; DXF in mm on German layers. The sections (`0023-sections.md`; a `section` element in `arch.uea`, `uea export pdf|dxf|svg|png <name>`): cut walls, slabs, roof and stair in profile with their layers, openings, the view behind the cut with hidden lines removed, height marks, dimension chains, room labels with the clear height, the ground line, and the cut lines in the floor plans. The four elevations (`0024-elevations.md`; `uea export pdf|dxf|svg|png north|east|south|west`): walls with openings, slab edges, the roof with its thickness, the ground, height marks and dimension chains. Open on the section: the stair rail, niches behind the cut, a cut that jogs. Open on the elevation: facade materials, demolished walls of an Umbau, opening symbols. Open on the plan: a north arrow (needs a north direction in the project), roof outlines, dashed windows above the cut plane, notches in an L-shaped facade, client and author fields for the title block.
+
+### Phase 3: where it stands
+
+The design is `docs/decisions/0025-electrical-devices.md`; the phase goes in three slices. Slice 1 is built: the electrical pack (`elec.uea`: board, rcd, circ, sock, conn, switch, data, smoke, feed) and the luminaires of the light pack (`light.uea`), devices placed on wall faces and in rooms by anchors, a luminaire wired by the switches that control it (single, two-way, intermediate), the load of each circuit against its breaker, twelve checks (a device in an opening, close to one, outside its wall, a switch behind the open leaf of a door, an overloaded circuit, a luminaire without a switch, ...), and the XLSX sheets Verteiler, Stromkreise, Installationsgeräte and Leuchten. Haus Müller's draft electrics load. Next: slice 2, the Installationsplan per storey and the Verteilungsplan; slice 3, cable lengths along the installation zones and the norm calculators (voltage drop, cable sizing) on tables the office supplies; the minimum equipment of a room (`W-ELEC-010`) comes with the table.
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 

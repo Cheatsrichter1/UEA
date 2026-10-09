@@ -380,6 +380,177 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 | y | `y=` | m | y of a cut across y (the cut plane runs along x) |
 | look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
 
+### Luminaires (`light.uea`)
+
+Types: `type … lum`.
+
+Kinds: `lum`.
+
+#### `type … lum`
+
+Luminaire type. A luminaire without type= uses the type marked default.
+
+`type <name> lum`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| flux | `flux=` | lm | luminous flux |
+| w | `w=` | W | power |
+| dist | `dist=` |  | light distribution for the photometric calculation, e.g. cos1, cos3 |
+| default | flag `default` | | used by luminaires without type= |
+
+#### `lum`
+
+A luminaire. In a room (host r2): at= a point, z= its height; by default the middle of the room at the ceiling. On a wall (host w1.s): x=/y= along it, z= its height.
+
+`lum <id> <host>` · ids `l1`, `l2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room, or wall face |
+| at | `at=` | m | point in the room, x,y |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction |
+| z | `z=` | m | height of its centre above the FFL |
+| type | `type=` |  | luminaire type; default type if left out |
+
+### Electrical (`elec.uea`)
+
+Kinds: `board`, `rcd`, `circ`, `sock`, `conn`, `switch`, `data`, `smoke`, `feed`.
+
+#### `board`
+
+A distribution board on a wall: board b1 w6.w y=w3-0.6 z=1.4 main=SLS-E35 meters=1. media: a media distribution board (Medienverteiler) for the data outlets.
+
+`board <id> <host>` · ids `b1`, `b2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| main | `main=` |  | main switch, e.g. SLS-E35 |
+| spd | `spd=` |  | surge protection, e.g. T1+T2 |
+| meters | `meters=` |  | electricity meters |
+| media | flag `media` | | a media distribution board |
+
+#### `rcd`
+
+A residual current device (Fehlerstromschutzschalter) in a board: rcd fi1 b1 40/0.03 A, rated A / residual A, then its type (AC, A, F or B).
+
+`rcd <id> <board> <rating> <type>` · ids `fi1`, `fi2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| board | positional |  | distribution board |
+| rating | positional | A | rated current / residual current |
+| type | positional | `AC` `A` `F` `B` | RCD type |
+
+#### `circ`
+
+A circuit behind an RCD: circ c1 fi1 NYM-J5x2.5 B16 p=3 "Küche Herd". p= phases (1 or 3). Its connected load is the luminaires, connections and feeds on it.
+
+`circ <id> <rcd> <cable> <breaker>` · ids `c1`, `c2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| rcd | positional |  | RCD that protects it |
+| cable | positional |  | cable designation, type, cores x mm² |
+| breaker | positional |  | circuit breaker: characteristic and rated current |
+| p | `p=` |  | phases, 1 or 3 |
+
+#### `sock`
+
+A socket box on a wall: sock s4 w4 c4 y=f2+0.3 z=1.15 n=2. z= is 0.3 if left out; n= the outlets in its frame.
+
+`sock <id> <host> <circuit>` · ids `s1`, `s2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| circuit | positional |  | circuit |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| n | `n=` |  | outlets in the frame |
+
+#### `conn`
+
+A fixed connection (Anschluss) for an appliance: conn a1 w4 c1 y=w1+0.9 z=0.6 "Herd". w= its power, counted in the circuit's load.
+
+`conn <id> <host> <circuit>` · ids `a1`, `a2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| circuit | positional |  | circuit |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| w | `w=` | W | connected power |
+
+#### `switch`
+
+A light switch: switch sw2 w5.s c10 x=d2+0.15 ctl=l2,l3. ctl= the luminaires it controls: , separates channels, + joins luminaires of one channel. A luminaire with two switches is a two-way circuit, with three an intermediate one. dim: a dimmer.
+
+`switch <id> <host> <circuit>` · ids `sw1`, `sw2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| circuit | positional |  | circuit |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| ctl | `ctl=` |  | luminaires it controls: l1 or l2,l3 or l15+l16 (required) |
+| dim | flag `dim` | | a dimmer |
+
+#### `data`
+
+A data outlet (network, antenna) cabled to a distribution board: data dt1 w2 b2 y=w5-0.75 n=2.
+
+`data <id> <host> <board>` · ids `dt1`, `dt2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| board | positional |  | distribution board it is cabled to |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| n | `n=` |  | ports in the frame |
+
+#### `smoke`
+
+A smoke alarm (Rauchwarnmelder) in a room, at the ceiling: smoke rm1 r5. at= a point.
+
+`smoke <id> <host>` · ids `rm1`, `rm2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| at | `at=` | m | point in the room, x,y; default the middle |
+| z | `z=` | m | height above the FFL; default the ceiling |
+
+#### `feed`
+
+A circuit feeding an element of another discipline (a heat pump, a fan): feed fd1 g1 c7. w= its power, counted in the circuit's load.
+
+`feed <id> <target> <circuit>` · ids `fd1`, `fd2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| target | positional |  | the powered element |
+| circuit | positional |  | circuit |
+| w | `w=` | W | connected power |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -449,6 +620,20 @@ E is an error, W a warning.
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 | W-ARCH-060 | section outside the building (it cuts no wall) |
+| E-LIGHT-002 | luminaire on a wall without a usable face |
+| E-ELEC-001 | device outside its host wall |
+| E-ELEC-002 | device on a wall without a usable face |
+| E-ELEC-003 | device in an opening of its wall |
+| W-ELEC-004 | device closer than 0.1 m to an opening |
+| E-ELEC-005 | device below the floor or above the top of its wall |
+| E-ELEC-006 | device on a demolished wall |
+| E-ELEC-011 | switch controls something that is not a luminaire |
+| W-ELEC-012 | switch on the hinge side of a door, where the open leaf covers it |
+| W-ELEC-020 | connected load larger than the circuit breaker carries |
+| W-ELEC-022 | circuit that feeds nothing |
+| W-ELEC-030 | luminaire that no switch controls |
+| W-ELEC-031 | luminaire switched from more than one circuit |
+| W-ELEC-040 | distribution board without an RCD |
 
 ## Calculators
 

@@ -239,11 +239,36 @@ def level_summary(d: Derived, level: str) -> list[str]:
             assert isinstance(el, Room)
             items.append(room_line(g, rg, el))
         out.append(" · ".join(items))
+    out += mounted_lines(d, level)
     return out
+
+
+def mounted_lines(d: Derived, level: str) -> list[str]:
+    """What other disciplines have mounted on a storey: `elec 17 sock (25 outlets) 9 switch`."""
+    by_pack: dict[str, dict[str, int]] = {}
+    outlets = 0
+    for mt in d.mounts.values():
+        if mt.level != level:
+            continue
+        el = d.model[mt.id]
+        kinds = by_pack.setdefault(type(el).pack, {})
+        kinds[mt.kind] = kinds.get(mt.kind, 0) + 1
+        if mt.kind == "sock":
+            outlets += int(getattr(el, "n", 1))
+    parts: list[str] = []
+    for pack, kinds in by_pack.items():
+        items = [
+            f"{n} {k}" + (f" ({outlets} outlets)" if k == "sock" else "") for k, n in kinds.items()
+        ]
+        parts.append(f"{pack} " + " ".join(items))
+    return [" · ".join(parts)] if parts else []
 
 
 def _level_of(d: Derived, el: Element) -> str | None:
     g = d.arch
+    at = d.mounts.get(el.id)
+    if at is not None:
+        return at.level
     lvl = getattr(el, "level", None)
     if lvl is not None:
         return lvl.id
@@ -262,6 +287,9 @@ def level_of(d: Derived, el: Element) -> str | None:
 
 def in_room(d: Derived, el: Element, room: str) -> bool:
     g = d.arch
+    at = d.mounts.get(el.id)
+    if at is not None:
+        return at.room == room
     rg = g.rooms.get(room)
     if rg is None:
         return False

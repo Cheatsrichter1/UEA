@@ -63,6 +63,8 @@ class Pack:
     """Derived geometry per element, compared before and after a batch to report what moved."""
     describe: Describe | None = None
     """Derived values of one element, as short lines for `uea get`."""
+    also: tuple[str, ...] = ()
+    """Kinds of other disciplines this pack adds lines to in `uea get`."""
 
     @property
     def file(self) -> str:
