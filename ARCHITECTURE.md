@@ -251,7 +251,7 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | Plan image | Pillow (MIT-CMU), and SVG | Built. Cheap pictures for agents to check their own layouts, from a neutral 2D drawing |
 | DXF | ezdxf (MIT) | Built for the floor plan sheet. From the same 2D drawing; mm, German layers per element (`0022-plans-and-tables.md`) |
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
-| PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet and the section; elevations next |
+| PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section and the elevation |
 | XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); sockets and circuits come with the electrical pack |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 

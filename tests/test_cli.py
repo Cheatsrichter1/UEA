@@ -224,10 +224,11 @@ def test_export_sheets(sh: Shell) -> None:
     assert code == 0 and out.strip() == "p/out/plan-EG.pdf A3 1:100"
     assert (out_dir / "plan-EG.pdf").read_bytes().startswith(b"%PDF")
     code, out = sh("export", "dxf")
-    # the OG of the test project has no walls
+    # the OG of the test project has no walls; then the four elevations
     assert code == 0 and out.splitlines() == [
         "p/out/plan-EG.dxf A3 1:100",
         "OG: no walls, nothing to draw",
+        *(f"p/out/elevation-{side}.dxf A3 1:100" for side in ("north", "east", "south", "west")),
     ]
     assert (out_dir / "plan-EG.dxf").read_text().startswith("  0\nSECTION")
     code, out = sh("export", "svg", "EG")
@@ -252,7 +253,7 @@ def test_export_sections(sh: Shell) -> None:
     assert code == 0 and out.strip() == "p/out/section-A.pdf A3 1:100"
     assert (out_dir / "section-A.pdf").read_bytes().startswith(b"%PDF")
     code, out = sh("export", "dxf")
-    assert code == 0 and out.splitlines() == [
+    assert code == 0 and out.splitlines()[:3] == [
         "p/out/plan-EG.dxf A3 1:100",
         "OG: no walls, nothing to draw",
         "p/out/section-A.dxf A3 1:100",
@@ -260,7 +261,10 @@ def test_export_sections(sh: Shell) -> None:
     code, out = sh("export", "png", "A")
     assert code == 0 and (out_dir / "section-A.png").exists()
     code, out = sh("export", "pdf", "B")
-    assert code == 1 and out.strip() == ("unknown level or section 'B'. Levels: EG OG. Sections: A")
+    assert code == 1 and out.strip() == (
+        "unknown level, section or side 'B'. Levels: EG OG. Sections: A."
+        " Sides: north east south west"
+    )
     # a cut that meets no wall is a warning, and there is nothing to draw
     assert sh("apply", "--by", "t", "-m", "cut", stdin="+ section B x=50\n")[0] == 0
     code, out = sh("export", "pdf", "B")

@@ -1,6 +1,6 @@
 # 0022: Plans and tables for humans
 
-Status: Accepted (tables and the floor plan sheet built; sections in 0023; elevations to follow)
+Status: Accepted (tables and the floor plan sheet built; sections in 0023, elevations in 0024)
 Date: 2026-10-08
 
 ## Context
@@ -11,7 +11,7 @@ Phase 2 of `ROADMAP.md` makes the exports an architect or Fachplaner can read: f
 
 **One model, many outputs.** `Drawing` grows what a drawing needs (scale and sheet, pen classes instead of colours, hatches, dimension chains, text styles, layers). SVG, PNG, DXF and PDF all render from it, so they cannot differ. Tables are plain data (`export/tables.py`) written by a thin XLSX writer (`export/xlsx.py`).
 
-**Order of work.** (1) XLSX tables, built. (2) Floor plan per storey as PDF, DXF, SVG and PNG, built. (3) Sections, built (`0023-sections.md`). (4) Elevations. Each step ends with an export a human can open.
+**Order of work.** (1) XLSX tables, built. (2) Floor plan per storey as PDF, DXF, SVG and PNG, built. (3) Sections, built (`0023-sections.md`). (4) Elevations, built (`0024-elevations.md`). Each step ends with an export a human can open.
 
 **Libraries.** openpyxl (MIT) for XLSX, ezdxf (MIT) for DXF, reportlab (BSD) for PDF: pure Python, vector output, no system packages. The licence of each is checked before it is added.
 
