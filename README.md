@@ -21,11 +21,55 @@ What it costs an agent to read one complete Einfamilienhaus, with architecture, 
 | **UEA line format** (measured) | ~4,500 | 1× |
 | Minimal, clean IFC (estimate) | ~50,000–150,000 | ~10–30× |
 | IFC exported from Revit (estimate) | ~1–5 million | ~250–1,000× |
-| Agent working in Revit via API and screenshots (estimate) | ~0.5–2 million for the whole house | ~100–400× |
+| Agent building the whole house with Revit via API and screenshots (estimate) | ~0.5–1 million | not like-for-like, see below |
 
 Building the architecture of that house through the CLI, storeys and roof included, takes about 2,400 tokens of commands and UEA output (`bench/results.md`).
 
+The first three rows are the cost of reading the model. The last row is a whole working session, so it is not comparable with them; the table by project size below compares a full build with a full build.
+
 The UEA figures are counted with `tiktoken`; the others are rough estimates, not measurements. In UEA a wall is one line; in IFC it takes 20–40 entity lines, and a Revit export adds geometry for every device, quantities and its own property sets. The benchmark in `ROADMAP.md` (phase 5) will measure the comparison properly.
+
+### In euros
+
+Models bill by the million tokens. The three columns are example prices, from a cheap model to a frontier one; read the column that matches yours. One flat price for input and output, which real price lists split (output usually costs more).
+
+| | Tokens | at €0.10 / M | at €1 / M | at €10 / M |
+|---|---:|---:|---:|---:|
+| Read the whole house, UEA line format (measured) | ~4,500 | €0.00045 | €0.0045 | €0.045 |
+| Build its architecture through the CLI, commands and output (measured) | ~2,400 | €0.00024 | €0.0024 | €0.024 |
+| Read the help once, to learn the tool (measured) | ~2,500 | €0.00025 | €0.0025 | €0.025 |
+| An agent builds the shell and roof, whole conversation (measured, one run each) | 107,000–113,000 | €0.011 | €0.11 | €1.10 |
+| The same house as minimal IFC (estimate) | 50,000–150,000 | €0.005–0.015 | €0.05–0.15 | €0.50–1.50 |
+| The same house as IFC from Revit (estimate) | 1–5 million | €0.10–0.50 | €1–5 | €10–50 |
+| An agent building the whole house with Revit via API and screenshots (estimate) | 0.5–1 million | €0.05–0.10 | €0.50–1 | €5–10 |
+
+For €1 you get 10 million, 1 million or 100,000 tokens at the three prices. That is about 90, 9 or 1 agent builds of the house shell.
+
+What the rows count:
+
+- The first three rows are only the text that passes between the agent and UEA, counted by `uv run python -m bench` and `tools/prototype/count_tokens.py`. The agent's own thinking is not in them.
+- The agent row is the whole conversation as the harness reported it: Claude Opus 107k, Claude Sonnet 113k, one run each on 2026-10-07 (`bench/agent/results.md`). It is a single run per model, not an average, and it predates the English format.
+- An export (PDF, DXF, Excel, IFC) costs the agent one command and one line of output; the files are for humans, so the agent never reads them.
+- The IFC and Revit rows are the estimates from the table above, not measurements.
+
+### By project size
+
+What a complete build costs an agent, from the brief to the exports: with conventional tools (IFC files, or Revit through its API and screenshots) and with UEA. These are our estimates, not measurements.
+
+| Full build (estimate) | Tokens | at €0.10 / M | at €1 / M | at €10 / M |
+|---|---:|---:|---:|---:|
+| A normal house, conventional tools | 0.5–1 million | €0.05–0.10 | €0.50–1 | €5–10 |
+| **A normal house, UEA** | **50,000–100,000** | €0.005–0.01 | €0.05–0.10 | €0.50–1 |
+| A medium project, conventional tools | 5–50 million | €0.50–5 | €5–50 | €50–500 |
+| **A medium project, UEA** | **0.5–5 million** | €0.05–0.50 | €0.50–5 | €5–50 |
+| A large project such as a hospital, conventional tools | 50 million–1 billion | €5–100 | €50–1,000 | €500–10,000 |
+| **A large project such as a hospital, UEA** | **5–100 million** | €0.50–10 | €5–100 | €50–1,000 |
+
+- **What is counted:** everything the agent spends on the build, the whole conversation: the commands it writes, what it reads back, corrections, checks and calculations, its own thinking.
+- **What the numbers are:** the conventional ranges are our estimates. The UEA ranges are a tenth of them, a planning figure. No medium or large project has been built with UEA, and heating, plumbing, ventilation and structural are not built yet (`ROADMAP.md`, phases 6–8), so not even a complete house has been measured.
+- **What has been measured:** one agent run built only the shell and roof of the house, for 107,000–113,000 tokens (`bench/agent/results.md`, 2026-10-07). That is above the house range for UEA. It was the first run, before the help was fixed from what the agents had to guess, and a rerun is open (`ROADMAP.md`); the house range assumes that a complete house can be done for less than that first run. Treat it as a target, not a result.
+- **Why UEA is expected to cost less, and to grow about in line with the project:** an element is one line, and its connections are ids (a socket names its wall and its circuit), not geometry or relationship objects. An agent reads only the part it asks for (`uea show`, `uea get`, `uea find`). The cost follows the number of elements and the number of changes.
+- **Why IFC and Revit grow faster:** every element also carries relationships: its type or family, materials, property sets, spatial containment and connections to other parts. The number of those grows faster than the number of elements, so the files, and what an agent must read to work on them, grow faster than the project. The table keeps UEA at a flat tenth at every size, which is the cautious reading; if the conventional cost grows faster, as we expect, the gap is wider. That has not been measured, and the benchmark in `ROADMAP.md` (phase 5) is meant to do it.
 
 ## Try it
 
