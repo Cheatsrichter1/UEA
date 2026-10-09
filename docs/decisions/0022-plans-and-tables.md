@@ -1,6 +1,6 @@
 # 0022: Plans and tables for humans
 
-Status: Accepted (tables and the floor plan sheet built; sections and elevations to follow)
+Status: Accepted (tables and the floor plan sheet built; sections in 0023; elevations to follow)
 Date: 2026-10-08
 
 ## Context
@@ -11,7 +11,7 @@ Phase 2 of `ROADMAP.md` makes the exports an architect or Fachplaner can read: f
 
 **One model, many outputs.** `Drawing` grows what a drawing needs (scale and sheet, pen classes instead of colours, hatches, dimension chains, text styles, layers). SVG, PNG, DXF and PDF all render from it, so they cannot differ. Tables are plain data (`export/tables.py`) written by a thin XLSX writer (`export/xlsx.py`).
 
-**Order of work.** (1) XLSX tables, built. (2) Floor plan per storey as PDF, DXF, SVG and PNG, built. (3) Sections. (4) Elevations. Each step ends with an export a human can open.
+**Order of work.** (1) XLSX tables, built. (2) Floor plan per storey as PDF, DXF, SVG and PNG, built. (3) Sections, built (`0023-sections.md`). (4) Elevations. Each step ends with an export a human can open.
 
 **Libraries.** openpyxl (MIT) for XLSX, ezdxf (MIT) for DXF, reportlab (BSD) for PDF: pure Python, vector output, no system packages. The licence of each is checked before it is added.
 
@@ -40,7 +40,8 @@ Phase 2 of `ROADMAP.md` makes the exports an architect or Fachplaner can read: f
 - **Axes.** Grid lines are stubs from the building edge to a bubble outside the chains: x grids at the south, y grids at the west.
 - **Room stamps** (id, name, finished area), set where no stair is. Stairs with the walking line, the number of risers and riser and tread in cm, placed beside the stair. Slab openings dashed with a cross; a stair coming from below dashed.
 - **Title block.** Bauvorhaben, Planinhalt, Maßstab, Format, Plan-Nr., Stand (date and batch of the model), and empty fields for Bauherr, Planverfasser and Unterschrift. "ENTWURF – nicht unterzeichnet" is printed on every sheet. The project format has no fields for client or author yet.
-- **Not yet drawn:** a north arrow (the project has no north direction), roof outlines on the top storey, windows above the cut plane as dashed outlines, height marks (the sheet gives OKFF in the title block; marks come with the sections), furniture and sanitary objects.
+- **Section lines.** The cut line of each section through the storey, with its stubs, arrows and name beyond the chains (`0023-sections.md`).
+- **Not yet drawn:** a north arrow (the project has no north direction), roof outlines on the top storey, windows above the cut plane as dashed outlines, height marks (the plan sheet gives OKFF in the title block; the marks are in the sections, `0023-sections.md`), furniture and sanitary objects.
 - **DXF.** Model space in mm (`$INSUNITS` = millimetre; DXF readers assume mm), items on German layers (`A-WAND-TRAG`, `A-WAND-NICHTTRAG`, `A-WAND-PUTZ`, `A-WAND-BESTAND`, `A-WAND-ABBRUCH`, `A-TUER`, `A-FENSTER`, `A-NISCHE`, `A-TREPPE`, `A-AUSSPARUNG`, `A-RASTER`, `A-BEMASSUNG`, `A-RAUM-TEXT`, `A-RAHMEN`, `A-SCHRIFTFELD`). The frame and title block are items at the scale of the sheet, so the file plots as it is at 1:100. Fills are solid hatches, line weights come from the pens (hundredths of mm), dashes are linetypes. Dimensions are lines and text, not DIMENSION entities, so they look the same in every output. The header extents are set, because programs that read them collapse a drawing that keeps the defaults. LibreOffice's import shows even a trivial ezdxf file without its lines, so the file was checked with ezdxf (audit, read-back, its SVG renderer) and not with LibreOffice.
 - **PDF.** One page of the sheet's paper size, vector, Helvetica; the builder keeps to Latin-1 characters.
 

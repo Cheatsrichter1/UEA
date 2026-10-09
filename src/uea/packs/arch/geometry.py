@@ -49,6 +49,7 @@ from uea.packs.arch.kinds import (
     Roof,
     RoofType,
     Room,
+    Section,
     Sep,
     Slab,
     SlabType,
@@ -345,6 +346,43 @@ class SepGeo:
 
 
 @dataclass
+class SectionGeo:
+    id: str
+    axis: Literal["x", "y"]
+    """The cut plane is x = coord (axis x) or y = coord (axis y)."""
+    coord: float
+    look: Literal["n", "s", "e", "w"]
+
+    @property
+    def view(self) -> tuple[float, float]:
+        """Unit vector of the viewing direction in the plan."""
+        return {"n": (0.0, 1.0), "s": (0.0, -1.0), "e": (1.0, 0.0), "w": (-1.0, 0.0)}[self.look]
+
+    @property
+    def right(self) -> tuple[float, float]:
+        """Unit vector of the drawing's right-hand side in the plan."""
+        vx, vy = self.view
+        return (vy, -vx)
+
+    def u(self, x: float, y: float) -> float:
+        """Position across the drawing, to the right."""
+        rx, ry = self.right
+        return rx * x + ry * y
+
+    def depth(self, x: float, y: float) -> float:
+        """Distance behind the cut plane, in the viewing direction (negative in front of it)."""
+        vx, vy = self.view
+        at = self.coord * (vx if self.axis == "x" else vy)
+        return vx * x + vy * y - at
+
+    def line(self, lo: float, hi: float) -> LineString:
+        """The cut plane in the plan, from lo to hi along the other axis."""
+        if self.axis == "x":
+            return LineString([(self.coord, lo), (self.coord, hi)])
+        return LineString([(lo, self.coord), (hi, self.coord)])
+
+
+@dataclass
 class SlabGeo:
     id: str
     level: str
@@ -485,6 +523,7 @@ class ArchGeo:
     openings: dict[str, OpeningGeo] = field(default_factory=dict[str, OpeningGeo])
     stairs: dict[str, StairGeo] = field(default_factory=dict[str, StairGeo])
     seps: dict[str, SepGeo] = field(default_factory=dict[str, SepGeo])
+    sections: dict[str, SectionGeo] = field(default_factory=dict[str, SectionGeo])
     slabs: dict[str, SlabGeo] = field(default_factory=dict[str, SlabGeo])
     voids: dict[str, VoidGeo] = field(default_factory=dict[str, VoidGeo])
     roofs: dict[str, RoofGeo] = field(default_factory=dict[str, RoofGeo])
@@ -975,6 +1014,18 @@ class Resolver:
         s0, s1 = self.span(el.y, "y")
         return SepGeo(key, el.level.id, "v", pos, s0, s1)
 
+    def section(self, key: str) -> SectionGeo:
+        return self.d.resolve(key, self.g.sections, lambda: self._section(key))
+
+    def _section(self, key: str) -> SectionGeo:
+        el = self.need(key, "section")
+        assert isinstance(el, Section)
+        a = el.x if el.x is not None else el.y
+        assert isinstance(a, Anchor)
+        axis: Literal["x", "y"] = "x" if el.x is not None else "y"
+        look = el.look or ("e" if axis == "x" else "n")
+        return SectionGeo(key, axis, self.point(a, axis), look)
+
     def seed(self, key: str) -> tuple[float, float]:
         return self.d.resolve(key, self.g.seeds, lambda: self._seed(key))
 
@@ -995,6 +1046,7 @@ class Resolver:
             ("niche", self.opening),
             ("stair", self.stair),
             ("sep", self.sep),
+            ("section", self.section),
             ("room", self.seed),
         ):
             for el in self.m.of_kind(kind):
@@ -1486,6 +1538,8 @@ def arch_signatures(d: Derived) -> dict[str, tuple[float | str, ...]]:
         out[s.id] = (q(s.x0), q(s.x1), q(s.y0), q(s.y1), round(s.poly.area, 3))
     for p in g.seps.values():
         out[p.id] = (q(p.pos), q(p.s0), q(p.s1))
+    for sc in g.sections.values():
+        out[sc.id] = (sc.axis, q(sc.coord), sc.look)
     for rm in g.rooms.values():
         out[rm.id] = (round(rm.area_fin, 2),)
     for sl in g.slabs.values():

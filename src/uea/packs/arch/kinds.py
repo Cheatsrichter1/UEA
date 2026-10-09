@@ -480,6 +480,34 @@ class Room(Element):
     tile: Annotated[float | None, F("wall tiling height above the FFL", unit="m")] = None
 
 
+class Section(Element):
+    kind: ClassVar[str] = "section"
+    pack: ClassVar[str] = "arch"
+    doc: ClassVar[str] = (
+        "A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name it A, B"
+        " (uea help export)."
+    )
+    x: Annotated[Place, F("x of a cut across x (the cut plane runs along y)", unit="m")] = None
+    y: Annotated[Place, F("y of a cut across y (the cut plane runs along x)", unit="m")] = None
+    look: Annotated[
+        Literal["n", "s", "e", "w"] | None,
+        F("viewing direction: e or w for x=, n or s for y=; default e for x=, n for y="),
+    ] = None
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if (self.x is None) == (self.y is None):
+            raise ValueError("give exactly one of x= or y=")
+        if not isinstance(self.x if self.x is not None else self.y, Anchor):
+            raise ValueError("the cut is one position, not a span")
+        ok = "ew" if self.x is not None else "ns"
+        if self.look is not None and self.look not in ok:
+            raise ValueError(
+                f"a cut across {'x' if self.x is not None else 'y'} looks {ok[0]} or {ok[1]}"
+            )
+        return self
+
+
 TYPES: tuple[type[Element], ...] = (WallType, SlabType, FloorType, RoofType, WinType, DoorType)
 KINDS: tuple[type[Element], ...] = (
     *TYPES,
@@ -493,4 +521,5 @@ KINDS: tuple[type[Element], ...] = (
     Stair,
     Sep,
     Room,
+    Section,
 )

@@ -130,7 +130,7 @@ A grid line: x= for a line along y, y= for a line along x.
 
 Types: `type … wall`, `type … slab`, `type … floor`, `type … roof`, `type … win`, `type … door`.
 
-Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `roof`, `stair`, `sep`, `room`.
+Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `roof`, `stair`, `sep`, `room`, `section`.
 
 #### `type … wall`
 
@@ -368,6 +368,18 @@ A room: the region around the seed point at= bounded by walls and separators.
 | floor | `floor=` |  | floor type |
 | tile | `tile=` | m | wall tiling height above the FFL |
 
+#### `section`
+
+A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name it A, B (uea help export).
+
+`section <name>`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| x | `x=` | m | x of a cut across x (the cut plane runs along y) |
+| y | `y=` | m | y of a cut across y (the cut plane runs along x) |
+| look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -436,6 +448,7 @@ E is an error, W a warning.
 | E-ARCH-043 | roof shape does not fit its rectangle |
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
+| W-ARCH-060 | section outside the building (it cuts no wall) |
 
 ## Calculators
 

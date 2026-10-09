@@ -25,7 +25,8 @@ One file per major decision: what was decided, what else was considered, and why
 | 0019 | [Stairs with a landing or winders](0019-stair-shapes.md) | Accepted |
 | 0020 | [Roofs over outlines that are not rectangles](0020-roof-parts.md) | Accepted |
 | 0021 | [Half-hip, mansard and flat roofs](0021-roof-shapes.md) | Accepted |
-| 0022 | [Plans and tables for humans](0022-plans-and-tables.md) | Accepted (tables built) |
+| 0022 | [Plans and tables for humans](0022-plans-and-tables.md) | Accepted (tables and plans built) |
+| 0023 | [Sections](0023-sections.md) | Accepted (built) |
 
 Template:
 

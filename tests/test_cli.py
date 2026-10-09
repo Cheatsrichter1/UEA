@@ -240,6 +240,33 @@ def test_export_sheets(sh: Shell) -> None:
     assert sh("export", "pdf", "XX")[0] == 1
 
 
+def test_export_sections(sh: Shell) -> None:
+    build(sh)
+    out_dir = sh.root / "out"
+    code, out = sh("apply", "--by", "t", "-m", "cut", stdin="+ section A x=W+2.5 look=w\n")
+    assert code == 0
+    code, out = sh("show", "A")
+    assert code == 0 and "cut x 2.5 looking w" in out
+    # a section by its name; with no scope every plan and every section
+    code, out = sh("export", "pdf", "A")
+    assert code == 0 and out.strip() == "p/out/section-A.pdf A3 1:100"
+    assert (out_dir / "section-A.pdf").read_bytes().startswith(b"%PDF")
+    code, out = sh("export", "dxf")
+    assert code == 0 and out.splitlines() == [
+        "p/out/plan-EG.dxf A3 1:100",
+        "OG: no walls, nothing to draw",
+        "p/out/section-A.dxf A3 1:100",
+    ]
+    code, out = sh("export", "png", "A")
+    assert code == 0 and (out_dir / "section-A.png").exists()
+    code, out = sh("export", "pdf", "B")
+    assert code == 1 and out.strip() == ("unknown level or section 'B'. Levels: EG OG. Sections: A")
+    # a cut that meets no wall is a warning, and there is nothing to draw
+    assert sh("apply", "--by", "t", "-m", "cut", stdin="+ section B x=50\n")[0] == 0
+    code, out = sh("export", "pdf", "B")
+    assert code == 0 and out.strip() == "B: the cut meets no wall, nothing to draw"
+
+
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["-C", str(tmp_path), "show"]) == 2
     assert "no project.uea" in capsys.readouterr().out
