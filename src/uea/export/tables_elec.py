@@ -30,6 +30,7 @@ SWITCH_DE = {1: "Ausschalter", 2: "Serienschalter"}
 W0 = "0"
 M3 = "0.000"
 M2 = "0.00"
+M1 = "0.0"
 
 
 def _q(v: float) -> float:
@@ -127,6 +128,8 @@ class _Elec:
             if self.level is not None and not devs and not ls:
                 continue
             outlets = sum(x.n for x in devs if isinstance(x, Sock))
+            route = self.d.elec.routes.get(cg.id)
+            far = route.far if route else None
             rows.append(
                 [
                     cg.id,
@@ -144,6 +147,8 @@ class _Elec:
                     len(ls) or None,
                     _q(cg.load_w) if cg.load_w else None,
                     _q(cg.capacity_w),
+                    _q(route.total) if route and route.runs else None,
+                    _q(far[1]) if far else None,
                 ]
             )
         cols = [
@@ -162,6 +167,8 @@ class _Elec:
             Col("Leuchten", 9),
             Col("Anschlussleistung W", 14, W0),
             Col("Belastbarkeit W", 14, W0),
+            Col("Leitungslänge m", 12, M1),
+            Col("Längster Weg m", 12, M1),
         ]
         notes = [
             "Phase: abgeleitet, einphasige Stromkreise nacheinander auf die Phase mit der kleinsten"
@@ -169,9 +176,13 @@ class _Elec:
             "Anschlussleistung: Leuchten, Anschlüsse und Einspeisungen mit ihrer angegebenen"
             " Leistung; Steckdosen haben keine angegebene Leistung. Belastbarkeit: Nennstrom der"
             " Sicherung mal 230 V mal Phasen. Keine Leitungsberechnung.",
+            "Leitungslänge: abgeleitet, Summe aller Abschnitte ab dem Verteiler (Blatt Leitungen);"
+            " Längster Weg: vom Verteiler bis zum entferntesten Gerät.",
         ]
         if self.level is not None:
-            notes.append("Zahlen nur für die Geräte dieses Geschosses.")
+            notes.append(
+                "Zahlen nur für die Geräte dieses Geschosses, Längen für den ganzen Kreis."
+            )
         return Table("Stromkreise", self.title("Stromkreise"), cols, rows, None, notes)
 
     def devices(self) -> Table:
@@ -269,8 +280,77 @@ class _Elec:
         notes = ["Schaltung: nach der Zahl der Schalter, die die Leuchte schalten."]
         return Table("Leuchten", self.title("Leuchten"), cols, rows, total, notes)
 
+    def runs(self) -> Table:
+        rows = _runs_rows(self)
+        cols = [
+            Col("Stromkreis", 12),
+            Col("Von", 8),
+            Col("Nach", 8),
+            Col("Geschoss", 10),
+            Col("Länge m", 10, M1),
+        ]
+        total: list[Cell] = ["Summe", None, None, None]
+        total.append(_q(sum(r[4] for r in rows if isinstance(r[4], int | float))))
+        notes = [
+            "Abgeleitet: das kürzeste Leitungsnetz vom Verteiler über alle Geräte des Stromkreises,"
+            " gemessen als Summe der Wege in x, y und z (Leitungen laufen entlang der Wände und"
+            " senkrecht daneben), je Abschnitt 0,3 m für die Anschlüsse. Ohne Schächte: die"
+            " Decke wird an der günstigsten Stelle durchstoßen. Datenleitungen: ein Abschnitt je"
+            " Port, Länge je Dose mal Anzahl der Ports.",
+        ]
+        return Table("Leitungen", self.title("Leitungen"), cols, rows, total, notes)
+
+    def quantities(self) -> Table:
+        rows = _quantity_rows(self)
+        cols = [Col("Leitung", 28), Col("Stromkreise / Dosen", 12), Col("Länge m", 10, M1)]
+        total: list[Cell] = ["Summe", None, _q(sum(r[2] for r in rows if isinstance(r[2], float)))]
+        notes = [
+            "Abgeleitete Längen ohne Verschnitt und ohne Zuleitung zum Hausanschluss; keine"
+            " Ausschreibungsmenge.",
+        ]
+        if self.level is not None:
+            notes.append("Mengen für das ganze Gebäude.")
+        return Table("Kabelmengen", self.title("Kabelmengen"), cols, rows, total, notes)
+
+
+def _runs_rows(b: _Elec) -> list[list[Cell]]:
+    e = b.d.elec
+    rows: list[list[Cell]] = []
+    here = {mt.id for mt in b.mounted("board", "sock", "conn", "switch", "data", "lum")}
+    for cid in sorted(e.routes, key=natural):
+        for r in e.routes[cid].runs:
+            if b.level is None or r.b in here:
+                rows.append([cid, r.a, r.b, b.d.mounts[r.b].level, _q(r.length)])
+    for k in sorted(e.homeruns, key=natural):
+        r = e.homeruns[k]
+        if b.level is None or r.b in here:
+            n = int(getattr(b.m[k], "n", 1))
+            rows.append([f"Daten {r.a}", r.a, r.b, b.d.mounts[r.b].level, _q(r.length * n)])
+    return rows
+
+
+def _quantity_rows(b: _Elec) -> list[list[Cell]]:
+    e = b.d.elec
+    by_cable: dict[str, list[float]] = {}
+    for cid, route in e.routes.items():
+        el = b.m[cid]
+        assert isinstance(el, Circ)
+        got = by_cable.setdefault(el.cable.fmt(), [0.0, 0.0])
+        got[0] += 1
+        got[1] += route.total
+    rows: list[list[Cell]] = [
+        [name, int(n), _q(m)] for name, (n, m) in sorted(by_cable.items(), key=lambda kv: kv[0])
+    ]
+    data = [(k, r) for k, r in e.homeruns.items()]
+    if data:
+        ports = sum(int(getattr(b.m[k], "n", 1)) for k, _ in data)
+        meters = sum(r.length * int(getattr(b.m[k], "n", 1)) for k, r in data)
+        rows.append([f"Datenleitung ({ports} Ports)", len(data), _q(meters)])
+    return rows
+
 
 def elec_tables(d: Derived, level: str | None = None) -> list[Table]:
     """The electrical tables of the model, or of one storey; tables without rows are left out."""
     b = _Elec(d, level)
-    return [t for t in (b.boards(), b.circuits(), b.devices(), b.luminaires()) if t.rows]
+    tables = [b.boards(), b.circuits(), b.devices(), b.luminaires(), b.runs(), b.quantities()]
+    return [t for t in tables if t.rows]
