@@ -29,6 +29,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0023 | [Sections](0023-sections.md) | Accepted (built) |
 | 0024 | [Elevations](0024-elevations.md) | Accepted (built) |
 | 0025 | [The electrical pack, slice 1](0025-electrical-devices.md) | Accepted (slice 1 built) |
+| 0026 | [The electrical sheets, slice 2](0026-electrical-sheets.md) | Accepted (slice 2 built) |
 
 Template:
 

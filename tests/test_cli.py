@@ -263,7 +263,7 @@ def test_export_sections(sh: Shell) -> None:
     code, out = sh("export", "pdf", "B")
     assert code == 1 and out.strip() == (
         "unknown level, section or side 'B'. Levels: EG OG. Sections: A."
-        " Sides: north east south west"
+        " Sides: north east south west."
     )
     # a cut that meets no wall is a warning, and there is nothing to draw
     assert sh("apply", "--by", "t", "-m", "cut", stdin="+ section B x=50\n")[0] == 0
@@ -311,6 +311,34 @@ def test_electrical_batch(sh: Shell) -> None:
     # a wrong reference is rejected with the discipline graph's words
     code, out = sh("apply", "--by", "elec-agent", "-m", "x", stdin="+ sock _ w4 w1 y=w1+5\n")
     assert code == 1
+
+
+def test_export_electrical_sheets(sh: Shell) -> None:
+    build(sh)
+    assert sh("apply", "--by", "elec-agent", "-m", "Elektro", stdin=ELEC)[0] == 0
+    out_dir = sh.root / "out"
+    code, out = sh("export", "pdf", "elec")
+    assert code == 0 and out.splitlines() == [
+        "p/out/elec-EG.pdf A3 1:50",
+        "p/out/board-b1.pdf A3 o. M.",
+    ]
+    assert (out_dir / "elec-EG.pdf").read_bytes().startswith(b"%PDF")
+    assert (out_dir / "board-b1.pdf").read_bytes().startswith(b"%PDF")
+    code, out = sh("export", "dxf", "elec:EG")
+    assert code == 0 and out.strip() == "p/out/elec-EG.dxf A3 1:50"
+    code, out = sh("export", "svg", "b1")
+    assert code == 0 and (out_dir / "board-b1.svg").read_text().startswith("<svg")
+    code, out = sh("export", "png", "elec:b1")
+    assert code == 0 and (out_dir / "board-b1.png").exists()
+    code, out = sh("export", "pdf", "elec:OG")
+    assert code == 1 and out.strip() == "nothing electrical on OG"
+    code, out = sh("export", "pdf", "elec:XX")
+    assert code == 1 and "unknown level or board 'XX'. Levels: EG OG. Boards: b1" in out
+    code, out = sh("export", "pdf", "elec:EG")
+    assert code == 0
+    # with no name, the electrical sheets follow the rest
+    code, out = sh("export", "dxf")
+    assert out.splitlines()[-2:] == ["p/out/elec-EG.dxf A3 1:50", "p/out/board-b1.dxf A3 o. M."]
 
 
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

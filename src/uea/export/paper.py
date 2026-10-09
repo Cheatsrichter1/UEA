@@ -153,14 +153,21 @@ def frame(paper: tuple[float, float]) -> tuple[float, float, float, float]:
     return (FRAME_LEFT, FRAME_OTHER, paper[0] - FRAME_OTHER, paper[1] - FRAME_OTHER)
 
 
-def place(paper: tuple[float, float], w_mm: float, h_mm: float) -> tuple[float, float] | None:
+def place(
+    paper: tuple[float, float],
+    w_mm: float,
+    h_mm: float,
+    extra: float = 0.0,
+    strip: float = 0.0,
+) -> tuple[float, float] | None:
     """Where a block of w x h mm goes on the paper without touching the title block.
 
     It is centred in the frame; if that is too close to the title block, in the area above it,
-    or in the area to its left. Returns the block's lower-left corner in mm.
+    or in the area to its left. Returns the block's lower-left corner in mm. A legend counts as
+    part of the title block: extra mm high on top of it, or a strip of that width mm to its left.
     """
     fx0, fy0, fx1, fy1 = frame(paper)
-    tx0, ty1 = fx1 - BLOCK_W, fy0 + BLOCK_H
+    tx0, ty1 = fx1 - BLOCK_W - strip, fy0 + BLOCK_H + extra
     for x0, y0, x1, y1 in (
         (fx0, fy0, fx1, fy1),
         (fx0, ty1 + 5, fx1, fy1),
@@ -180,7 +187,12 @@ def allowance(n: int, bubbles: bool) -> float:
 
 
 def fit_sheet(
-    extent: tuple[float, float, float, float], need: dict[str, float], caption: float = CAPTION
+    extent: tuple[float, float, float, float],
+    need: dict[str, float],
+    caption: float = CAPTION,
+    extra: float = 0.0,
+    strip: float = 0.0,
+    fits: tuple[tuple[str, int], ...] = FITS,
 ) -> Sheet:
     """The first sheet and scale on which the drawing fits, with `need` mm free on each side.
 
@@ -189,18 +201,18 @@ def fit_sheet(
     """
     x0, y0, x1, y1 = extent
     spot: tuple[float, float] = (0.0, 0.0)
-    size, scale = FITS[-1]
-    for size, scale in FITS:
+    size, scale = fits[-1]
+    for size, scale in fits:
         w_mm = (x1 - x0) * 1000 / scale + need["W"] + need["E"]
         h_mm = (y1 - y0) * 1000 / scale + need["S"] + need["N"] + caption
-        found = place(PAPER[size], w_mm, h_mm)
+        found = place(PAPER[size], w_mm, h_mm, extra, strip)
         if found is not None:
             spot = found
             break
     else:
         # nothing fits: the largest sheet, above the title block
         _, f_y0, _, _ = frame(PAPER[size])
-        spot = (FRAME_LEFT, f_y0 + BLOCK_H + 5)
+        spot = (FRAME_LEFT, f_y0 + BLOCK_H + extra + 5)
     # the lower-left corner of the extent on paper
     px, py = spot[0] + need["W"], spot[1] + need["S"] + caption
     return Sheet(size, PAPER[size], scale, (x0 - px * scale / 1000, y0 - py * scale / 1000))
@@ -328,7 +340,9 @@ class Paper:
 
     # frame and title block
 
-    def title_block(self, content: str, note: str, number: str) -> None:
+    def title_block(
+        self, content: str, note: str, number: str, scale_text: str | None = None
+    ) -> None:
         """The frame and the title block, which stays unsigned.
 
         content: what the sheet shows ("Grundriss Erdgeschoss"). note: a small line below it.
@@ -352,7 +366,7 @@ class Paper:
         self.cell(bx, by + 42, 13, "Bauvorhaben", self.project, 3.5, True, 3.5)
         self.cell(bx, by + 22, 20, "Planinhalt", content, 4.0, True, 9.0)
         self.text(sh.pt(bx + 2, by + 25.5), note, 2.0, L_BLOCK, anchor="start", color=GREY)
-        self.cell(bx, by + 10, 12, "Maßstab", f"1:{sh.scale}", 3.0, True, 3.0)
+        self.cell(bx, by + 10, 12, "Maßstab", scale_text or f"1:{sh.scale}", 3.0, True, 3.0)
         self.cell(bx + 35, by + 10, 12, "Format", sh.size, 3.0, True, 3.0)
         self.cell(bx + 70, by + 10, 12, "Plan-Nr.", number, 3.0, True, 3.0)
         self.cell(bx + split, by + 42, 13, "Bauherr")

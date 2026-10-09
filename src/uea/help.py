@@ -135,7 +135,9 @@ uea render <level> [-o file]        working plan (PNG) with element ids, for you
 uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a floor plan per storey
                                     (name: a level), a section per section (its name) and the four
                                     facades (north|east|south|west), with dimensions and height
-                                    marks; all if none is given
+                                    marks; all if none is given. Electrical: elec (all),
+                                    elec:<level> (installation plan, 1:50), a board id (its
+                                    single-line diagram with phases and the field in rows)
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows

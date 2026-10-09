@@ -136,6 +136,7 @@ class _Elec:
                     el.cable.fmt(),
                     el.breaker.fmt(),
                     cg.phases,
+                    cg.phase.replace("-", "–"),
                     sum(1 for x in devs if x.kind == "sock") or None,
                     outlets or None,
                     sum(1 for x in devs if x.kind == "conn") or None,
@@ -153,6 +154,7 @@ class _Elec:
             Col("Leitung", 14),
             Col("Sicherung", 10),
             Col("Phasen", 8),
+            Col("Phase", 8),
             Col("Steckdosen", 11),
             Col("Auslässe", 9),
             Col("Anschlüsse", 11),
@@ -162,6 +164,8 @@ class _Elec:
             Col("Belastbarkeit W", 14, W0),
         ]
         notes = [
+            "Phase: abgeleitet, einphasige Stromkreise nacheinander auf die Phase mit der kleinsten"
+            " angenommenen Last (mindestens 1000 W je Stromkreis); keine Lastberechnung.",
             "Anschlussleistung: Leuchten, Anschlüsse und Einspeisungen mit ihrer angegebenen"
             " Leistung; Steckdosen haben keine angegebene Leistung. Belastbarkeit: Nennstrom der"
             " Sicherung mal 230 V mal Phasen. Keine Leitungsberechnung.",

@@ -8,6 +8,7 @@ control it; the connected load of a circuit is its luminaires, connections and f
 from contextlib import suppress
 from dataclasses import dataclass, field
 
+from uea.core.registry import natural
 from uea.derive import Derived, Unresolved
 from uea.packs.elec.kinds import Circ, Conn, Feed, Rcd, Switch
 from uea.packs.elec.values import Breaker
@@ -16,6 +17,8 @@ from uea.packs.mount import Mounts
 
 VOLT = 230.0
 """Phase voltage, V."""
+ASSUMED_W = 1000.0
+"""What a circuit without a declared load counts when the phases are shared out, W."""
 MOUNTED = ("board", "sock", "conn", "switch", "data", "smoke")
 
 
@@ -31,6 +34,8 @@ class CircGeo:
     lums: list[str] = field(default_factory=list[str])
     """Luminaires, from the switches that control them."""
     load_w: float = 0.0
+    phase: str = ""
+    """L1, L2, L3, or L1-L3 for a three-phase circuit; derived (`share_phases`)."""
 
     @property
     def capacity_w(self) -> float:
@@ -93,6 +98,31 @@ def derive_elec(d: Derived) -> None:
         t = lum_type(m, el)
         if t is not None and t.w:
             cg.load_w += t.w
+    share_phases(d)
+
+
+def share_phases(d: Derived) -> None:
+    """Spread the single-phase circuits of each board over L1, L2 and L3.
+
+    In the order of the RCDs and the circuits: each goes to the phase with the least load so far,
+    L1 first when they are equal. A circuit counts with its declared load, at least ASSUMED_W; a
+    three-phase circuit counts a third on each phase. Nothing is calculated about the real load.
+    """
+    e = d.elec
+    by_board: dict[str, list[CircGeo]] = {}
+    for cg in e.circuits.values():
+        by_board.setdefault(cg.board or "", []).append(cg)
+    for circuits in by_board.values():
+        load = {"L1": 0.0, "L2": 0.0, "L3": 0.0}
+        for cg in sorted(circuits, key=lambda c: (natural(c.rcd), natural(c.id))):
+            weight = max(cg.load_w, ASSUMED_W)
+            if cg.phases == 3:
+                cg.phase = "L1-L3"
+                for k in load:
+                    load[k] += weight / 3
+            else:
+                cg.phase = min(load, key=lambda k: (load[k], k))
+                load[cg.phase] += weight
 
 
 def elec_signatures(d: Derived) -> dict[str, tuple[float, ...]]:
