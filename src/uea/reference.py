@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 from uea.calc import builtin
+from uea.calc.data import specs_of
 from uea.cli import build_parser
 from uea.core.issues import CORE_CODES
 from uea.core.registry import Registry
@@ -127,14 +128,54 @@ def calculators() -> list[str]:
         "## Calculators",
         "",
         "Projects add `custom` calculators in `calc/`. A `custom` result is never presented as"
-        " norm-compliant.",
+        " norm-compliant. A calculator that needs norm tables stops and names the one that is"
+        " missing; the office installs its tables with `uea data add` from its own licensed copy"
+        " (`docs/decisions/0008-office-supplied-norm-data.md`). Settings are written"
+        " `name=value` after the calculator's name and are recorded in the result.",
         "",
         "| Name | Kind | Version | Standard | What it computes |",
         "|---|---|---|---|---|",
     ]
-    for c in builtin().values():
+    calcs = list(builtin().values())
+    for c in calcs:
         out.append(f"| `{c.name}` | {c.kind} | {c.version} | {c.norm or ''} | {_cell(c.title)} |")
     out.append("")
+    for c in calcs:
+        if not c.params:
+            continue
+        out += [
+            f"### `{c.name}` settings",
+            "",
+            "| Setting | Type | Default | Meaning |",
+            "|---|---|---|---|",
+        ]
+        for pm in c.params:
+            default = "required" if pm.default is None and not pm.optional else pm.default
+            default = "" if default is None or default == "" else default
+            values = f" ({' / '.join(pm.choices)})" if pm.choices else ""
+            out.append(
+                f"| `{pm.name}` | {pm.kind.__name__} | {default} | {_cell(pm.doc)}{values} |"
+            )
+        out.append("")
+    specs = specs_of(calcs)
+    if specs:
+        out += [
+            "### Norm tables",
+            "",
+            "One CSV file for each table, the first line the header: `uea data add <id> <file.csv>"
+            " --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is"
+            " read. Numbers must be more than 0. No two rows may have the same key.",
+            "",
+        ]
+        for sp in specs.values():
+            out += [f"#### `{sp.id}`: {sp.title} ({sp.standard})", ""]
+            if sp.doc:
+                out += [sp.doc, ""]
+            out += ["| Column | Type | Meaning |", "|---|---|---|"]
+            for col in sp.cols:
+                allowed = f" (one of {', '.join(col.choices)})" if col.choices else ""
+                out.append(f"| `{col.name}` | {col.kind} | {_cell(col.doc)}{allowed} |")
+            out += ["", f"One row for each: {', '.join(sp.key)}.", ""]
     return out
 
 

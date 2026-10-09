@@ -1,10 +1,12 @@
 """Shared helpers: build models and projects from line text."""
 
+import io
 import shutil
 from pathlib import Path
 
 import pytest
 
+from uea.cli import main
 from uea.core.model import Model, element_from_raw
 from uea.core.syntax import parse_line
 from uea.derive import Derived, Report, report
@@ -12,6 +14,16 @@ from uea.packs import default_registry
 from uea.project import Project
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def office_data(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The folder of the office's norm tables: an empty one in every test, never the real one."""
+    folder = tmp_path_factory.mktemp("office-data")
+    monkeypatch.setenv("UEA_DATA", str(folder))
+    return folder
+
+
 PROTOTYPE = ROOT / "docs" / "prototype" / "haus-mueller"
 
 BOX = """\
@@ -64,3 +76,28 @@ def prototype(tmp_path: Path) -> Project:
 @pytest.fixture
 def empty(tmp_path: Path) -> Project:
     return Project.init(tmp_path / "p")
+
+
+class Shell:
+    def __init__(
+        self, root: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self.root = root
+        self.capsys = capsys
+        self.monkeypatch = monkeypatch
+
+    def __call__(self, *args: str, stdin: str | None = None) -> tuple[int, str]:
+        if stdin is not None:
+            self.monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
+        code = main(["-C", str(self.root), *args])
+        return code, self.capsys.readouterr().out
+
+
+@pytest.fixture
+def sh(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> Shell:
+    monkeypatch.chdir(tmp_path)
+    assert main(["init", "p"]) == 0
+    capsys.readouterr()
+    return Shell(tmp_path / "p", capsys, monkeypatch)

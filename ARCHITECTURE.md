@@ -197,8 +197,8 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea apply --by <who> -m <why> [--dry-run] [-f file]` | Atomic batch from stdin or a file (§5) |
 | `uea revert <batch> --by <who>` | Undo a batch as a new batch (§5) |
 | `uea check [discipline]` | Open issues, requests and waivers |
-| `uea calc <name> [scope]` | Run a calculator (§8) |
-| `uea data add <file>` | Add office-supplied norm tables (§8). *Later* (phase 3) |
+| `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
+| `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
 | `uea import ifc <file>` | Architecture from an architect's IFC (§9). *Later* (phase 4) |
 | `uea export <format> [scope]` | Human-facing exports (§9): `ifc`, `svg`, `png` |
 | `uea render <level>` | A plan image (PNG) for vision models |
@@ -237,9 +237,9 @@ A calculator is a small typed Python module with declared inputs and outputs:
 - **`norm` calculators** ship with a pack. Each implements one method of one standard (for example Heizlast per DIN EN 12831-1), cites its clauses, and is tested against hand-computed cases with our own data. Each has a validation report a Prüfingenieur could read.
 - **Norm tables** a method needs (for example current-carrying capacities or Norm-Außentemperaturen) are supplied by the office from its own licensed copy (`uea data add`). They stay outside the repo and the project; the standard's worked examples run locally against them (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **`custom` calculators** are written by agents for a project (for example "lighting at 1.5 × the norm level") and live in the project's `calc/` folder: a module `calc/<name>.py` that defines `CALCULATOR = Calculator(...)`. UEA runs it as `custom`, whatever it declares.
-- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables.
+- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables. The electrical ones are `cable` (cable against its breaker) and `vdrop` (voltage drop).
 
-Every result records the calculator, its kind (`norm` or `custom`), its version, its inputs, the norm tables it used and the model state it ran on. A `custom` result is never presented as norm-compliant. Results are derived, not stored in the model. `uea calc` writes a report for humans (`out/<name>.md`, in German) and the record (`out/<name>.json`).
+Every result records the calculator, its kind (`norm` or `custom`), its version, its inputs and settings (`name=value` after the scope), the norm tables it used with edition and file hash, and the model state it ran on. A `custom` result is never presented as norm-compliant. Results are derived, not stored in the model. The norm tables are the office's: it installs each from its own licensed copy as a CSV file with `uea data add`, they live on the machine outside the project, and a calculator without its table stops and names it (`docs/decisions/0028-norm-tables-and-electrical-calculators.md`). `uea calc` writes a report for humans (`out/<name>.md`, in German) and the record (`out/<name>.json`).
 
 ## 9. Import, exports and renders
 

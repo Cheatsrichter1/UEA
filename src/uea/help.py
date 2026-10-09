@@ -12,7 +12,10 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea apply --by <who> -m <why>", "atomic batch of operations from stdin (help ops)"),
     ("uea revert <batch> --by <who>", "undo a batch as a new batch"),
     ("uea check [discipline]", "open issues, requests and waivers"),
-    ("uea calc [name] [scope]", "calculators, e.g. calc wofl (help calc)"),
+    (
+        "uea calc [name] [scope]",
+        "calculators, e.g. calc wofl; their norm tables: uea data (help calc)",
+    ),
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
     ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png (help export)"),
     ("uea log [n]", "recent batches"),
@@ -126,8 +129,18 @@ cite no norm.
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
-Results say calculator, kind (norm or custom), version and inputs. A custom result is never
-norm-compliant. Project calculators live in calc/ (custom).
+uea calc cable method=B2 [scope] [insulation=PVC temp=<C> group=<n> arrangement=<a>]
+                        each circuit's cable against its breaker, In <= Iz (norm). Iz from the
+                        office's table ampacity; temp-factor with temp=, group-factor with group=
+uea calc vdrop limit=<%> [scope] [reserve=1.2 cos=1 demand=1 current=auto|in]
+                        voltage drop from the board to the farthest device (norm; table
+                        conductor). Length: the derived cable length (uea get c1) times reserve
+Scope: a circuit, an RCD or a board; all if left out. Settings are name=value after the name.
+Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
+uea data show <id> gives the columns, uea data add <id> <file.csv> --edition <e> installs one.
+Without a table the calculator stops and names it.
+Results say calculator, kind (norm or custom), version, settings and the edition of each table. A
+custom result is never norm-compliant. Project calculators live in calc/ (custom).
 """
 
 EXPORT = """\

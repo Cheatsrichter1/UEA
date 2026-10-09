@@ -1,38 +1,13 @@
 """The `uea` command line, driven like an agent drives it."""
 
-import io
 import json
 from pathlib import Path
 
 import pytest
 
+from tests.conftest import Shell
 from tests.test_batch import SETUP, WALLS
 from uea.cli import main
-
-
-class Shell:
-    def __init__(
-        self, root: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        self.root = root
-        self.capsys = capsys
-        self.monkeypatch = monkeypatch
-
-    def __call__(self, *args: str, stdin: str | None = None) -> tuple[int, str]:
-        if stdin is not None:
-            self.monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
-        code = main(["-C", str(self.root), *args])
-        return code, self.capsys.readouterr().out
-
-
-@pytest.fixture
-def sh(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> Shell:
-    monkeypatch.chdir(tmp_path)
-    assert main(["init", "p"]) == 0
-    capsys.readouterr()
-    return Shell(tmp_path / "p", capsys, monkeypatch)
 
 
 def build(sh: Shell) -> None:
