@@ -614,4 +614,6 @@ def tables(d: Derived, level: str | None = None) -> list[Table]:
         b.stairs(),
         b.quantities(),
     ]
-    return [t for t in all_tables if t.rows]
+    from uea.export.tables_elec import elec_tables
+
+    return [t for t in [*all_tables, *elec_tables(d, level)] if t.rows]

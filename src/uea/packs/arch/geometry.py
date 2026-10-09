@@ -560,10 +560,11 @@ class ArchGeo:
 
 
 class Resolver:
-    def __init__(self, d: Derived) -> None:
+    def __init__(self, d: Derived, reuse: bool = False) -> None:
+        """reuse: another pack resolves anchors on the geometry that is already derived."""
         self.d = d
         self.m: Model = d.model
-        self.g = ArchGeo()
+        self.g = d.arch if reuse else ArchGeo()
         d.arch = self.g
 
     # ---------- lookups ----------
@@ -1499,6 +1500,26 @@ def roof_pieces(g: ArchGeo, level: str) -> list[tuple[int, Lin, Polygon]]:
     parts = [Part(rf.over, tuple(rf.planes)) for rf in roofs]
     x0, y0, x1, y1 = shapely.union_all([rf.over for rf in roofs]).bounds
     return union_pieces(parts, shapely.box(x0, y0, x1, y1))  # pyright: ignore[reportUnknownMemberType]
+
+
+def door_hinge(d: Derived, o: OpeningGeo) -> tuple[Side, bool] | None:
+    """Of a door with into= and hand=: the face of its wall on the side of the room it opens
+    into, and whether its hinge is at the hi end of the opening. Seen from that room, the hinge
+    is on the left for hand=l."""
+    w = d.arch.walls[o.host]
+    el = d.model[o.id]
+    if not isinstance(el, Door) or el.into is None or el.hand is None:
+        return None
+    side: Side
+    if o.sides[1] == el.into.id:
+        side = "hi"
+    elif o.sides[0] == el.into.id:
+        side = "lo"
+    else:
+        return None
+    m = w.n if side == "hi" else (-w.n[0], -w.n[1])
+    left = (m[1], -m[0])
+    return side, (left[0] * w.u[0] + left[1] * w.u[1] > 0) == (el.hand == "l")
 
 
 def opening_type(m: Model, el: Element) -> DoorType | WinType | None:

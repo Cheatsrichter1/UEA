@@ -14,7 +14,7 @@ from uea.derive import Derived
 from uea.export.drawing import Arc, Drawing, Line, Pen, Poly, Pt, Text
 from uea.fmt import ar, zz
 from uea.geom import polys, union
-from uea.packs.arch.geometry import OpeningGeo, WallGeo
+from uea.packs.arch.geometry import OpeningGeo, WallGeo, door_hinge
 from uea.packs.arch.kinds import Door, Room
 from uea.packs.project import Grid
 
@@ -115,23 +115,12 @@ class Swing:
 def door_swing(d: Derived, o: OpeningGeo) -> Swing | None:
     """Where the leaf of a door swings; none if the door says no room or no hand."""
     w = d.arch.walls[o.host]
-    el = d.model[o.id]
-    assert isinstance(el, Door)
-    if el.into is None or el.hand is None:
+    hinge = door_hinge(d, o)
+    if hinge is None:
         return None
-    into = el.into.id
-    if o.sides[1] == into:
-        side = "hi"
-    elif o.sides[0] == into:
-        side = "lo"
-    else:
-        return None
+    side, hinge_hi = hinge
     face = w.hi if side == "hi" else w.lo
     sgn = 1.0 if side == "hi" else -1.0
-    # seen from the room it opens into, the hinge is on the left for hand=l
-    m = w.n if side == "hi" else (-w.n[0], -w.n[1])
-    left = (m[1], -m[0])
-    hinge_hi = (left[0] * w.u[0] + left[1] * w.u[1] > 0) == (el.hand == "l")
     hs, free = (o.hi, o.lo) if hinge_hi else (o.lo, o.hi)
     h = w.plan_point(hs, face)
     e = w.plan_point(hs, face + sgn * o.width)

@@ -15,7 +15,9 @@ from uea.core.values import Ref, RefList
 
 if TYPE_CHECKING:
     from uea.packs.arch.geometry import ArchGeo
+    from uea.packs.elec.geometry import ElecGeo
     from uea.packs.issues import Req, Waive
+    from uea.packs.mount import Mounted
 
 T = TypeVar("T")
 
@@ -53,6 +55,9 @@ class Derived:
         self._failed: dict[str, bool] = {}
         self._stack: list[str] = []
         self.arch: ArchGeo
+        self.elec: ElecGeo
+        self.mounts: dict[str, Mounted] = {}
+        """What is mounted on a wall or in a room: luminaires and electrical devices."""
 
     def resolve(self, key: str, store: dict[str, T], fn: Callable[[], T]) -> T:
         """Memoized resolution with cycle detection. Failures become issues on key."""

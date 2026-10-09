@@ -271,6 +271,48 @@ def test_export_sections(sh: Shell) -> None:
     assert code == 0 and out.strip() == "B: the cut meets no wall, nothing to draw"
 
 
+ELEC = """\
++ board @b w4 y=w1+1 z=1.4 main=SLS-E35
++ rcd @fi @b 40/0.03 A
++ circ @c1 @fi NYM-J3x1.5 B10 "Licht"
++ circ @c2 @fi NYM-J3x2.5 B16
++ type DL lum "LED" w=11 flux=1000 default
++ lum @l r1
++ switch @sw w4 @c1 y=w1+2 ctl=@l
++ sock _ w4 @c2 y=w1+3 n=2
+"""
+
+
+def test_electrical_batch(sh: Shell) -> None:
+    build(sh)
+    code, out = sh("apply", "--by", "elec-agent", "-m", "Elektro", stdin=ELEC)
+    assert code == 0 and out.splitlines()[0] == "ok batch 3 (light, elec): +8"
+    assert "@sw=sw1" in out and "@l=l1" in out
+    assert (sh.root / "elec.uea").exists() and (sh.root / "light.uea").exists()
+    code, out = sh("get", "sw1", "l1")
+    assert code == 0
+    assert "switch sw1 w4 c1 y=w1+2 ctl=l1" in out
+    assert "w4.e y 2.3 z 1.05 | r1 EG | c1 fi1 b1 | 1 channel" in out
+    assert "switched by sw1 (c1): single" in out
+    code, out = sh("find", "sock", "room=r1")
+    assert code == 0 and out.strip() == "sock s1 w4 c2 y=w1+3 n=2"
+    code, out = sh("show", "EG")
+    assert "light 1 lum · elec 1 board 1 sock (2 outlets) 1 switch" in out
+    code, out = sh("show", "elec")
+    assert out.startswith("elec: 1 board · 1 rcd · 2 circ · 1 sock · 1 switch")
+    # a wall moved by its grid takes the devices with it, and the batch says so
+    code, out = sh("apply", "--by", "arch-agent", "-m", "Achse", stdin="> grid W x=0.5\n")
+    assert code == 0 and "follows:" in out
+    follows = next(x for x in out.splitlines() if x.startswith("follows:"))
+    assert "s1" in follows and "sw1" in follows and "l1 (light)" in follows
+    # the xlsx has the electrical sheets
+    code, out = sh("export", "xlsx")
+    assert "Stromkreise(2)" in out and "Leuchten(1)" in out
+    # a wrong reference is rejected with the discipline graph's words
+    code, out = sh("apply", "--by", "elec-agent", "-m", "x", stdin="+ sock _ w4 w1 y=w1+5\n")
+    assert code == 1
+
+
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["-C", str(tmp_path), "show"]) == 2
     assert "no project.uea" in capsys.readouterr().out
