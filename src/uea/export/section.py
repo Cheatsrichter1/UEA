@@ -28,6 +28,7 @@ from uea.export.paper import (
     BUBBLE_R,
     GREY,
     L_DIM,
+    L_DOOR,
     L_FINISH,
     L_GRID,
     L_ROOF,
@@ -117,6 +118,7 @@ class Face:
     """A window: draw its glass inside when all of it can be seen."""
     solid: bool = False
     """Labels keep off the whole shape, not only off its outline."""
+    fill: str | None = None
 
 
 @dataclass
@@ -144,11 +146,20 @@ class _Cut:
     """The roofs the cut goes through."""
 
 
-class _Section(Paper):
-    def __init__(self, d: Derived, sc: SectionGeo, stand: Stand) -> None:
+class SectionSheet(Paper):
+    outside = False
+    """An elevation: the plane is outside the building and nothing is cut."""
+
+    @property
+    def label(self) -> str | None:
+        """What the agent wrote after the name of the section."""
+        return self.m[self.sc.id].label
+
+    def __init__(self, d: Derived, sc: SectionGeo, stand: Stand, title: str | None = None) -> None:
         self.sc = sc
         self.name = f"{sc.id}-{sc.id}"
-        super().__init__(d, stand, f"Schnitt {self.name}")
+        self.heading = title or f"Schnitt {self.name}"
+        super().__init__(d, stand, self.heading)
         rx, ry = sc.right
         vx, vy = sc.view
         self.at = sc.coord * (vx if sc.axis == "x" else vy)
@@ -436,6 +447,8 @@ class _Section(Paper):
                     holes.append(rect)
                     if o.kind == "win":
                         out.append(Face(y0 + 1e-3, rect, L_WIN, detail=True, solid=True))
+                    elif self.outside:
+                        out.append(Face(y0 + 1e-3, rect, L_DOOR, detail=True, solid=True))
                     else:
                         self.door_holes.append(rect)
                 face = face.difference(unary_union(holes)) if holes else face
@@ -530,7 +543,7 @@ class _Section(Paper):
         Returns what labels must keep off: windows, stairs, door openings and every outline.
         """
         thin = self.pen(0.13, "#505050")
-        glass = self.pen(0.13, "#2266cc")
+        glass = {L_WIN: self.pen(0.13, "#2266cc"), L_DOOR: self.pen(0.13, "#504040")}
         keep = self.sh.m(0.4)
         blockers: list[BaseGeometry] = list(self.door_holes)
         for f in sorted(faces, key=lambda f: f.depth):
@@ -539,7 +552,7 @@ class _Section(Paper):
                 continue
             if f.detail:
                 for p in polys(vis, 1e-6):
-                    self.dw.add(poly_item(p, None, glass, f.layer))
+                    self.dw.add(poly_item(p, None, glass[f.layer], f.layer))
                     if p.area > 0.99 * f.geo.area:
                         x0, y0, x1, y1 = f.geo.bounds
                         g = 0.05
@@ -549,8 +562,11 @@ class _Section(Paper):
                             (x1 - g, y1 - g),
                             (x0 + g, y1 - g),
                         ]
-                        self.dw.add(Poly(pane, None, glass, f.layer))
+                        self.dw.add(Poly(pane, None, glass[f.layer], f.layer))
             else:
+                if f.fill is not None:
+                    for p in polys(vis, 1e-6):
+                        self.dw.add(poly_item(p, f.fill, None, f.layer))
                 edge = vis.boundary
                 if not occluder.is_empty:
                     # an edge that is also an edge of something nearer is drawn there
@@ -560,8 +576,7 @@ class _Section(Paper):
                     for a, b in pairwise(pts):
                         self.dw.add(Line((a[0], a[1]), (b[0], b[1]), thin, f.layer))
             blockers.append(vis if f.solid else vis.boundary.buffer(keep))
-            if not f.detail:
-                occluder = unary_union([occluder, f.geo])
+            occluder = unary_union([occluder, f.geo])
         return unary_union(blockers) if blockers else Polygon()
 
     def window_symbols(self) -> None:
@@ -741,16 +756,7 @@ class _Section(Paper):
             z0, z1 = min(z0, self.ground), max(z1, self.ground)
         marks = self.marks()
         chains = self.chains(top, z0)
-        grids = [
-            el for el in self.m.of_kind("grid") if isinstance(el, Grid) and el.axis != self.sc.axis
-        ]
-        need = {
-            "W": MARK_ARM + 3.5 + max((text_width(m.text, 2.2) for m in marks), default=10.0) + 4.0,
-            "E": allowance(len(chains["E"]), False),
-            "S": allowance(len(chains["S"]), False),
-            "N": 10.0 + (2 * BUBBLE_R + 6.0 if grids else 0.0),
-        }
-        self.dw.sheet = fit_sheet((u0, z0, u1, z1), need)
+        need = self.layout((u0, z0, u1, z1), marks, chains)
         self.terrain(poche, u0, u1)
         self.emit(shapes)
         self.window_symbols()
@@ -760,9 +766,31 @@ class _Section(Paper):
         self.height_marks(marks, u0)
         self.rooms(blockers, poche)
         self.caption(u0, u1, z0, need)
-        nr = f"A-{len(self.g.levels) + sorted(self.g.sections).index(self.sc.id) + 1:02d}"
-        self.title_block(f"Schnitt {self.name}", self.zero_note(), nr)
+        self.title_block(self.heading, self.zero_note(), self.number())
         return self.dw
+
+    def number(self) -> str:
+        """The plan number: after the plans of the storeys."""
+        return f"A-{len(self.g.levels) + sorted(self.g.sections).index(self.sc.id) + 1:02d}"
+
+    def layout(
+        self,
+        extent: tuple[float, float, float, float],
+        marks: list[Mark],
+        chains: dict[str, list[Chain]],
+    ) -> dict[str, float]:
+        """Choose the sheet: room for the height marks, the chains and the grid bubbles."""
+        grids = [
+            el for el in self.m.of_kind("grid") if isinstance(el, Grid) and el.axis != self.sc.axis
+        ]
+        need = {
+            "W": MARK_ARM + 3.5 + max((text_width(m.text, 2.2) for m in marks), default=10.0) + 4.0,
+            "E": allowance(len(chains["E"]), False),
+            "S": allowance(len(chains["S"]), False),
+            "N": 10.0 + (2 * BUBBLE_R + 6.0 if grids else 0.0),
+        }
+        self.dw.sheet = fit_sheet(extent, need)
+        return need
 
     def zero_note(self) -> str:
         for lv in self.g.levels.values():
@@ -786,16 +814,18 @@ class _Section(Paper):
             out.append(Mark(rf.eaves_z, f"Traufe {height_text(rf.eaves_z)}"))
         if self.ground is not None:
             out.append(Mark(self.ground, f"Gelände {height_text(self.ground)}"))
-        return out
+        return list({(m.z, m.text): m for m in out}.values())
+
+    def along_chains(self) -> list[Chain]:
+        """The faces of the cut walls and the overall width."""
+        faces = uniq([v for a, b in self.cut.faces for v in (a, b)])
+        out = [Chain("walls", faces)] if len(faces) > 2 else []
+        return [*out, Chain("total", [faces[0], faces[-1]])]
 
     def chains(self, top: float, bottom: float) -> dict[str, list[Chain]]:
-        """Dimension chains: wall faces along the bottom; openings, storeys and the total height
-        on the right."""
-        out: dict[str, list[Chain]] = {"S": [], "N": [], "W": [], "E": []}
-        faces = uniq([v for a, b in self.cut.faces for v in (a, b)])
-        if len(faces) > 2:
-            out["S"].append(Chain("walls", faces))
-        out["S"].append(Chain("total", [faces[0], faces[-1]]))
+        """Dimension chains: along the bottom, and on the right openings, storeys and the total
+        height."""
+        out: dict[str, list[Chain]] = {"S": self.along_chains(), "N": [], "W": [], "E": []}
         floors = [self.g.levels[k].z for k in self.g.level_order() if k in self.cut.levels]
         base = self.ground if self.ground is not None else floors[0] if floors else bottom
         gaps = uniq([z for g in self.cut.gaps for z in g])
@@ -811,11 +841,10 @@ class _Section(Paper):
     def caption(self, u0: float, u1: float, z0: float, need: dict[str, float]) -> None:
         sh = self.sh
         y = z0 - sh.m(need["S"] + 5.0)
-        el = self.m[self.sc.id]
-        label = f"  –  {el.label}" if el.label else ""
+        label = f"  –  {self.label}" if self.label else ""
         self.text(
             ((u0 + u1) / 2, y),
-            f"Schnitt {self.name}{label}   M 1:{sh.scale}",
+            f"{self.heading}{label}   M 1:{sh.scale}",
             3.5,
             L_TEXT,
             bold=True,
@@ -824,4 +853,4 @@ class _Section(Paper):
 
 def sheet_section(d: Derived, key: str, stand: Stand | None = None) -> Drawing | None:
     """The section on a sheet; none if the cut meets no wall."""
-    return _Section(d, d.arch.sections[key], stand or Stand()).draw()
+    return SectionSheet(d, d.arch.sections[key], stand or Stand()).draw()

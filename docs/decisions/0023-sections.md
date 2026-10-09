@@ -1,6 +1,6 @@
 # 0023: Sections
 
-Status: Accepted (built; elevations to follow)
+Status: Accepted (built)
 Date: 2026-10-09
 
 ## Context
@@ -48,4 +48,4 @@ Step 3 of phase 2 (`0022-plans-and-tables.md`): a section, the vertical cut an a
 - The model has a new kind in `arch.uea`. The help grew by 34 tokens (`bench/results.md`); the task set is unchanged. Haus Müller (`docs/prototype/`) is left as it is, without sections.
 - `export svg|png` shows a section as the PDF does; `render` stays the working plan.
 - The sum of cut walls and the heights in a section come from the same derived values as the tables and the IFC; a person who signs checks the drawing, not UEA.
-- Elevations (step 4) can reuse `Paper` and the behind-the-cut machinery: an elevation is a section looking at the outside, with nothing cut.
+- Elevations (step 4, `0024-elevations.md`) reuse `Paper` and the behind-the-cut machinery: an elevation is a section looking at the outside, with nothing cut.

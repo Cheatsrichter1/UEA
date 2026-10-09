@@ -45,26 +45,35 @@ def _plans(ctx: "Ctx", scope: str | None, out_path: str | None) -> list[str] | s
 
 
 def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str:
-    """What to draw for humans: (kind, id) of floor plans and sections."""
+    """What to draw for humans: (kind, id) of floor plans, sections and elevations."""
+    from uea.export.elevation import SIDES
+
     d, _ = ctx.derived()
     levels = d.arch.level_order()
     sections = sorted(d.arch.sections, key=natural)
     if scope is None or scope == "all":
-        return [*(("plan", lv) for lv in levels), *(("section", k) for k in sections)]
+        return [
+            *(("plan", lv) for lv in levels),
+            *(("section", k) for k in sections),
+            *(("elevation", side) for side in SIDES),
+        ]
+    if scope in SIDES:
+        return [("elevation", scope)]
     if scope in d.arch.levels:
         return [("plan", scope)]
     if scope in d.arch.sections:
         return [("section", scope)]
     if scope in d.model and d.model[scope].kind == "section":
         return f"section {scope} has an error: uea check"
-    known = f"Levels: {' '.join(levels)}. Sections: {' '.join(sections) or 'none'}"
-    return f"unknown level or section {scope!r}. {known}"
+    known = f"Levels: {' '.join(levels)}. Sections: {' '.join(sections) or 'none'}."
+    return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}"
 
 
 def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> list[str] | str:
     """The floor plan of each storey and each section as a sheet, for humans (0022, 0023)."""
     from uea.export.drawing import to_png, to_svg
     from uea.export.dxf import to_dxf
+    from uea.export.elevation import sheet_elevation
     from uea.export.paper import LAYER_COLORS, Stand
     from uea.export.pdf import to_pdf
     from uea.export.section import sheet_section
@@ -80,9 +89,14 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     folder.mkdir(exist_ok=True)
     lines: list[str] = []
     for kind, key in targets:
-        dw = sheet_plan(d, key, stand) if kind == "plan" else sheet_section(d, key, stand)
+        if kind == "plan":
+            dw = sheet_plan(d, key, stand)
+        elif kind == "section":
+            dw = sheet_section(d, key, stand)
+        else:
+            dw = sheet_elevation(d, key, stand)
         if dw is None or dw.sheet is None:
-            why = "no walls" if kind == "plan" else "the cut meets no wall"
+            why = "the cut meets no wall" if kind == "section" else "no walls"
             lines.append(f"{key}: {why}, nothing to draw")
             continue
         path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{kind}-{key}.{fmt}"
