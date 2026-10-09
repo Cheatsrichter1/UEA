@@ -2,151 +2,57 @@
 
 Rohbau plan at Entwurf level: cut walls as filled shapes with real openings, door swings and
 window symbols, stairs, room stamps, three dimension chains per side, grid axes with bubbles,
-a frame and a title block that stays unsigned. Lengths are chosen in mm on paper and turned into
-plan metres by the sheet's scale, so a pen of 0.35 mm is 0.35 mm at any scale.
+the cut lines of the sections, a frame and a title block that stays unsigned. Lengths are chosen
+in mm on paper and turned into plan metres by the sheet's scale (`paper.py`).
 
 Not drawn yet: a north arrow (the project has no north direction), windows above the cut plane
 as dashed outlines (every opening is drawn as cut), roofs, furniture.
 """
 
-from dataclasses import dataclass
 from itertools import pairwise
 
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
-from uea import __version__
 from uea.derive import Derived
-from uea.export.drawing import Arc, Circle, Drawing, Line, Pen, Poly, Pt, Sheet, Text
+from uea.export.drawing import Arc, Circle, Drawing, Line, Poly
+from uea.export.paper import (
+    BLACK,
+    BUBBLE_R,
+    GREY,
+    L_CUT,
+    L_DOOR,
+    L_FINISH,
+    L_GRID,
+    L_STAIR,
+    L_TEXT,
+    L_VOID,
+    L_WIN,
+    LEVEL_DE,
+    TOL,
+    Chain,
+    Paper,
+    Stand,
+    allowance,
+    de,
+    fit_sheet,
+    height_text,
+    poly_item,
+    ring,
+    text_width,
+    uniq,
+    wall_fill,
+)
 from uea.export.plan import door_swing
 from uea.export.tables import USE_DE
 from uea.geom import polys
-from uea.packs.arch.geometry import OpeningGeo, WallGeo
+from uea.packs.arch.geometry import OpeningGeo, SectionGeo, WallGeo
 from uea.packs.arch.kinds import Room
 from uea.packs.project import Grid
 
-PAPER = {"A3": (420.0, 297.0), "A2": (594.0, 420.0), "A1": (841.0, 594.0), "A0": (1189.0, 841.0)}
-FITS = (
-    ("A3", 100),
-    ("A3", 200),
-    ("A2", 100),
-    ("A2", 200),
-    ("A1", 100),
-    ("A1", 200),
-    ("A0", 100),
-    ("A0", 200),
-    ("A0", 500),
-)
-"""Sheets and scales to try, the first that fits wins."""
-LEVEL_DE = {
-    "KG": "Kellergeschoss",
-    "UG": "Untergeschoss",
-    "EG": "Erdgeschoss",
-    "OG": "Obergeschoss",
-    "DG": "Dachgeschoss",
-    "DB": "Dachboden",
-}
-
-# layers, with the colour they show in a CAD program (they print black and grey)
-L_LB = "A-WAND-TRAG"
-L_NLB = "A-WAND-NICHTTRAG"
-L_FINISH = "A-WAND-PUTZ"
-L_EXISTING = "A-WAND-BESTAND"
-L_DEMOLISH = "A-WAND-ABBRUCH"
-L_DOOR = "A-TUER"
-L_WIN = "A-FENSTER"
-L_NICHE = "A-NISCHE"
-L_STAIR = "A-TREPPE"
-L_VOID = "A-AUSSPARUNG"
-L_GRID = "A-RASTER"
-L_DIM = "A-BEMASSUNG"
-L_TEXT = "A-RAUM-TEXT"
-L_FRAME = "A-RAHMEN"
-L_BLOCK = "A-SCHRIFTFELD"
-LAYER_COLORS = {
-    L_LB: "#000000",
-    L_NLB: "#404040",
-    L_FINISH: "#909090",
-    L_EXISTING: "#808080",
-    L_DEMOLISH: "#c8a000",
-    L_DOOR: "#a04000",
-    L_WIN: "#2266cc",
-    L_NICHE: "#2266cc",
-    L_STAIR: "#006060",
-    L_VOID: "#707070",
-    L_GRID: "#3366aa",
-    L_DIM: "#008000",
-    L_TEXT: "#000000",
-    L_FRAME: "#000000",
-    L_BLOCK: "#000000",
-}
-
-BLACK = "#000000"
-GREY = "#666666"
-TOL = 1e-3
-
-# paper sizes in mm
-FRAME_LEFT, FRAME_OTHER = 20.0, 10.0
-BLOCK_W, BLOCK_H = 185.0, 55.0
-DIM_FIRST, DIM_STEP, DIM_TEXT = 10.0, 8.0, 2.0
-BUBBLE_R = 4.0
-CAPTION = 14.0
-
-
-def de(v: float, nd: int = 2) -> str:
-    """A number the German way: 15,66."""
-    return f"{v:.{nd}f}".replace(".", ",")
-
-
-def dim_text(v: float) -> str:
-    """A dimension in m with two or three decimals: 10,49 and 1,135."""
-    t = f"{v:.3f}"
-    if t.endswith("0"):
-        t = t[:-1]
-    return t.replace(".", ",")
-
-
-def height_text(z: float) -> str:
-    if abs(z) < 1e-9:
-        return "±0,00"
-    return ("+" if z > 0 else "-") + dim_text(abs(z))
-
-
-def text_width(txt: str, h: float) -> float:
-    """Width of digits and a comma set in Helvetica at height h."""
-    return sum(0.278 if ch in ",." else 0.556 for ch in txt) * h
-
-
-@dataclass(frozen=True)
-class Stand:
-    """What a sheet says about the model state it was drawn from."""
-
-    batch: int | None = None
-    date: str | None = None
-    """ISO date of that batch."""
-
-    def date_de(self) -> str:
-        if not self.date:
-            return "-"
-        y, m, d = self.date[:10].split("-")
-        return f"{d}.{m}.{y}"
-
-
-@dataclass
-class Chain:
-    kind: str
-    """open (openings and piers), walls (wall faces) or total."""
-    pts: list[float]
-    """Ascending coordinates along the side."""
-
-
-def _uniq(vals: list[float]) -> list[float]:
-    out: list[float] = []
-    for v in sorted(vals):
-        if not out or v - out[-1] > TOL:
-            out.append(v)
-    return out
+MARK = 14.0
+"""Paper space in mm that the end of a section line needs beyond the dimension chains."""
 
 
 def side_chains(
@@ -174,7 +80,7 @@ def side_chains(
             opening_pts += [o.lo, o.hi]
     if opening_pts:
         ends = [v for w in facade for v in (w.s0, w.s1)]
-        out.append(Chain("open", _uniq([*ends, *opening_pts])))
+        out.append(Chain("open", uniq([*ends, *opening_pts])))
     # the walls that run into this side: their faces
     inner = edge
     if facade:
@@ -185,48 +91,21 @@ def side_chains(
 
     faces = [v for w in walls if w.o == cross_o and reaches(w) for v in (w.lo, w.hi)]
     inside = [v for v in faces if a0 - TOL <= v <= a1 + TOL]
-    cross = _uniq([a0, a1, *inside])
+    cross = uniq([a0, a1, *inside])
     if len(cross) > 2:
         out.append(Chain("walls", cross))
     out.append(Chain("total", [a0, a1]))
     return out
 
 
-def frame(paper: tuple[float, float]) -> tuple[float, float, float, float]:
-    """The frame on the paper: x0, y0, x1, y1 in mm."""
-    return (FRAME_LEFT, FRAME_OTHER, paper[0] - FRAME_OTHER, paper[1] - FRAME_OTHER)
-
-
-def place(paper: tuple[float, float], w_mm: float, h_mm: float) -> tuple[float, float] | None:
-    """Where a block of w x h mm goes on the paper without touching the title block.
-
-    It is centred in the frame; if that is too close to the title block, in the area above it,
-    or in the area to its left. Returns the block's lower-left corner in mm.
-    """
-    fx0, fy0, fx1, fy1 = frame(paper)
-    tx0, ty1 = fx1 - BLOCK_W, fy0 + BLOCK_H
-    for x0, y0, x1, y1 in (
-        (fx0, fy0, fx1, fy1),
-        (fx0, ty1 + 5, fx1, fy1),
-        (fx0, fy0, tx0 - 5, fy1),
-    ):
-        if w_mm > x1 - x0 or h_mm > y1 - y0:
-            continue
-        x, y = x0 + (x1 - x0 - w_mm) / 2, y0 + (y1 - y0 - h_mm) / 2
-        if x + w_mm <= tx0 or y >= ty1:
-            return (x, y)
-    return None
-
-
-class _Plan:
+class _Plan(Paper):
     """Draws the plan of one storey on a sheet."""
 
     def __init__(self, d: Derived, level: str, stand: Stand) -> None:
-        self.d = d
-        self.g = d.arch
-        self.m = d.model
+        el = d.model[level]
         self.level = level
-        self.stand = stand
+        self.level_name = el.label or LEVEL_DE.get(level, level)
+        super().__init__(d, stand, f"Grundriss {self.level_name}")
         self.walls = self.g.walls_on(level, active=False)
         self.live = [w for w in self.walls if w.active]
         self.openings = [o for o in self.g.openings.values() if o.level == level]
@@ -235,11 +114,6 @@ class _Plan:
         if slab is not None:
             self.status_set.add(slab.status)
         self.umbau = bool(self.status_set - {"new"})
-        proj = self.m.of_kind("project")
-        self.project = (proj[0].label or proj[0].id) if proj else "UEA"
-        el = self.m[level]
-        self.level_name = el.label or LEVEL_DE.get(level, level)
-        self.dw = Drawing(f"{self.project}: Grundriss {self.level_name}")
 
     # ---------- layout ----------
 
@@ -260,32 +134,15 @@ class _Plan:
                 out.append(el)
         return out
 
-    def allowance(self, n: int, bubbles: bool) -> float:
-        """Paper space in mm that the chains and the axis bubbles of one side need."""
-        return DIM_FIRST + DIM_STEP * (n - 1) + (2 * BUBBLE_R + 6.5 + 6.0 if bubbles else 7.0)
-
-    def fit(
-        self, bbox: tuple[float, float, float, float], chains: dict[str, list[Chain]], bubbles: str
-    ) -> Sheet:
-        """Choose the first sheet and scale on which the plan with its chains fits."""
+    def marked(self, bbox: tuple[float, float, float, float]) -> list[SectionGeo]:
+        """The sections whose cut line crosses this storey."""
         cx0, cy0, cx1, cy1 = bbox
-        need = {s: self.allowance(len(chains[s]), s in bubbles) for s in "SNWE"}
-        spot: tuple[float, float] = (0.0, 0.0)
-        size, scale = FITS[-1]
-        for size, scale in FITS:
-            w_mm = (cx1 - cx0) * 1000 / scale + need["W"] + need["E"]
-            h_mm = (cy1 - cy0) * 1000 / scale + need["S"] + need["N"] + CAPTION
-            found = place(PAPER[size], w_mm, h_mm)
-            if found is not None:
-                spot = found
-                break
-        else:
-            # nothing fits: the largest sheet, above the title block
-            _, f_y0, _, _ = frame(PAPER[size])
-            spot = (FRAME_LEFT, f_y0 + BLOCK_H + 5)
-        # the building's lower-left corner on paper
-        px, py = spot[0] + need["W"], spot[1] + need["S"] + CAPTION
-        return Sheet(size, PAPER[size], scale, (cx0 - px * scale / 1000, cy0 - py * scale / 1000))
+        out: list[SectionGeo] = []
+        for sc in sorted(self.g.sections.values(), key=lambda k: k.id):
+            lo, hi = (cx0, cx1) if sc.axis == "x" else (cy0, cy1)
+            if lo - TOL <= sc.coord <= hi + TOL:
+                out.append(sc)
+        return out
 
     # ---------- the plan ----------
 
@@ -298,7 +155,13 @@ class _Plan:
         bubbles = ("S" if any(g.axis == "x" for g in grids) else "") + (
             "W" if any(g.axis == "y" for g in grids) else ""
         )
-        self.sh = self.dw.sheet = self.fit(bbox, chains, bubbles)
+        cuts = self.marked(bbox)
+        marks = {s for sc in cuts for s in ("SN" if sc.axis == "x" else "WE")}
+        need = {
+            s: allowance(len(chains[s]), s in bubbles) + (MARK if s in marks else 0.0)
+            for s in "SNWE"
+        }
+        self.dw.sheet = fit_sheet(bbox, need)
         self.cut_all = unary_union([w.poly for w in self.live])
         # a stair with room for its label under it
         self.stair_zone = unary_union(
@@ -308,39 +171,18 @@ class _Plan:
         self.stairs_and_voids()
         self.dimension(bbox, chains)
         self.axes(bbox, grids, chains)
+        self.section_marks(bbox, cuts, chains, bubbles)
         self.rooms()
-        self.caption(bbox, chains, bubbles)
-        self.frame()
+        self.caption(bbox, need)
+        lv = self.g.levels[self.level]
+        okff = f"OKFF {height_text(lv.z)} m"
+        if abs(lv.z) > 1e-9:
+            okff += " (±0,00 = OKFF des Erdgeschosses)"
+        nr = f"A-{self.g.level_order().index(self.level) + 1:02d}"
+        self.title_block(f"Grundriss {self.level_name}", okff, nr)
         return self.dw
 
-    def pen(self, mm: float, color: str = BLACK, dash: tuple[float, ...] = ()) -> Pen:
-        return Pen(color, self.sh.m(mm), tuple(self.sh.m(x) for x in dash))
-
-    def text(
-        self,
-        at: Pt,
-        txt: str,
-        mm: float,
-        layer: str,
-        *,
-        anchor: str = "middle",
-        bold: bool = False,
-        color: str = BLACK,
-        rot: float = 0.0,
-    ) -> None:
-        self.dw.add(Text(at, txt, self.sh.m(mm), color, anchor, bold, layer, rot))
-
     # walls
-
-    def fill(self, status: str, lb: bool) -> tuple[str, str]:
-        """Fill colour and layer of a wall."""
-        if status == "demolish":
-            return "#ffd800", L_DEMOLISH
-        if status == "existing":
-            return ("#707070" if lb else "#b4b4b4"), L_EXISTING
-        if self.umbau:
-            return ("#b02020" if lb else "#e08c8c"), (L_LB if lb else L_NLB)
-        return ("#1a1a1a" if lb else "#9a9a9a"), (L_LB if lb else L_NLB)
 
     def cut_shape(self, w: WallGeo) -> BaseGeometry | None:
         """What of the wall is cut: raw walls give way to the walls they run into."""
@@ -390,7 +232,7 @@ class _Plan:
         cores = unary_union([w.core for w in self.live])
         finish = unary_union(bands).difference(cores).difference(cut) if bands else Polygon()
         for p in polys(finish, 0.0):
-            self.dw.add(_poly(p, "#dcdcd4", None, L_FINISH))
+            self.dw.add(poly_item(p, "#dcdcd4", None, L_FINISH))
         # the cut walls by status and load bearing, each group takes what the others left
         taken: BaseGeometry = Polygon()
         groups = [
@@ -413,10 +255,10 @@ class _Plan:
                 area = area.difference(cut)
             area = area.difference(taken)
             taken = unary_union([taken, area])
-            fill, layer = self.fill(status, lb)
+            fill, layer = wall_fill(status, lb, self.umbau)
             line = self.pen(0.25, BLACK, (0.6, 0.4)) if status == "demolish" else pen
             for p in polys(area, 0.0):
-                self.dw.add(_poly(p, fill, line, layer))
+                self.dw.add(poly_item(p, fill, line, layer))
         for o in self.openings:
             if o.kind == "win" and self.g.walls[o.host].active:
                 self.window(o)
@@ -448,17 +290,17 @@ class _Plan:
         for v in g.voids.values():
             if slab is None or v.slab != slab.id:
                 continue
-            pts, _ = _ring(v.poly)
+            pts, _ = ring(v.poly)
             self.dw.add(Poly(pts, None, dash, L_VOID))
             x0, y0, x1, y1 = v.poly.bounds
             self.dw.add(Line((x0, y0), (x1, y1), thin, L_VOID))
             self.dw.add(Line((x0, y1), (x1, y0), thin, L_VOID))
         for s in g.stairs.values():
             if s.to == self.level:
-                self.dw.add(Poly(_ring(s.poly)[0], None, dash, L_STAIR))
+                self.dw.add(Poly(ring(s.poly)[0], None, dash, L_STAIR))
             if s.level != self.level:
                 continue
-            self.dw.add(Poly(_ring(s.poly)[0], None, edge, L_STAIR))
+            self.dw.add(Poly(ring(s.poly)[0], None, edge, L_STAIR))
             for ln in s.lines:
                 a, b = ln.coords[0], ln.coords[-1]
                 self.dw.add(Line((a[0], a[1]), (b[0], b[1]), thin, L_STAIR))
@@ -516,69 +358,6 @@ class _Plan:
             self.text((x, y - self.sh.m(0.3)), name, 2.5, L_TEXT, bold=True)
             self.text((x, y - self.sh.m(3.2)), f"{de(rg.area_fin)} m²", 2.0, L_TEXT)
 
-    # dimensions
-
-    def dimension(
-        self, bbox: tuple[float, float, float, float], chains: dict[str, list[Chain]]
-    ) -> None:
-        """The chains of all four sides. Each chain has its own extension lines, which start at
-        the dimension line before it, so no line crosses the numbers of another chain."""
-        cx0, cy0, cx1, cy1 = bbox
-        edge = {"S": cy0, "N": cy1, "W": cx0, "E": cx1}
-        ext = self.pen(0.13)
-        for side, cs in chains.items():
-            horizontal = side in "SN"
-            sign = -1.0 if side in "SW" else 1.0
-            prev = edge[side] + sign * self.sh.m(1.5)
-            before: set[float] = set()
-            for k, chain in enumerate(cs):
-                line_at = edge[side] + sign * self.sh.m(DIM_FIRST + DIM_STEP * k)
-                end = line_at + sign * self.sh.m(2.0)
-                for p in chain.pts:
-                    # a point the chain before had already reaches 2 mm beyond its line
-                    start = prev + sign * self.sh.m(2.0) if round(p, 3) in before else prev
-                    a, b = ((p, start), (p, end)) if horizontal else ((start, p), (end, p))
-                    self.dw.add(Line(a, b, ext, L_DIM))
-                self.chain(side, chain, line_at)
-                prev = line_at
-                before = {round(p, 3) for p in chain.pts}
-
-    def chain(self, side: str, chain: Chain, line_at: float) -> None:
-        """One chain: the line, a slash at each point and the lengths between the points.
-
-        The numbers stand on the building's side of the line, in the band between this line and
-        the one before. A number wider than its segment moves up a row.
-        """
-        horizontal = side in "SN"
-        sh = self.sh
-        pts = chain.pts
-
-        def at(along: float, across: float) -> Pt:
-            return (along, across) if horizontal else (across, along)
-
-        self.dw.add(Line(at(pts[0], line_at), at(pts[-1], line_at), self.pen(0.13), L_DIM))
-        d = sh.m(1.0)
-        tick = self.pen(0.35)
-        for p in pts:
-            self.dw.add(Line(at(p - d, line_at - d), at(p + d, line_at + d), tick, L_DIM))
-        rows = [float("-inf")] * 3
-        for a, b in pairwise(pts):
-            txt = dim_text(b - a)
-            half = sh.m(text_width(txt, DIM_TEXT) / 2)
-            mid = (a + b) / 2
-            row = next((r for r in range(3) if mid - half >= rows[r] + sh.m(0.8)), 2)
-            rows[row] = mid + half
-            gap = 1.6 + row * (DIM_TEXT + 0.8)
-            if side == "N":
-                base, rot = line_at - sh.m(gap + DIM_TEXT), 0.0
-            elif side == "S":
-                base, rot = line_at + sh.m(gap), 0.0
-            elif side == "E":
-                base, rot = line_at - sh.m(gap), 90.0
-            else:
-                base, rot = line_at + sh.m(gap + DIM_TEXT), 90.0
-            self.text(at(mid, base), txt, DIM_TEXT, L_DIM, rot=rot)
-
     # axes
 
     def axes(
@@ -595,29 +374,78 @@ class _Plan:
         for el in grids:
             label = el.label or el.id
             if el.axis == "x":
-                far = self.allowance(len(chains["S"]), True) - 2 * BUBBLE_R - 6.0
+                far = allowance(len(chains["S"]), True) - 2 * BUBBLE_R - 6.0
                 yc = cy0 - sh.m(far + BUBBLE_R)
                 self.dw.add(Line((el.coord, yc + r), (el.coord, cy0 - sh.m(1.5)), pen, L_GRID))
                 c = (el.coord, yc)
             else:
-                far = self.allowance(len(chains["W"]), True) - 2 * BUBBLE_R - 6.0
+                far = allowance(len(chains["W"]), True) - 2 * BUBBLE_R - 6.0
                 xc = cx0 - sh.m(far + BUBBLE_R)
                 self.dw.add(Line((xc + r, el.coord), (cx0 - sh.m(1.5), el.coord), pen, L_GRID))
                 c = (xc, el.coord)
             self.dw.add(Circle(c, r, ring, None, L_GRID))
             self.text((c[0], c[1] - sh.m(1.1)), label, 3.0, L_GRID, bold=True)
 
-    # caption, frame, title block
+    # section lines
 
-    def caption(
+    def section_marks(
         self,
         bbox: tuple[float, float, float, float],
+        cuts: list[SectionGeo],
         chains: dict[str, list[Chain]],
         bubbles: str,
     ) -> None:
+        """The cut line of each section through this storey: thick through the building, and at
+        both ends beyond the dimension chains a bold stub, an arrow in the viewing direction and
+        the name of the section."""
+        sh = self.sh
+        cx0, cy0, cx1, cy1 = bbox
+        edge = {"S": cy0, "N": cy1, "W": cx0, "E": cx1}
+        inside = self.pen(0.5, BLACK, (8.0, 1.5, 1.0, 1.5))
+        bold, shaft = self.pen(0.7), self.pen(0.35)
+        for sc in cuts:
+            horizontal = sc.axis == "y"  # the line runs along x
+            ends = ("W", "E") if horizontal else ("S", "N")
+            lo, hi = (cx0, cx1) if horizontal else (cy0, cy1)
+            a, b = lo - sh.m(2.5), hi + sh.m(2.5)
+            pts = ((a, sc.coord), (b, sc.coord)) if horizontal else ((sc.coord, a), (sc.coord, b))
+            self.dw.add(Line(pts[0], pts[1], inside, L_CUT))
+            vx, vy = sc.view
+            for side in ends:
+                sign = -1.0 if side in "SW" else 1.0
+                reach = allowance(len(chains[side]), side in bubbles) + 1.0
+                near = edge[side] + sign * sh.m(reach)
+                far = near + sign * sh.m(7.0)
+                p0 = (near, sc.coord) if horizontal else (sc.coord, near)
+                p1 = (far, sc.coord) if horizontal else (sc.coord, far)
+                self.dw.add(Line(p0, p1, bold, L_CUT))
+                tip = (p1[0] + vx * sh.m(7.0), p1[1] + vy * sh.m(7.0))
+                self.dw.add(Line(p1, tip, shaft, L_CUT))
+                # the arrow head: 3 mm long, 2 mm wide
+                h, w = sh.m(3.0), sh.m(1.0)
+                base = (tip[0] - vx * h, tip[1] - vy * h)
+                head = [
+                    tip,
+                    (base[0] - vy * w, base[1] + vx * w),
+                    (base[0] + vy * w, base[1] - vx * w),
+                ]
+                self.dw.add(Poly(head, BLACK, None, L_CUT))
+                # the name beyond the stub
+                out = far + sign * sh.m(2.5)
+                if horizontal:
+                    anchor = "end" if side == "W" else "start"
+                    at = (out, sc.coord - sh.m(1.2))
+                else:
+                    anchor = "middle"
+                    at = (sc.coord, out if side == "N" else out - sh.m(3.5))
+                self.text(at, sc.id, 3.5, L_CUT, anchor=anchor, bold=True)
+
+    # caption
+
+    def caption(self, bbox: tuple[float, float, float, float], need: dict[str, float]) -> None:
         sh = self.sh
         cx0, cy0, cx1, _ = bbox
-        y = cy0 - sh.m(self.allowance(len(chains["S"]), "S" in bubbles) + 5.0)
+        y = cy0 - sh.m(need["S"] + 5.0)
         self.text(
             ((cx0 + cx1) / 2, y),
             f"Grundriss {self.level_name}   M 1:{sh.scale}",
@@ -625,96 +453,6 @@ class _Plan:
             L_TEXT,
             bold=True,
         )
-
-    def frame(self) -> None:
-        """The frame and the title block, which stays unsigned."""
-        sh = self.sh
-        heavy, mid = self.pen(0.7), self.pen(0.35)
-        x0, y0, x1, y1 = frame(sh.paper)
-        self.rect(x0, y0, x1, y1, heavy, L_FRAME)
-        bx, by = x1 - BLOCK_W, y0
-        self.rect(bx, by, x1, by + BLOCK_H, heavy, L_BLOCK)
-        # the block in mm from its lower-left corner: a strip at the bottom, then two columns
-        split = 105.0
-        self.seg(bx, by + 10, x1, by + 10, mid)
-        self.seg(bx + split, by + 10, bx + split, by + BLOCK_H, mid)
-        for y in (22.0, 42.0):
-            self.seg(bx, by + y, bx + split, by + y, mid)
-        for x in (35.0, 70.0):
-            self.seg(bx + x, by + 10, bx + x, by + 22, mid)
-        for y in (29.0, 42.0):
-            self.seg(bx + split, by + y, x1, by + y, mid)
-        lv = self.g.levels[self.level]
-        nr = f"A-{self.g.level_order().index(self.level) + 1:02d}"
-        self.cell(bx, by + 42, 13, "Bauvorhaben", self.project, 3.5, True, 3.5)
-        self.cell(bx, by + 22, 20, "Planinhalt", f"Grundriss {self.level_name}", 4.0, True, 9.0)
-        okff = f"OKFF {height_text(lv.z)} m"
-        if abs(lv.z) > 1e-9:
-            okff += " (±0,00 = OKFF des Erdgeschosses)"
-        self.text(sh.pt(bx + 2, by + 25.5), okff, 2.0, L_BLOCK, anchor="start", color=GREY)
-        self.cell(bx, by + 10, 12, "Maßstab", f"1:{sh.scale}", 3.0, True, 3.0)
-        self.cell(bx + 35, by + 10, 12, "Format", sh.size, 3.0, True, 3.0)
-        self.cell(bx + 70, by + 10, 12, "Plan-Nr.", nr, 3.0, True, 3.0)
-        self.cell(bx + split, by + 42, 13, "Bauherr")
-        self.cell(bx + split, by + 29, 13, "Planverfasser")
-        self.cell(bx + split, by + 10, 19, "Unterschrift")
-        batch = f"Batch {self.stand.batch}" if self.stand.batch is not None else "ohne Verlauf"
-        self.text(
-            sh.pt(bx + 2, by + 3.2),
-            "ENTWURF – nicht unterzeichnet",
-            2.8,
-            L_BLOCK,
-            anchor="start",
-            bold=True,
-        )
-        self.text(
-            sh.pt(x1 - 2, by + 3.2),
-            f"Stand {self.stand.date_de()} · {batch} · UEA {__version__}",
-            2.0,
-            L_BLOCK,
-            anchor="end",
-            color=GREY,
-        )
-
-    def cell(
-        self,
-        x: float,
-        y: float,
-        height: float,
-        label: str,
-        value: str = "",
-        size: float = 2.5,
-        bold: bool = False,
-        up: float = 2.6,
-    ) -> None:
-        """A cell of the title block: a small label at its top, a value `up` mm above its bottom.
-
-        x, y: its lower-left corner, in mm on paper.
-        """
-        sh = self.sh
-        self.text(sh.pt(x + 1.5, y + height - 3.2), label, 1.6, L_BLOCK, anchor="start", color=GREY)
-        if value:
-            self.text(sh.pt(x + 2.0, y + up), value, size, L_BLOCK, anchor="start", bold=bold)
-
-    def rect(self, x0: float, y0: float, x1: float, y1: float, pen: Pen, layer: str) -> None:
-        sh = self.sh
-        pts = [sh.pt(x0, y0), sh.pt(x1, y0), sh.pt(x1, y1), sh.pt(x0, y1)]
-        self.dw.add(Poly(pts, None, pen, layer))
-
-    def seg(self, x0: float, y0: float, x1: float, y1: float, pen: Pen) -> None:
-        self.dw.add(Line(self.sh.pt(x0, y0), self.sh.pt(x1, y1), pen, L_BLOCK))
-
-
-def _ring(p: Polygon) -> tuple[list[Pt], list[list[Pt]]]:
-    return (
-        [(x, y) for x, y in list(p.exterior.coords)[:-1]],
-        [[(x, y) for x, y in list(h.coords)[:-1]] for h in p.interiors],
-    )
-
-
-def _poly(p: Polygon, fill: str | None, pen: Pen | None, layer: str) -> Poly:
-    pts, holes = _ring(p)
-    return Poly(pts, fill, pen, layer, holes)
 
 
 def sheet_plan(d: Derived, level: str, stand: Stand | None = None) -> Drawing | None:

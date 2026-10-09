@@ -13,8 +13,7 @@ from tests.test_geometry import SLABS
 from uea.derive import Derived
 from uea.export.drawing import Drawing, Poly, Sheet, Text, to_png, to_svg
 from uea.export.dxf import to_dxf
-from uea.export.pdf import to_pdf
-from uea.export.sheet import (
+from uea.export.paper import (
     BLOCK_H,
     BLOCK_W,
     L_BLOCK,
@@ -28,9 +27,9 @@ from uea.export.sheet import (
     frame,
     height_text,
     place,
-    sheet_plan,
-    side_chains,
 )
+from uea.export.pdf import to_pdf
+from uea.export.sheet import sheet_plan, side_chains
 
 # a 10 x 8 box: walls with a 0.3 core, so the ends of w2 and w4 are 0.3 and 7.7
 HOUSE = (

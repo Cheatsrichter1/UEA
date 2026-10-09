@@ -121,13 +121,15 @@ norm-compliant. Project calculators live in calc/ (custom).
 
 EXPORT = """\
 uea render <level> [-o file]        working plan (PNG) with element ids, for you to look at
-uea export pdf|dxf [level] [-o f]   floor plan sheet per storey: A3 1:100, dimensions, title
-                                    block left unsigned; all levels if none is given
+uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a floor plan per storey
+                                    (name: a level) and a section per section (name: its name),
+                                    with dimensions and height marks; all if none is given
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
 uea export ifc [-o file]            IFC4 model for humans and other software
-uea export svg|png [level] [-o f]   the same sheet as a picture, to check what the PDF shows
-Files go to out/ unless -o says otherwise; the output names them. Sheets and tables are
-labelled in German, for the people who read them. The title block stays unsigned: a human signs.
+uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
+Files go to out/ unless -o says otherwise; the output names them. Sections: + section A x=W+5 look=w
+(uea help section). Sheets and tables are labelled in German, for the people who read them. The
+title block stays unsigned: a human signs.
 """
 
 

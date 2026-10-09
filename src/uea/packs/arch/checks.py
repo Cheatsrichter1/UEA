@@ -38,6 +38,7 @@ CODES: dict[str, str] = {
     "E-ARCH-043": "roof shape does not fit its rectangle",
     "W-ARCH-050": "two default types in one category",
     "W-ARCH-051": "door or window without type and no default type",
+    "W-ARCH-060": "section outside the building (it cuts no wall)",
 }
 
 
@@ -247,5 +248,22 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
                     el.id,
                     f"has no type= and there is no default {cat} type",
                     f"give type= or mark a {cat} type default",
+                )
+
+    # sections
+    walls = [w.poly for w in g.walls.values() if w.active]
+    if walls and g.sections:
+        body = union(walls)
+        x0, y0, x1, y1 = body.bounds
+        for sc in g.sections.values():
+            lo, hi = (y0, y1) if sc.axis == "x" else (x0, x1)
+            if not body.intersects(sc.line(lo - 1.0, hi + 1.0)):
+                a, b = (x0, x1) if sc.axis == "x" else (y0, y1)
+                add(
+                    "W-ARCH-060",
+                    sc.id,
+                    f"the cut at {sc.axis}={ln(sc.coord)} meets no wall (the building spans"
+                    f" {sc.axis} {ln(a)}..{ln(b)})",
+                    f"~ {sc.id} {sc.axis}=<inside the building>",
                 )
     return out

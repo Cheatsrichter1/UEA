@@ -189,6 +189,9 @@ def describe(d: Derived, el: Element) -> list[str]:
         axis = "y" if s.o == "h" else "x"
         other = "x" if s.o == "h" else "y"
         return [f"{axis} {ln(s.pos)} {other} {iv(s.s0, s.s1)}"]
+    if el.kind == "section" and el.id in g.sections:
+        sc = g.sections[el.id]
+        return [f"cut {sc.axis} {ln(sc.coord)} looking {sc.look}"]
     if el.kind == "level" and el.id in g.levels:
         return level_summary(d, el.id)
     if el.kind == "type":
