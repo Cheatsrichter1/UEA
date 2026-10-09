@@ -32,7 +32,10 @@ def describe(d: Derived, el: Element) -> list[str]:
         elif el.kind == "sock":
             text += f" | {getattr(el, 'n')} outlet(s)"  # noqa: B009
         return [text]
-    if el.kind in ("board", "data", "smoke") and mt is not None:
+    if el.kind == "data" and mt is not None:
+        run = e.homeruns.get(el.id)
+        return [where(mt) + (f" | {run.length:.1f} m of cable from {run.a}" if run else "")]
+    if el.kind in ("board", "smoke") and mt is not None:
         return [where(mt)]
     if isinstance(el, Circ):
         cg = e.circuits.get(el.id)
@@ -44,11 +47,19 @@ def describe(d: Derived, el: Element) -> list[str]:
         what = " ".join(f"{n} {k}" for k, n in kinds.items())
         if cg.lums:
             what += f" {len(cg.lums)} lum"
-        return [
+        out = [
             f"{cg.rcd} {cg.board or '?'} | {el.cable.fmt()} {el.breaker.fmt()}"
             f" {cg.phases}P {cg.phase} | {what.strip() or 'nothing'}"
             f" | load {cg.load_w:.0f} W of {cg.capacity_w:.0f} W"
         ]
+        route = e.routes.get(el.id)
+        if route is not None and (far := route.far) is not None:
+            text = f"cable {route.total:.1f} m in {len(route.runs)} runs"
+            text += f" | farthest {far[0]} at {far[1]:.1f} m"
+            out.append(text + (f" | not placed: {ids(route.skipped)}" if route.skipped else ""))
+        elif route is not None and route.skipped:
+            out.append(f"no cable | not placed: {ids(route.skipped)}")
+        return out
     if isinstance(el, Rcd):
         cs = [c.id for c in d.elec.circuits.values() if c.rcd == el.id]
         return [

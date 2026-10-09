@@ -1,6 +1,6 @@
 # 0025: The electrical pack, slice 1: devices, circuits and checks
 
-Status: Accepted (slice 1 built; slice 2 in 0026; slice 3 to follow)
+Status: Accepted (slice 1 built; slice 2 in 0026; slice 3a in 0027; slice 3b to follow)
 Date: 2026-10-09
 
 ## Context

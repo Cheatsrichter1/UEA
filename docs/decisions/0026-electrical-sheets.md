@@ -1,6 +1,6 @@
 # 0026: The electrical sheets, slice 2: installation plan and board diagram
 
-Status: Accepted (slice 2 built; slice 3 to follow)
+Status: Accepted (slice 2 built; slice 3a in 0027; slice 3b to follow)
 Date: 2026-10-09
 
 ## Context

@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 
 from uea.core.registry import natural
 from uea.derive import Derived, Unresolved
-from uea.packs.elec.kinds import Circ, Conn, Feed, Rcd, Switch
+from uea.packs.elec.kinds import Circ, Conn, Data, Feed, Rcd, Switch
+from uea.packs.elec.routes import ALLOW, Route, Run, gap, tree
 from uea.packs.elec.values import Breaker
 from uea.packs.light.geometry import lum_type
 from uea.packs.mount import Mounts
@@ -50,6 +51,10 @@ class ElecGeo:
     """Luminaire id: the switches that control it."""
     lum_circuits: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
     """Luminaire id: the circuits of those switches."""
+    routes: dict[str, Route] = field(default_factory=dict[str, Route])
+    """Circuit id: its cable tree from the board."""
+    homeruns: dict[str, Run] = field(default_factory=dict[str, Run])
+    """Data outlet id: its cable from the board it is cabled to."""
 
 
 def switching(n: int) -> str:
@@ -99,6 +104,21 @@ def derive_elec(d: Derived) -> None:
         if t is not None and t.w:
             cg.load_w += t.w
     share_phases(d)
+    route_cables(d)
+
+
+def route_cables(d: Derived) -> None:
+    """The cable of every circuit from its board, and of every data outlet from its board."""
+    e = d.elec
+    for cg in e.circuits.values():
+        if cg.board is None or cg.board not in d.mounts:
+            continue
+        e.routes[cg.id] = tree(cg.board, d.mounts, [*cg.devices, *cg.lums])
+    for el in d.model.of_kind("data"):
+        assert isinstance(el, Data)
+        board, outlet = d.mounts.get(el.board.id), d.mounts.get(el.id)
+        if board is not None and outlet is not None:
+            e.homeruns[el.id] = Run(el.board.id, el.id, gap(board, outlet) + ALLOW)
 
 
 def share_phases(d: Derived) -> None:
