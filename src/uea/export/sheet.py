@@ -98,14 +98,15 @@ def side_chains(
     return out
 
 
-class _Plan(Paper):
+class PlanSheet(Paper):
     """Draws the plan of one storey on a sheet."""
 
     def __init__(self, d: Derived, level: str, stand: Stand) -> None:
         el = d.model[level]
         self.level = level
         self.level_name = el.label or LEVEL_DE.get(level, level)
-        super().__init__(d, stand, f"Grundriss {self.level_name}")
+        self.heading = f"Grundriss {self.level_name}"
+        super().__init__(d, stand, self.heading)
         self.walls = self.g.walls_on(level, active=False)
         self.live = [w for w in self.walls if w.active]
         self.openings = [o for o in self.g.openings.values() if o.level == level]
@@ -179,7 +180,7 @@ class _Plan(Paper):
         if abs(lv.z) > 1e-9:
             okff += " (±0,00 = OKFF des Erdgeschosses)"
         nr = f"A-{self.g.level_order().index(self.level) + 1:02d}"
-        self.title_block(f"Grundriss {self.level_name}", okff, nr)
+        self.title_block(self.heading, okff, nr)
         return self.dw
 
     # walls
@@ -448,7 +449,7 @@ class _Plan(Paper):
         y = cy0 - sh.m(need["S"] + 5.0)
         self.text(
             ((cx0 + cx1) / 2, y),
-            f"Grundriss {self.level_name}   M 1:{sh.scale}",
+            f"{self.heading}   M 1:{sh.scale}",
             3.5,
             L_TEXT,
             bold=True,
@@ -457,4 +458,4 @@ class _Plan(Paper):
 
 def sheet_plan(d: Derived, level: str, stand: Stand | None = None) -> Drawing | None:
     """The floor plan of a storey on a sheet; none if the storey has no walls."""
-    return _Plan(d, level, stand or Stand()).draw()
+    return PlanSheet(d, level, stand or Stand()).draw()

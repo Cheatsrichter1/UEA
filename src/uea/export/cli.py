@@ -45,18 +45,34 @@ def _plans(ctx: "Ctx", scope: str | None, out_path: str | None) -> list[str] | s
 
 
 def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str:
-    """What to draw for humans: (kind, id) of floor plans, sections and elevations."""
+    """What to draw for humans: (kind, id) of floor plans, sections, elevations and the
+    electrical sheets."""
     from uea.export.elevation import SIDES
 
     d, _ = ctx.derived()
     levels = d.arch.level_order()
     sections = sorted(d.arch.sections, key=natural)
+    wired = {mt.level for mt in d.mounts.values()}
+    installs = [("install", lv) for lv in levels if lv in wired]
+    boards = sorted({c.board for c in d.elec.circuits.values() if c.board}, key=natural)
+    electrical = [*installs, *(("board", b) for b in boards)]
     if scope is None or scope == "all":
         return [
             *(("plan", lv) for lv in levels),
             *(("section", k) for k in sections),
             *(("elevation", side) for side in SIDES),
+            *electrical,
         ]
+    if scope == "elec":
+        return electrical or "nothing electrical to draw yet"
+    if scope.startswith("elec:") or scope in boards:
+        rest = scope.removeprefix("elec:")
+        if rest in levels:
+            return [("install", rest)] if rest in wired else f"nothing electrical on {rest}"
+        if rest in boards:
+            return [("board", rest)]
+        known = f"Levels: {' '.join(levels)}. Boards: {' '.join(boards)}"
+        return f"unknown level or board {rest!r}. {known}"
     if scope in SIDES:
         return [("elevation", scope)]
     if scope in d.arch.levels:
@@ -66,14 +82,18 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     if scope in d.model and d.model[scope].kind == "section":
         return f"section {scope} has an error: uea check"
     known = f"Levels: {' '.join(levels)}. Sections: {' '.join(sections) or 'none'}."
-    return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}"
+    more = f" Electrical: elec, elec:<level>, {' '.join(boards)}." if boards else ""
+    return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
 
 
 def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> list[str] | str:
-    """The floor plan of each storey and each section as a sheet, for humans (0022, 0023)."""
+    """The floor plan of each storey, each section and elevation and the electrical sheets, as
+    sheets for humans (decisions 0022 to 0026)."""
+    from uea.export.board import sheet_board
     from uea.export.drawing import to_png, to_svg
     from uea.export.dxf import to_dxf
     from uea.export.elevation import sheet_elevation
+    from uea.export.install import ELEC_LAYER_COLORS, sheet_install
     from uea.export.paper import LAYER_COLORS, Stand
     from uea.export.pdf import to_pdf
     from uea.export.section import sheet_section
@@ -93,13 +113,18 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_plan(d, key, stand)
         elif kind == "section":
             dw = sheet_section(d, key, stand)
+        elif kind == "install":
+            dw = sheet_install(d, key, stand)
+        elif kind == "board":
+            dw = sheet_board(d, key, stand)
         else:
             dw = sheet_elevation(d, key, stand)
         if dw is None or dw.sheet is None:
             why = "the cut meets no wall" if kind == "section" else "no walls"
             lines.append(f"{key}: {why}, nothing to draw")
             continue
-        path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{kind}-{key}.{fmt}"
+        name = {"install": "elec", "board": "board"}.get(kind, kind)
+        path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{name}-{key}.{fmt}"
         if fmt == "svg":
             path.write_text(to_svg(dw), encoding="utf-8")
         elif fmt == "png":
@@ -107,8 +132,9 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
         elif fmt == "pdf":
             to_pdf(dw, path)
         else:
-            to_dxf(dw, path, LAYER_COLORS)
-        lines.append(f"{_rel(ctx, path)} {dw.sheet.size} 1:{dw.sheet.scale}")
+            to_dxf(dw, path, {**LAYER_COLORS, **ELEC_LAYER_COLORS})
+        scale = "o. M." if kind == "board" else f"1:{dw.sheet.scale}"
+        lines.append(f"{_rel(ctx, path)} {dw.sheet.size} {scale}")
     return lines
 
 

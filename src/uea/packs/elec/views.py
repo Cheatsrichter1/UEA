@@ -46,7 +46,7 @@ def describe(d: Derived, el: Element) -> list[str]:
             what += f" {len(cg.lums)} lum"
         return [
             f"{cg.rcd} {cg.board or '?'} | {el.cable.fmt()} {el.breaker.fmt()}"
-            f" {cg.phases}P | {what.strip() or 'nothing'}"
+            f" {cg.phases}P {cg.phase} | {what.strip() or 'nothing'}"
             f" | load {cg.load_w:.0f} W of {cg.capacity_w:.0f} W"
         ]
     if isinstance(el, Rcd):
