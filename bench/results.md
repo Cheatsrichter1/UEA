@@ -13,4 +13,4 @@ Reference solutions run through the real CLI (`uv run python -m bench --write`).
 | query | 3 | 25 | 109 | 134 | ok |
 | **all** | | | | **3,403** | |
 
-Reading the help once (`help`, `help start`, `help ops`, `help positions`, `help arch`): 2,512 tokens.
+Reading the help once (`help`, `help start`, `help ops`, `help positions`, `help arch`): 2,520 tokens.

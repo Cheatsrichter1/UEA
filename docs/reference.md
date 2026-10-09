@@ -15,7 +15,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea apply --by <who> -m <why>` | atomic batch of operations from stdin (help ops) |
 | `uea revert <batch> --by <who>` | undo a batch as a new batch |
 | `uea check [discipline]` | open issues, requests and waivers |
-| `uea calc [name] [scope]` | calculators, e.g. calc wofl (help calc) |
+| `uea calc [name] [scope]` | calculators, e.g. calc wofl; their norm tables: uea data (help calc) |
 | `uea render <level>` | plan image (PNG) to look at (help export) |
 | `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png (help export) |
 | `uea log [n]` | recent batches |
@@ -34,7 +34,8 @@ uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run]
 uea revert [--by WHO] [-m WHY] batch
 uea check [discipline]
 uea log [n]
-uea calc [name] [scope]
+uea calc [name] [scope|name=value ...]
+uea data [--edition E] [--source S] [action] [rest ...]
 uea render [-o FILE] scope [view]
 uea export [-o FILE] format [scope]
 ```
@@ -637,11 +638,87 @@ E is an error, W a warning.
 
 ## Calculators
 
-Projects add `custom` calculators in `calc/`. A `custom` result is never presented as norm-compliant.
+Projects add `custom` calculators in `calc/`. A `custom` result is never presented as norm-compliant. A calculator that needs norm tables stops and names the one that is missing; the office installs its tables with `uea data add` from its own licensed copy (`docs/decisions/0008-office-supplied-norm-data.md`). Settings are written `name=value` after the calculator's name and are recorded in the result.
 
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|
 | `wofl` | norm | 0.1.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
+| `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
+| `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
+
+### `cable` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `method` | str | required | installation method as your ampacity table names it, e.g. B2 |
+| `insulation` | str | PVC | insulation of the cables (PVC / XLPE) |
+| `temp` | float |  | ambient temperature in °C; left out: the table's reference |
+| `group` | int | 1 | circuits grouped together; 1: no grouping factor |
+| `arrangement` | str |  | how they are grouped, as your group-factor table names it |
+
+### `vdrop` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `limit` | float | required | the permissible voltage drop of the circuit, in % of 230 V |
+| `reserve` | float | 1.2 | factor on the derived length, for the route on site |
+| `cos` | float | 1.0 | power factor of the load, more than 0 and at most 1 |
+| `demand` | float | 1.0 | share of In taken as the current of a circuit with sockets, more than 0 and at most 1 |
+| `current` | str | auto | auto: declared load if the circuit has no socket, else In times demand; in: always In (auto / in) |
+
+### Norm tables
+
+One CSV file for each table, the first line the header: `uea data add <id> <file.csv> --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is read. Numbers must be more than 0. No two rows may have the same key.
+
+#### `ampacity`: Current-carrying capacity Iz (DIN VDE 0298-4)
+
+Copper conductors. One row for each installation method, insulation, number of loaded conductors and cross-section the office uses.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `method` | text | reference installation method as the table names it: A1, B2, C, ... |
+| `insulation` | text | insulation of the cable (one of PVC, XLPE) |
+| `loaded` | num | loaded conductors: 2 (single-phase) or 3 (three-phase) |
+| `mm2` | num | conductor cross-section, mm² |
+| `amps` | num | current-carrying capacity at reference conditions, A |
+
+One row for each: method, insulation, loaded, mm2.
+
+#### `temp-factor`: Correction factor for the ambient temperature (DIN VDE 0298-4)
+
+Needed only when the calculation is run with temp=<°C>.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `insulation` | text | insulation of the cable (one of PVC, XLPE) |
+| `celsius` | num | ambient temperature, °C |
+| `factor` | num | factor for Iz |
+
+One row for each: insulation, celsius.
+
+#### `group-factor`: Correction factor for grouped circuits (DIN VDE 0298-4)
+
+Needed only when the calculation is run with group=<n> above 1.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `arrangement` | text | how they are grouped, as the table names it |
+| `circuits` | num | number of circuits in the group |
+| `factor` | num | factor for Iz |
+
+One row for each: arrangement, circuits.
+
+#### `conductor`: Conductor data for the voltage drop (DIN VDE 0100-520 (IEC 60364-5-52, Annex G))
+
+One row for copper (cables NYM, NYY, ...) and one for aluminium (cables starting NA) if used.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | conductor material (one of Cu, Al) |
+| `rho` | num | resistivity of the conductor in service, Ω·mm²/m |
+| `lambda` | num | reactance of the cable per length, mΩ/m |
+
+One row for each: material.
 
 ## Exports
 

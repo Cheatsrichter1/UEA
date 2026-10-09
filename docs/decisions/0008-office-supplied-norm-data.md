@@ -1,6 +1,6 @@
 # 0008: Norm tables are supplied by the office
 
-Status: Accepted
+Status: Accepted (storage and format in 0028)
 Date: 2026-10-07
 
 ## Context

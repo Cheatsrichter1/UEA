@@ -145,6 +145,27 @@ def share_phases(d: Derived) -> None:
                 load[cg.phase] += weight
 
 
+def circuits_in(d: Derived, scope: str | None) -> list[CircGeo]:
+    """The circuits of the project, of one RCD or board, or one circuit, in id order."""
+    e = d.elec
+    if scope is None:
+        found = list(e.circuits.values())
+    elif scope in e.circuits:
+        found = [e.circuits[scope]]
+    else:
+        found = [c for c in e.circuits.values() if scope in (c.rcd, c.board)]
+        if not found:
+            raise ValueError(f"{scope!r} is not a circuit, an RCD or a board with circuits")
+    return sorted(found, key=lambda c: natural(c.id))
+
+
+def declared_amps(cg: CircGeo, cos: float = 1.0) -> float | None:
+    """The current of the declared load of a circuit, A; none if nothing is declared."""
+    if cg.load_w <= 0:
+        return None
+    return cg.load_w / (VOLT * cg.phases * cos)
+
+
 def elec_signatures(d: Derived) -> dict[str, tuple[float, ...]]:
     """Where each device is, to report what follows a change."""
     return {

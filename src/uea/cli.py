@@ -574,6 +574,12 @@ def cmd_calc(ctx: Ctx) -> int:
     return run_calc(ctx, out, out_json)
 
 
+def cmd_data(ctx: Ctx) -> int:
+    from uea.calc.cli import run_data
+
+    return run_data(ctx, out, out_json)
+
+
 def cmd_render(ctx: Ctx) -> int:
     from uea.export.cli import render
 
@@ -629,7 +635,12 @@ def build_parser() -> Parser:
     add("log", cmd_log).add_argument("n", nargs="?", type=int, default=10)
     c = add("calc", cmd_calc)
     c.add_argument("name", nargs="?")
-    c.add_argument("scope", nargs="?")
+    c.add_argument("rest", nargs="*", metavar="scope|name=value")
+    dt = add("data", cmd_data)
+    dt.add_argument("action", nargs="?")
+    dt.add_argument("rest", nargs="*")
+    dt.add_argument("--edition", metavar="E")
+    dt.add_argument("--source", metavar="S", default="")
     rd = add("render", cmd_render)
     rd.add_argument("scope")
     rd.add_argument("view", nargs="?")

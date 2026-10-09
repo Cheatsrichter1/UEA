@@ -1,6 +1,6 @@
 # 0027: Cable routes, slice 3a: the lengths of the circuits
 
-Status: Accepted (slice 3a built; the norm tables and calculators, slice 3b, to follow)
+Status: Accepted (slice 3a built; the norm tables and calculators are 0028)
 Date: 2026-10-09
 
 ## Context
