@@ -14,6 +14,18 @@ from shapely.ops import unary_union
 
 Pt = tuple[float, float]
 
+CLIMB: dict[str, Pt] = {"n": (0.0, 1.0), "s": (0.0, -1.0), "e": (1.0, 0.0), "w": (-1.0, 0.0)}
+"""The direction the first flight climbs, by `up=`."""
+
+
+def to_plan(up: str, turn: str | None) -> list[float]:
+    """The stair's own frame (p along the first flight, q toward the turn) in the plan, as the six
+    numbers of a shapely affine transform; the offset is left at zero."""
+    climb = CLIMB[up]
+    left = (-climb[1], climb[0])
+    q = left if turn != "r" else (-left[0], -left[1])
+    return [climb[0], q[0], climb[1], q[1], 0.0, 0.0]
+
 
 @dataclass(frozen=True, slots=True)
 class LFlight:

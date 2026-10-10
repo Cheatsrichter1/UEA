@@ -81,6 +81,16 @@ def test_u_stair_has_a_well() -> None:
     assert s.walk[0] == pytest.approx((2.6, 1.0)) and s.walk[-1] == pytest.approx((1.5, 1.0))
 
 
+def test_u_stair_with_gap_zero_has_flights_that_touch() -> None:
+    s, _ = stair("stair st1 EG OG x=1+ y=1+ up=n w=1 n=16 tread=0.26 shape=u turn=l gap=0\n")
+    # the same flights and landing as with the 0.1 well, but 2 m across instead of 2.1 and no
+    # well: 1.82 + 2.0 + 1.82
+    assert (s.x1 - s.x0, s.y1 - s.y0) == pytest.approx((2.0, 2.82))
+    assert s.poly.area == pytest.approx(1.82 + 2.0 + 1.82)
+    assert s.poly.is_valid
+    assert s.walk[-1] == pytest.approx((1.5, 1.0))
+
+
 def test_u_stair_with_a_longer_second_flight_reaches_back() -> None:
     s, _ = stair("stair st1 EG OG x=1+ y=1+ up=n w=1 n=17 tread=0.26 shape=u turn=l gap=0.2 n1=6\n")
     # first flight 5 treads (1.3 m), landing, second flight 17 - 6 - 1 = 10 treads (2.6 m) that

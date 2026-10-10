@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built, phase 3 is built apart from the leftovers below, and phase 4 has started (slice 4a built).
+Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built, phase 3 is built apart from the leftovers below, and phase 4 is under way (slices 4a and 4b built).
 
 ## Phases
 
@@ -50,7 +50,7 @@ The design is `docs/decisions/0025-electrical-devices.md`; the phase goes in thr
 
 ### Phase 4: where it stands
 
-The design is `docs/decisions/0029-ifc-import.md`; the phase goes in slices. Slice 4a is built: `uea import ifc <file> --by <who>` reads storeys, walls (an axis through the core with a type from the layers), doors and windows, one floor slab per storey (its finish becomes `fb` and a floor type) and spaces (rooms, with a `sep` where two are open to each other) from an architect's IFC, reports everything it does not map, and updates the model on a newer file by IFC GlobalId without touching what was edited in UEA. Tested on hand-built IFC files and on UEA's own export of Haus Müller, relabelled as another program's. Open: slice 4b, roofs, stairs, slab voids and grids; slice 4c, the polish a real file asks for. **Not yet tried on a real office file**, which the phase's "done when" needs: a file from an office is the next step, and what it shows (curtain walls, walls in several parts, split storeys, layer sets on types only) decides the order of 4b and 4c. Hand a real IFC to the importer before building more.
+The designs are `docs/decisions/0029-ifc-import.md` and `0030-ifc-import-shapes.md`; the phase goes in slices. Slice 4a is built: `uea import ifc <file> --by <who>` reads storeys, walls (an axis through the core with a type from the layers), doors and windows, one floor slab per storey (its finish becomes `fb` and a floor type) and spaces (rooms, with a `sep` where two are open to each other) from an architect's IFC, reports everything it does not map, and updates the model on a newer file by IFC GlobalId without touching what was edited in UEA. Slice 4b is built: grids along x or y, openings in floor slabs (tied to the stair under them with `over=`, else rectangles), and stairs and roofs. A stair or roof is fitted by building the UEA candidates with UEA's own layout code and keeping the one that lies where the file's faces lie; walls that end under a fitted roof get `top=`; what fits nothing is reported with the reason. Tested on hand-built IFC files in IFC2X3, IFC4 and IFC4X3, and on UEA's own exports (Haus Müller, seven roof shapes, nine stairs), relabelled as another program's. Open: slice 4c, the polish a real file asks for (units, several buildings, curved walls, curtain walls, niches, BCF), and the cases 4b reports instead of importing (L-shaped roofs in one IfcRoof, dormers, spiral stairs; the list is in `0030`). **Not yet tried on a real office file**, which the phase's "done when" needs. A real file should set the order of 4c: what it shows (curtain walls, walls in several parts, split storeys, layer sets on types only) comes first.
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 

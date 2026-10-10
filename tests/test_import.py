@@ -51,7 +51,7 @@ def test_first_import_summary(sh: Shell, tmp_path: Path) -> None:
         " · 1 doors · 3 windows · 1 separators · 4 rooms"
     )
     assert "issues: 0 errors · 0 warnings" in out
-    assert "not imported: 1 IfcColumn · 1 IfcRoof" in out
+    assert "not imported: 1 IfcRoof (no body) · 1 IfcColumn" in out
     assert "note: ground storey EG (±0.00)" in out
     assert sh("check")[1].startswith("0 errors")
 
@@ -277,7 +277,7 @@ def test_json_report(sh: Shell, tmp_path: Path) -> None:
     data = json.loads(out)
     assert code == 0
     assert data["import"]["counts"]["wall"] == 9
-    assert data["import"]["not_imported"] == {"IfcColumn": 1, "IfcRoof": 1}
+    assert data["import"]["not_imported"] == {"IfcRoof (no body)": 1, "IfcColumn": 1}
     assert data["result"]["ok"] is True
 
 
@@ -480,14 +480,23 @@ def test_haus_mueller_through_another_program(
     out = capsys.readouterr().out
     assert code == 0, out
     assert (
-        "3 levels · 9 types · 17 walls · 3 slabs · 9 doors · 13 windows · 1 separators · 11 rooms"
-        in out
-    )
-    assert "issues: 0 errors" in out
-    assert "not imported: 1 IfcRoof · 1 IfcStair" in out
+        "3 levels · 10 types · 1 roofs · 17 walls · 3 slabs · 1 stairs · 1 voids · 9 doors"
+        " · 13 windows · 1 separators · 11 rooms"
+    ) in out
+    assert "issues: 0 errors · 0 warnings" in out
+    assert "not imported: 2 IfcOpeningElement (a recess in a wall)" in out
     d1, rep = report(Project(target).load())
     assert not rep.errors()
     # the rooms keep their shapes to a few millimetres (no layer set usage in a UEA export:
     # the axis is the middle of each body)
     for rid, old in d0.arch.rooms.items():
         assert d1.arch.rooms[rid].area_fin == pytest.approx(old.area_fin, rel=0.005), rid
+    # the roof, the stair and the opening over it come back as they were; the knee and the
+    # overhangs within the same few millimetres, the stair exactly
+    old, new = d0.model["rf1"], d1.model["rf1"]
+    assert (new.shape, new.ridge, new.pitch) == (old.shape, old.ridge, old.pitch)
+    for name in ("knee", "eave", "verge"):
+        assert getattr(new, name) == pytest.approx(getattr(old, name), abs=0.006), name
+    assert d1.arch.stairs["st1"].poly.symmetric_difference(d0.arch.stairs["st1"].poly).area < 1e-6
+    assert d1.model["v1"].line() == "void v1 sl2 over=st1"
+    assert [w.id for w in d1.model.of_kind("wall") if "top=rf1" in w.line()] == ["w16", "w17"]

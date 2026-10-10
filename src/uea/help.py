@@ -162,13 +162,15 @@ title block stays unsigned: a human signs.
 
 IMPORT = """\
 uea import ifc <file> --by <who> [-m why] [--dry-run]   an architect's IFC becomes arch
-Mapped: storeys (levels), walls (an axis through the core, a type from the layers), doors and
-windows (a position on their wall), one floor slab per storey (its finish is fb and a floor type),
-spaces (rooms; use from the names; a sep where two spaces meet with no wall). Roofs, stairs, voids
-and grids are listed as not imported. Errors the import causes in the model are listed, not
-blocking: fix them with a batch. The same project again with a newer file: elements nobody has
-edited since are updated, new ones added, ones the file lost removed, the rest listed as kept:.
-Ids stay. UEA's own exports are refused: the model is where the project lives.
+Mapped: storeys (levels), grids along x or y, walls (an axis through the core, a type from the
+layers; top= the roof they end under), doors and windows (a position on their wall), one floor slab
+per storey (its finish is fb and a floor type) and its openings (voids; over= the stair below),
+stairs and roofs whose faces fit a UEA stair or roof, spaces (rooms; use from the names; a sep where
+two spaces meet with no wall). The rest is listed as not imported, with the reason. Errors the
+import causes in the model are listed, not blocking: fix them with a batch. The same project
+again with a newer file: elements nobody has edited since are updated, new ones added, ones the file
+lost removed, the rest listed as kept:. Ids stay. UEA's own exports are refused: the model is where
+the project lives.
 """
 
 

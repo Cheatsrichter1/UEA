@@ -199,7 +199,7 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea check [discipline]` | Open issues, requests and waivers |
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
 | `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
-| `uea import ifc <file>` | Architecture from an architect's IFC (§9). *Later* (phase 4) |
+| `uea import ifc <file>` | Architecture from an architect's IFC (§9) |
 | `uea export <format> [scope]` | Human-facing exports (§9): `ifc`, `svg`, `png` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
@@ -259,7 +259,9 @@ New exports are a good place for outside contributions: each one only needs the 
 
 ### IFC import
 
-Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>` maps it into `project.uea` and `arch.uea` (`docs/decisions/0011-ifc-import.md`, `0029-ifc-import.md`). Built: storeys, walls as axes through the core with a type from the layers, doors and windows as positions on their wall, one floor slab per storey, spaces as rooms with a separator where they are open to each other. Roofs, stairs, voids and grids are listed as not imported until slice 4b. Imported elements carry raw coordinates instead of grid intent, and geometry is read from IfcOpenShell's tessellation, so it does not matter how the exporting program wrote a body.
+Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>` maps it into `project.uea` and `arch.uea` (`docs/decisions/0011-ifc-import.md`, `0029-ifc-import.md`, `0030-ifc-import-shapes.md`). Built: storeys, grids along x or y, walls as axes through the core with a type from the layers, doors and windows as positions on their wall, one floor slab per storey with its openings, spaces as rooms with a separator where they are open to each other, and stairs and roofs. Imported elements carry raw coordinates instead of grid intent, and geometry is read from IfcOpenShell's tessellation, so it does not matter how the exporting program wrote a body.
+
+A stair or a roof is parameters in UEA and only a body in the file. The importer reads the faces (the treads; the planes of the roof's top), builds the UEA stairs and roofs that could have made them with UEA's own layout code, and keeps the one that lies where the file's faces lie: within 6 % of the tread area, within 2 cm of the roof's top. Walls whose tops follow a fitted roof get `top=`. What fits no UEA element is reported with the reason, never approximated.
 
 The IFC GlobalId of each element is kept in the history entry of the import, with a hash of the line as imported, not in the model. A new version from the architect updates what nobody has edited since, adds what is new, removes what the file lost, and lists the rest as `kept:`; ids stay. The errors an import causes are reported like any upstream change, and do not reject it.
 

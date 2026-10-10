@@ -61,6 +61,7 @@ from uea.packs.arch.kinds import (
     WinType,
 )
 from uea.packs.arch.stairs import layout
+from uea.packs.arch.stairs import to_plan as stair_to_plan
 from uea.packs.project import Grid, Level
 
 Axis = Literal["x", "y", "s"]
@@ -937,12 +938,10 @@ class Resolver:
                 f"{el.to.id} (z={ln(b.z)}) is not above {el.level.id} (z={ln(a.z)})",
                 "swap the storeys: stair <id> <from> <to>",
             )
-        lay = layout(el.shape, el.n, el.tread, el.w, el.n1, el.winders, el.gap or 0.1)
-        climb = {"n": (0.0, 1.0), "s": (0.0, -1.0), "e": (1.0, 0.0), "w": (-1.0, 0.0)}[el.up]
-        left = (-climb[1], climb[0])
-        q = left if el.turn != "r" else (-left[0], -left[1])
+        gap = 0.1 if el.gap is None else el.gap
+        lay = layout(el.shape, el.n, el.tread, el.w, el.n1, el.winders, gap)
         # local (p, q) to plan: p along the first flight, q toward the turn
-        to_plan = [climb[0], q[0], climb[1], q[1], 0.0, 0.0]
+        to_plan = stair_to_plan(el.up, el.turn)
         bx0, by0, bx1, by1 = affine_transform(lay.poly, to_plan).bounds
         x0, x1 = self.interval(el.x, "x", bx1 - bx0)
         y0, y1 = self.interval(el.y, "y", by1 - by0)

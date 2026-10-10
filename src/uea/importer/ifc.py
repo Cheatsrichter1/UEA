@@ -1,9 +1,12 @@
 """Reading an architect's IFC into plain data (decision 0029).
 
 Only what UEA can map is read: storeys, walls with their layers, doors and windows with the
-opening they fill, slabs and spaces. Geometry comes from IfcOpenShell's tessellation, so it does not
-matter how the exporting program wrote a body (extrusion, clipping, mesh): a wall is the strip its
-footprint draws. Lengths are metres, heights are absolute (the world z of the file).
+opening they fill, slabs and the voids in them, spaces, grids, and the faces of stairs and roofs.
+Geometry comes from IfcOpenShell's tessellation, so it does not matter how the exporting program
+wrote a body (extrusion, clipping, mesh): a wall is the strip its footprint draws, a stair is the
+horizontal faces its treads make, a roof is the planes of its top. Lengths are metres, heights are
+absolute (the world z of the file). Deciding what UEA element a stair or a roof is happens in
+`stairs.py` and `roofs.py`; this module only reads.
 """
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false, reportAttributeAccessIssue=false
 
@@ -23,7 +26,10 @@ import ifcopenshell.util.placement as up
 import ifcopenshell.util.unit as uu
 import numpy as np
 from shapely.geometry import LineString, Polygon
+from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
+
+from uea.importer.surfaces import Plane, Shape, flat_tops, merge, planes, top_z
 
 Vec = tuple[float, float]
 Entity = Any
@@ -32,6 +38,24 @@ STATUS = {"NEW": "new", "EXISTING": "existing", "DEMOLISH": "demolish", "TEMPORA
 STRUCTURE = ("IfcProject", "IfcSite", "IfcBuilding", "IfcBuildingStorey", "IfcOpeningElement")
 COMPONENT_OF = ("IfcRoof", "IfcStair", "IfcRamp", "IfcCurtainWall", "IfcRailing")
 """Parts of these are counted with the whole, not one by one."""
+STAIR_PARTS = ("IfcStair", "IfcStairFlight", "IfcSlab", "IfcBuildingElementProxy", "IfcPlate")
+"""What makes up a stair's treads. Railings and stringers (members) are left out: their top faces
+would pass for treads."""
+ROOF_PARTS = (
+    "IfcRoof",
+    "IfcSlab",
+    "IfcPlate",
+    "IfcBuildingElementPart",
+    "IfcBuildingElementProxy",
+)
+"""What makes up a roof's planes; a roof nested in another counts with it."""
+PROFILE_POINTS = 11
+"""A wall's top is sampled at this many points along its centre line."""
+_PROFILE_AT = [float(s) for s in np.linspace(0.02, 0.98, PROFILE_POINTS)]
+HOLE_MIN = 0.05
+"""A hole in a slab smaller than this (m²) is a sliver of the tessellation, not an opening."""
+JOINED = 0.05
+"""Roof slabs with no IfcRoof over them that lie this close (m) are the planes of one roof."""
 NOTCH = 0.03
 """A footprint may differ this much (relative to its area) from a plain strip."""
 
@@ -74,6 +98,8 @@ class Wall:
     lb: bool
     status: str
     note: str | None = None
+    profile: tuple[tuple[float, float, float], ...] = ()
+    """The top of the wall sampled along its centre line: (x, y, z)."""
 
 
 @dataclass
@@ -102,6 +128,69 @@ class Slab:
     area: float
     type_name: str | None
     status: str
+    holes: tuple[Polygon, ...] = ()
+    """Openings cut into the body of the slab itself."""
+
+
+@dataclass
+class Void:
+    """An opening element in a floor slab."""
+
+    guid: str
+    slab: str
+    """GlobalId of the slab it opens."""
+    fp: Polygon
+
+
+@dataclass
+class Grid:
+    """A straight grid axis: its tag and two points on it."""
+
+    key: str
+    tag: str
+    a: Vec
+    b: Vec
+
+
+@dataclass
+class Stair:
+    """What the faces of a stair say: its tread surfaces, lowest first."""
+
+    guid: str
+    name: str
+    label: str
+    """Class and name, for the report: `IfcStairFlight "Lauf 1"`."""
+    storey: str | None
+    treads: list[tuple[float, BaseGeometry]]
+    """Height and plan region of each group of horizontal faces that look up."""
+    z0: float
+    z1: float
+    status: str
+
+
+@dataclass
+class Roof:
+    """The planes of a roof: the faces that look up, and the ones that look down."""
+
+    guid: str
+    name: str
+    label: str
+    """Class and name, for the report: `IfcRoof "Dach"`."""
+    storey: str | None
+    top: list[Plane]
+    under: list[Plane]
+    layers: tuple[Layer, ...]
+    """Top to bottom."""
+    material: str | None
+    type_guid: str | None
+    type_name: str | None
+    z0: float
+    z1: float
+    status: str
+
+    @property
+    def region(self) -> BaseGeometry:
+        return unary_union([p.region for p in self.top])
 
 
 @dataclass
@@ -128,18 +217,13 @@ class Source:
     walls: list[Wall] = field(default_factory=list[Wall])
     openings: list[Opening] = field(default_factory=list[Opening])
     slabs: list[Slab] = field(default_factory=list[Slab])
+    voids: list[Void] = field(default_factory=list[Void])
     spaces: list[Space] = field(default_factory=list[Space])
+    grids: list[Grid] = field(default_factory=list[Grid])
+    stairs: list[Stair] = field(default_factory=list[Stair])
+    roofs: list[Roof] = field(default_factory=list[Roof])
     skipped: Counter[str] = field(default_factory=Counter[str])
     notes: list[str] = field(default_factory=list[str])
-
-
-@dataclass
-class Shape:
-    verts: Any
-    faces: Any
-
-    def z(self) -> tuple[float, float]:
-        return float(self.verts[:, 2].min()), float(self.verts[:, 2].max())
 
 
 # ---------- geometry ----------
@@ -283,6 +367,16 @@ def _layers(
     return tuple(out), None, axis, sense
 
 
+def _kind(ent: Entity) -> str:
+    """The predefined type in capitals. IFC2X3 has none on spaces and openings, and says on
+    another attribute whether a space is outside."""
+    for name in ("PredefinedType", "InteriorOrExteriorSpace"):
+        value = getattr(ent, name, None)
+        if value:
+            return str(value).upper()
+    return ""
+
+
 def _status(ent: Entity, pset: str) -> str:
     return STATUS.get(str(ue.get_pset(ent, pset, "Status") or "").upper(), "new")
 
@@ -344,10 +438,26 @@ def read(path: Path) -> Source:
     walls = f.by_type("IfcWall")
     doors = [*f.by_type("IfcDoor"), *f.by_type("IfcWindow")]
     slabs = [s for s in f.by_type("IfcSlab") if _is_floor(s)]
-    spaces = [s for s in f.by_type("IfcSpace") if str(s.PredefinedType or "") != "EXTERNAL"]
+    spaces = [s for s in f.by_type("IfcSpace") if _kind(s) != "EXTERNAL"]
     openings = {o.id(): o for d in doors for r in d.FillsVoids for o in [r.RelatingOpeningElement]}
-    sh = shapes(f, [*walls, *doors, *slabs, *spaces, *openings.values()])
-    handled: set[int] = set()
+    voiding = _voiding(f, openings, {s.id() for s in slabs}, src)
+    stairs = [(r, _family(r, STAIR_PARTS)) for r in _stair_roots(f)]
+    roofs = [(r, _family(r, ROOF_PARTS)) for r in _roof_roots(f)]
+    parts = {e.id(): e for _, fam in (*stairs, *roofs) for e in fam}
+    sh = shapes(
+        f,
+        [
+            *walls,
+            *doors,
+            *slabs,
+            *spaces,
+            *openings.values(),
+            *(o for o, _ in voiding),
+            *parts.values(),
+        ],
+    )
+    roofs = _joined(roofs, sh)
+    handled: set[int] = {g.id() for g in f.by_type("IfcGrid")}
     walled: dict[int, str] = {}
     for w in walls:
         handled.add(w.id())
@@ -370,6 +480,21 @@ def read(path: Path) -> Source:
         space = _space(s, sh.get(s.id()), src)
         if space is not None:
             src.spaces.append(space)
+    for o, host in voiding:
+        void = _void(o, host, sh, src)
+        if void is not None:
+            src.voids.append(void)
+    for root, fam in stairs:
+        handled.add(root.id())
+        stair = _stair(root, fam, sh, src)
+        if stair is not None:
+            src.stairs.append(stair)
+    for root, fam in roofs:
+        handled.update(e.id() for e in (root, *fam))
+        roof = _roof(root, fam, sh, scale, src)
+        if roof is not None:
+            src.roofs.append(roof)
+    _grids(f, scale, src)
     products: list[Entity] = list(f.by_type("IfcProduct"))
     for p in products:
         c = p.is_a()
@@ -383,7 +508,7 @@ def read(path: Path) -> Source:
 
 
 def _is_floor(slab: Entity) -> bool:
-    if str(slab.PredefinedType or "") in ("ROOF", "LANDING"):
+    if _kind(slab) in ("ROOF", "LANDING"):
         return False
     parent = ue.get_aggregate(slab)
     return parent is None or parent.is_a() not in COMPONENT_OF
@@ -402,7 +527,16 @@ def _wall(w: Entity, sh: Shape | None, scale: float, src: Source) -> Wall | None
     z0, z1 = sh.z()
     mid = (z0 + z1) / 2
     tops = sh.verts[sh.verts[:, 2] > mid][:, 2]
-    sloped = bool(len(tops) and float(tops.max() - tops.min()) > 0.02)
+    along = [(a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s) for s in _PROFILE_AT]
+    profile = tuple(
+        (x, y, z) for (x, y), z in zip(along, top_z(sh, along), strict=True) if z is not None
+    )
+    # the corners of a gable end lie below its middle: the profile shows what the corners do not
+    heights = [z for _, _, z in profile]
+    sloped = bool(
+        (len(tops) and float(tops.max() - tops.min()) > 0.02)
+        or (len(heights) > 1 and max(heights) - min(heights) > 0.02)
+    )
     layers, material, axis, sense = _layers(ue.get_material(w, should_inherit=True), scale)
     first: Vec | None = None
     if layers and axis == "AXIS2" and sense in ("POSITIVE", "NEGATIVE") and y_axis is not None:
@@ -428,6 +562,7 @@ def _wall(w: Entity, sh: Shape | None, scale: float, src: Source) -> Wall | None
         bool(ue.get_pset(w, "Pset_WallCommon", "LoadBearing")),
         _status(w, "Pset_WallCommon"),
         None if plain else "its footprint is not a plain strip; taken as one",
+        profile,
     )
 
 
@@ -481,6 +616,7 @@ def _slab(s: Entity, sh: Shape | None, scale: float, src: Source) -> Slab | None
         layers = tuple(reversed(layers))
     storey = _container(s)
     _, tn = _type_of(s)
+    holes = tuple(h for h in (Polygon(r) for r in fp.interiors) if h.area >= HOLE_MIN)
     return Slab(
         s.GlobalId,
         storey.GlobalId if storey is not None else "",
@@ -491,6 +627,7 @@ def _slab(s: Entity, sh: Shape | None, scale: float, src: Source) -> Slab | None
         fp.area,
         tn,
         _status(s, "Pset_SlabCommon"),
+        holes,
     )
 
 
@@ -517,3 +654,231 @@ def _space(s: Entity, sh: Shape | None, src: Source) -> Space | None:
         sh.z()[0] if sh is not None else 0.0,
         fp,
     )
+
+
+# ---------- voids, stairs, roofs, grids ----------
+
+
+def _within(ent: Entity, classes: tuple[str, ...]) -> bool:
+    parent = ue.get_aggregate(ent)
+    return parent is not None and any(parent.is_a(c) for c in classes)
+
+
+def _voiding(
+    f: Entity, filled: dict[int, Entity], floors: set[int], src: Source
+) -> list[tuple[Entity, Entity]]:
+    """The opening elements cut into a floor slab, with the slab. Openings in a wall that no door
+    or window fills, and openings in anything else, are counted as not imported."""
+    out: list[tuple[Entity, Entity]] = []
+    for o in f.by_type("IfcOpeningElement"):
+        if o.id() in filled:
+            continue
+        for rel in o.VoidsElements:
+            host = rel.RelatingBuildingElement
+            if host.id() in floors:
+                out.append((o, host))
+            elif host.is_a("IfcWall"):
+                recess = _kind(o) == "RECESS"
+                src.skipped[
+                    "IfcOpeningElement (a recess in a wall)"
+                    if recess
+                    else "IfcOpeningElement (a wall opening nothing fills)"
+                ] += 1
+            else:
+                src.skipped["IfcOpeningElement (not in a wall or a floor slab)"] += 1
+    return out
+
+
+def _void(o: Entity, host: Entity, sh: dict[int, Shape], src: Source) -> Void | None:
+    body = sh.get(o.id())
+    fp = footprint(body) if body is not None else None
+    if fp is None:
+        src.skipped["IfcOpeningElement (no body)"] += 1
+        return None
+    return Void(o.GlobalId, host.GlobalId, fp)
+
+
+def _stair_roots(f: Entity) -> list[Entity]:
+    """The stairs: each IfcStair, and the flights that belong to none."""
+    out: list[Entity] = list(f.by_type("IfcStair"))
+    out += [s for s in f.by_type("IfcStairFlight") if not _within(s, ("IfcStair",))]
+    return out
+
+
+def _roof_roots(f: Entity) -> list[Entity]:
+    """The roofs: each IfcRoof, and the roof slabs that belong to none (see `_joined`)."""
+    out: list[Entity] = [r for r in f.by_type("IfcRoof") if not _within(r, ("IfcRoof",))]
+    out += [s for s in f.by_type("IfcSlab") if _kind(s) == "ROOF" and not _within(s, ("IfcRoof",))]
+    return out
+
+
+def _joined(
+    roofs: list[tuple[Entity, list[Entity]]], sh: dict[int, Shape]
+) -> list[tuple[Entity, list[Entity]]]:
+    """Roof slabs that no IfcRoof gathers, and that touch, are the planes of one roof: a program
+    that writes every pitch as a slab of its own still means one roof. The slab with the lowest
+    GlobalId stands for the group."""
+    lone = sorted((x for x in roofs if x[0].is_a("IfcSlab")), key=lambda x: x[0].GlobalId)
+    out = [x for x in roofs if not x[0].is_a("IfcSlab")]
+    feet = {r.id(): footprint(sh[r.id()]) if r.id() in sh else None for r, _ in lone}
+    groups: list[list[tuple[Entity, list[Entity]]]] = []
+    for item in lone:
+        fp = feet[item[0].id()]
+        touching = [
+            g
+            for g in groups
+            if fp is not None
+            and any((o := feet[r.id()]) is not None and fp.distance(o) <= JOINED for r, _ in g)
+        ]
+        group = [item]
+        for g in touching:
+            groups.remove(g)
+            group += g
+        groups.append(sorted(group, key=lambda x: x[0].GlobalId))
+    out += [(g[0][0], [e for _, fam in g for e in fam]) for g in groups]
+    return out
+
+
+def _family(root: Entity, classes: tuple[str, ...]) -> list[Entity]:
+    """A product and the parts of it that carry the body, if they are of the given classes."""
+    out: list[Entity] = [root] if getattr(root, "Representation", None) is not None else []
+    queue = list(ue.get_parts(root))
+    while queue:
+        e = queue.pop()
+        if any(e.is_a(c) for c in classes):
+            if getattr(e, "Representation", None) is not None:
+                out.append(e)
+            queue.extend(ue.get_parts(e))
+    return out
+
+
+def label(ent: Entity) -> str:
+    """Class and name of a product, as the report names it."""
+    name = str(ent.Name or "").replace('"', "'")
+    return f'{ent.is_a()} "{name}"' if name else ent.is_a()
+
+
+def _stair(root: Entity, fam: list[Entity], sh: dict[int, Shape], src: Source) -> Stair | None:
+    cls, called = root.is_a(), label(root)
+    body = merge(sh[e.id()] for e in fam if e.id() in sh)
+    if body is None:
+        src.skipped[f"{called} (no body)"] += 1
+        return None
+    treads = flat_tops(body)
+    if len(treads) < 2:
+        src.skipped[f"{called} (fewer than two tread levels in its body)"] += 1
+        return None
+    storey = _container(root)
+    z0, z1 = body.z()
+    pset = "Pset_StairFlightCommon" if cls == "IfcStairFlight" else "Pset_StairCommon"
+    return Stair(
+        root.GlobalId,
+        str(root.Name or ""),
+        called,
+        storey.GlobalId if storey is not None else None,
+        treads,
+        z0,
+        z1,
+        _status(root, pset),
+    )
+
+
+def _roof(
+    root: Entity, fam: list[Entity], sh: dict[int, Shape], scale: float, src: Source
+) -> Roof | None:
+    cls, called = root.is_a(), label(root)
+    body = merge(sh[e.id()] for e in fam if e.id() in sh)
+    if body is None:
+        src.skipped[f"{called} (no body)"] += 1
+        return None
+    top = planes(body, up=True)
+    if not top:
+        src.skipped[f"{called} (no faces that look up)"] += 1
+        return None
+    layers: tuple[Layer, ...] = ()
+    material: str | None = None
+    for e in (root, *fam):
+        found, mat, _, sense = _layers(ue.get_material(e, should_inherit=True), scale)
+        if found:
+            layers = tuple(reversed(found)) if sense == "POSITIVE" else found
+            material = None
+            break
+        material = material or mat
+    tg = tn = None
+    for e in (root, *fam):
+        tg, tn = _type_of(e)
+        if tg or tn:
+            break
+    storey = _container(root)
+    z0, z1 = body.z()
+    return Roof(
+        root.GlobalId,
+        str(root.Name or ""),
+        called,
+        storey.GlobalId if storey is not None else None,
+        top,
+        planes(body, up=False),
+        layers,
+        material,
+        tg,
+        tn,
+        z0,
+        z1,
+        _status(root, "Pset_RoofCommon" if cls == "IfcRoof" else "Pset_SlabCommon"),
+    )
+
+
+def _grids(f: Entity, scale: float, src: Source) -> None:
+    for g in f.by_type("IfcGrid"):
+        m = (
+            up.get_local_placement(g.ObjectPlacement)
+            if g.ObjectPlacement is not None
+            else np.eye(4)
+        )
+        for letter, axes in (("U", g.UAxes), ("V", g.VAxes)):
+            for i, axis in enumerate(axes or ()):
+                tag = str(axis.AxisTag or f"{letter}{i + 1}")
+                ends = _axis_line(axis.AxisCurve)
+                if ends is None:
+                    src.skipped["IfcGrid axis (not a straight line)"] += 1
+                    continue
+                a, b = (
+                    (float(w[0]) * scale, float(w[1]) * scale)
+                    for w in (m @ np.array([x, y, 0.0, 1.0]) for x, y in ends)
+                )
+                src.grids.append(Grid(f"{g.GlobalId}:{letter}:{tag}", tag, a, b))
+
+
+def _axis_line(curve: Entity | None) -> tuple[Vec, Vec] | None:
+    """Two points on a straight grid axis, in the grid's own coordinates (file units)."""
+    if curve is None:
+        return None
+    if curve.is_a("IfcPolyline"):
+        return _straight([(float(c.Coordinates[0]), float(c.Coordinates[1])) for c in curve.Points])
+    if curve.is_a("IfcIndexedPolyCurve"):
+        if any(s.is_a("IfcArcIndex") for s in curve.Segments or ()):
+            return None
+        return _straight([(float(c[0]), float(c[1])) for c in curve.Points.CoordList])
+    if curve.is_a("IfcTrimmedCurve"):
+        return _axis_line(curve.BasisCurve) if curve.BasisCurve.is_a("IfcLine") else None
+    if curve.is_a("IfcLine"):
+        p, v = curve.Pnt.Coordinates, curve.Dir
+        d = v.Orientation.DirectionRatios
+        k = float(v.Magnitude or 1.0) / (math.hypot(d[0], d[1], d[2] if len(d) > 2 else 0.0) or 1.0)
+        a = (float(p[0]), float(p[1]))
+        return _straight([a, (a[0] + k * float(d[0]), a[1] + k * float(d[1]))])
+    return None
+
+
+def _straight(pts: list[Vec]) -> tuple[Vec, Vec] | None:
+    """The ends of a polyline if it is one straight line of some length, else nothing."""
+    if len(pts) < 2:
+        return None
+    a, b = pts[0], pts[-1]
+    size = math.hypot(b[0] - a[0], b[1] - a[1])
+    if size < 1e-9:
+        return None
+    for p in pts[1:-1]:
+        if abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / size > 0.002 * size:
+            return None
+    return a, b

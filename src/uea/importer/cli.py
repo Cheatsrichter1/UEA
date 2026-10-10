@@ -21,6 +21,10 @@ LABEL = {
     "slab": "slabs",
     "sep": "separators",
     "room": "rooms",
+    "roof": "roofs",
+    "stair": "stairs",
+    "void": "voids",
+    "grid": "grids",
 }
 
 
@@ -83,10 +87,11 @@ def run_import(
     if res.applied is not None and not res.applied.ops:
         out([f"{head}: nothing to change", *_tail(pl)])
         return 0
-    counts = " · ".join(f"{n} {LABEL.get(k, k)}" for k, n in pl.counts(res.applied).items())
-    gone = f" · {len(pl.gone)} removed" if pl.gone else ""
+    done = [f"{n} {LABEL.get(k, k)}" for k, n in pl.counts(res.applied).items()]
+    if pl.gone:
+        done.append(f"{len(pl.gone)} removed")
     where = "dry run, nothing written" if res.dry else f"batch {res.batch}"
-    lines = [f"{head}: ok ({where}): {counts}{gone}"]
+    lines = [f"{head}: ok ({where}): {' · '.join(done)}"]
     if res.after is not None:
         errors = [i for i in res.new_issues if i.severity == "error"]
         warns = [i for i in res.new_issues if i.severity == "warning"]

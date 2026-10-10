@@ -85,6 +85,18 @@ def test_anchor_raw_coordinate() -> None:
     assert a.fmt() == "3.2+"
 
 
+def test_negative_coordinates() -> None:
+    # an imported model can lie partly below x=0 or y=0: roofs and grids outside the walls
+    a = Anchor.parse("-0.45+")
+    assert (a.ref, a.coord, a.sign) == (None, -0.45, "+")
+    assert a.fmt() == "-0.45+"
+    sp = Span.parse("-0.45..6.45")
+    assert (sp.a.coord, sp.b.coord) == (-0.45, 6.45)
+    assert sp.fmt() == "-0.45..6.45"
+    raw = parse_line("grid A x=-1.5")
+    assert raw is not None and raw.kv == (("x", "-1.5"),)
+
+
 @pytest.mark.parametrize("s", ["w4+", "+1", "w4++1", "w4.x+1", "4..5"])
 def test_anchor_errors(s: str) -> None:
     if s == "w4+":
