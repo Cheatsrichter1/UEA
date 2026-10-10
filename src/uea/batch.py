@@ -4,6 +4,7 @@ A batch applies to a copy, is validated, and is rejected if it adds an error in 
 it writes. Errors it causes in other disciplines are reported, not blocking (ARCHITECTURE.md §5).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -127,6 +128,8 @@ def run(
     *,
     dry: bool = False,
     revert: int | None = None,
+    ifc: Callable[[Applied], dict[str, Any]] | None = None,
+    block: bool = True,
 ) -> Result:
     with project.lock():
         external = sync(project)
@@ -157,7 +160,7 @@ def run(
         rejected = [
             i for i in after.errors() if i.key not in before_keys and after.owner(i) in written
         ]
-        if rejected:
+        if rejected and block:
             return Result(False, applied=applied, rejected=rejected, external=external, after=after)
         new_issues = [i for i in after.issues if i.key not in before_keys]
         fixed = [i for i in before.issues if i.key not in after_keys]
@@ -195,6 +198,7 @@ def run(
                 ids=[i for _, i in applied.added if work[i].prefix is not None],
                 files=hashes,
                 revert=revert,
+                ifc=ifc(applied) if ifc is not None else None,
             )
         )
         return res

@@ -592,6 +592,15 @@ def cmd_export(ctx: Ctx) -> int:
     return export(ctx, out)
 
 
+def cmd_import(ctx: Ctx) -> int:
+    from uea.importer.cli import run_import
+
+    by = _by(ctx)
+    if by is None:
+        return 2
+    return run_import(ctx, by, out, out_json, issue_lines, result_json)
+
+
 def cmd_version(ctx: Ctx) -> int:
     out(f"uea {__version__}")
     return 0
@@ -649,6 +658,12 @@ def build_parser() -> Parser:
     ex.add_argument("format")
     ex.add_argument("scope", nargs="?")
     ex.add_argument("-o", "--out", metavar="FILE")
+    im = add("import", cmd_import)
+    im.add_argument("format")
+    im.add_argument("file")
+    im.add_argument("--by", metavar="WHO")
+    im.add_argument("-m", metavar="WHY")
+    im.add_argument("--dry-run", action="store_true")
     return p
 
 
