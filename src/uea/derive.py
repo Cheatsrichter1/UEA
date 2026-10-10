@@ -16,6 +16,7 @@ from uea.core.values import Ref, RefList
 if TYPE_CHECKING:
     from uea.packs.arch.geometry import ArchGeo
     from uea.packs.elec.geometry import ElecGeo
+    from uea.packs.heat.geometry import HeatGeo
     from uea.packs.issues import Req, Waive
     from uea.packs.mount import Mounted
 
@@ -56,6 +57,7 @@ class Derived:
         self._stack: list[str] = []
         self.arch: ArchGeo
         self.elec: ElecGeo
+        self.heat: HeatGeo
         self.mounts: dict[str, Mounted] = {}
         """What is mounted on a wall or in a room: luminaires and electrical devices."""
 
@@ -109,7 +111,9 @@ class Derived:
 
 def derive(model: Model) -> Derived:
     d = Derived(model)
-    for pack in model.reg.packs.values():
+    # a pack derives after the packs it may refer to: electrical feeds the others' elements
+    packs = sorted(model.reg.packs.values(), key=lambda p: len(UPSTREAM[p.name]))
+    for pack in packs:
         if pack.derive is not None:
             pack.derive(d)
     return d

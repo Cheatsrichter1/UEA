@@ -14,7 +14,7 @@ from uea.packs.elec.kinds import Circ, Conn, Data, Feed, Rcd, Switch
 from uea.packs.elec.routes import ALLOW, Route, Run, gap, tree
 from uea.packs.elec.values import Breaker
 from uea.packs.light.geometry import lum_type
-from uea.packs.mount import Mounts
+from uea.packs.mount import Mounted, Mounts
 
 VOLT = 230.0
 """Phase voltage, V."""
@@ -55,6 +55,8 @@ class ElecGeo:
     """Circuit id: its cable tree from the board."""
     homeruns: dict[str, Run] = field(default_factory=dict[str, Run])
     """Data outlet id: its cable from the board it is cabled to."""
+    feeds: dict[str, Mounted] = field(default_factory=dict[str, Mounted])
+    """Feed id: where the element it powers is, if that has a place."""
 
 
 def switching(n: int) -> str:
@@ -110,10 +112,17 @@ def derive_elec(d: Derived) -> None:
 def route_cables(d: Derived) -> None:
     """The cable of every circuit from its board, and of every data outlet from its board."""
     e = d.elec
+    # a feed reaches the element of another discipline it powers, where that has a place
+    at = dict(d.mounts)
+    placed: dict[str, Mounted] = getattr(getattr(d, "heat", None), "at", {})
+    for el in d.model.of_kind("feed"):
+        assert isinstance(el, Feed)
+        if el.target.id in placed:
+            at[el.id] = e.feeds[el.id] = placed[el.target.id]
     for cg in e.circuits.values():
         if cg.board is None or cg.board not in d.mounts:
             continue
-        e.routes[cg.id] = tree(cg.board, d.mounts, [*cg.devices, *cg.lums])
+        e.routes[cg.id] = tree(cg.board, at, [*cg.devices, *cg.lums])
     for el in d.model.of_kind("data"):
         assert isinstance(el, Data)
         board, outlet = d.mounts.get(el.board.id), d.mounts.get(el.id)

@@ -36,6 +36,8 @@ One file per major decision: what was decided, what else was considered, and why
 | 0030 | [IFC import, slice 4b: grids, slab openings, stairs and roofs](0030-ifc-import-shapes.md) | Accepted (slice 4b built) |
 | 0031 | [IFC import, slice 4c: how programs write a file](0031-ifc-import-files.md) | Accepted (slice 4c built) |
 | 0032 | [Requests as BCF](0032-bcf-requests.md) | Accepted (export built) |
+| 0033 | [U-values and the Heizlast, slices 6a and 6b](0033-u-values-and-heizlast.md) | Accepted (slices 6a and 6b built) |
+| 0034 | [Heating elements, slice 6c](0034-heating-elements.md) | Accepted (slice 6c built) |
 
 Template:
 

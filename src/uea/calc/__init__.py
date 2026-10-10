@@ -165,8 +165,10 @@ def builtin() -> dict[str, Calculator]:
     from uea.packs.arch.wofl import WOFL
     from uea.packs.elec.cable import CABLE
     from uea.packs.elec.vdrop import VDROP
+    from uea.packs.heat.heatload import HEATLOAD
+    from uea.packs.heat.uvalue import UVALUE
 
-    return {c.name: c for c in (WOFL, CABLE, VDROP)}
+    return {c.name: c for c in (WOFL, CABLE, VDROP, UVALUE, HEATLOAD)}
 
 
 def project_calcs(root: Path) -> tuple[dict[str, Calculator], list[str]]:

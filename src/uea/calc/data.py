@@ -28,6 +28,15 @@ class Col:
     doc: str = ""
     choices: tuple[str, ...] = ()
     """For text: the allowed values, compared without regard to case."""
+    sign: Literal["pos", "zero", "any"] = "pos"
+    """For numbers: more than 0 (pos), 0 or more (zero), or any (a temperature)."""
+
+    @property
+    def what(self) -> str:
+        """The type as the help and the reference name it."""
+        if self.kind == "text":
+            return "text"
+        return {"pos": "num > 0", "zero": "num ≥ 0", "any": "num"}[self.sign]
 
 
 @dataclass(frozen=True)
@@ -147,8 +156,10 @@ def _cell(col: Col, value: str, comma: bool) -> tuple[str | float, str | None]:
             num = float(value.replace(",", ".") if comma else value)
         except ValueError:
             return 0.0, f"{value!r} is not a number"
-        if num <= 0:
+        if col.sign == "pos" and num <= 0:
             return 0.0, f"{value!r} must be more than 0"
+        if col.sign == "zero" and num < 0:
+            return 0.0, f"{value!r} must be 0 or more"
         return num, None
     if not value:
         return "", "is empty"

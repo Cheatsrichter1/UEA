@@ -164,7 +164,8 @@ def calculators() -> list[str]:
             "",
             "One CSV file for each table, the first line the header: `uea data add <id> <file.csv>"
             " --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is"
-            " read. Numbers must be more than 0. No two rows may have the same key.",
+            " read. Numbers must be more than 0 unless the column says otherwise. No two rows may"
+            " have the same key.",
             "",
         ]
         for sp in specs.values():
@@ -174,7 +175,7 @@ def calculators() -> list[str]:
             out += ["| Column | Type | Meaning |", "|---|---|---|"]
             for col in sp.cols:
                 allowed = f" (one of {', '.join(col.choices)})" if col.choices else ""
-                out.append(f"| `{col.name}` | {col.kind} | {_cell(col.doc)}{allowed} |")
+                out.append(f"| `{col.name}` | {col.what} | {_cell(col.doc)}{allowed} |")
             out += ["", f"One row for each: {', '.join(sp.key)}.", ""]
     return out
 

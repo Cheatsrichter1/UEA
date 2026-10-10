@@ -1,7 +1,11 @@
+type WP-LW-8 gen "Luft/Wasser-Wärmepumpe" kw=8 source=air
+type HM-200 tank "Inneneinheit mit Speicher" vol=200 dhw
+type HKV-10 man "Heizkreisverteiler 10 Abgänge" outlets=10 w=0.55 default
+type FBH-15 ufh "Fußbodenheizung VA 15" spacing=0.15 q=60 max=100 default
 gen g1 EG at=W-1.2,N-1 type=WP-LW-8 "Wärmepumpe außen"
-tank t1 r3 at=w4+0.4,w5+0.4 type=HM-200 src=g1 "Inneneinheit mit 200 l Speicher"
-man hv1 ni1 src=t1
-man hv2 ni2 src=t1
+tank t1 r3 at=w4+0.4,w5+0.4 src=g1 type=HM-200 "Inneneinheit mit 200 l Speicher"
+man hv1 ni1 t1
+man hv2 ni2 t1
 ufh uh1 r1 hv1
 ufh uh2 r2 hv1
 ufh uh3 r3 hv1
