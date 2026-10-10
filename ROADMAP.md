@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built, phase 3 is built apart from the leftovers below, and phase 4 is under way (slices 4a and 4b built).
+Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built, phase 3 is built apart from the leftovers below, and phase 4 is built apart from the test with an office's file.
 
 ## Phases
 
@@ -50,7 +50,7 @@ The design is `docs/decisions/0025-electrical-devices.md`; the phase goes in thr
 
 ### Phase 4: where it stands
 
-The designs are `docs/decisions/0029-ifc-import.md` and `0030-ifc-import-shapes.md`; the phase goes in slices. Slice 4a is built: `uea import ifc <file> --by <who>` reads storeys, walls (an axis through the core with a type from the layers), doors and windows, one floor slab per storey (its finish becomes `fb` and a floor type) and spaces (rooms, with a `sep` where two are open to each other) from an architect's IFC, reports everything it does not map, and updates the model on a newer file by IFC GlobalId without touching what was edited in UEA. Slice 4b is built: grids along x or y, openings in floor slabs (tied to the stair under them with `over=`, else rectangles), and stairs and roofs. A stair or roof is fitted by building the UEA candidates with UEA's own layout code and keeping the one that lies where the file's faces lie; walls that end under a fitted roof get `top=`; what fits nothing is reported with the reason. Tested on hand-built IFC files in IFC2X3, IFC4 and IFC4X3, and on UEA's own exports (Haus Müller, seven roof shapes, nine stairs), relabelled as another program's. Open: slice 4c, the polish a real file asks for (units, several buildings, curved walls, curtain walls, niches, BCF), and the cases 4b reports instead of importing (L-shaped roofs in one IfcRoof, dormers, spiral stairs; the list is in `0030`). **Not yet tried on a real office file**, which the phase's "done when" needs. A real file should set the order of 4c: what it shows (curtain walls, walls in several parts, split storeys, layer sets on types only) comes first.
+The designs are `docs/decisions/0029-ifc-import.md`, `0030-ifc-import-shapes.md`, `0031-ifc-import-files.md` and `0032-bcf-requests.md`; the phase went in three slices. Slice 4a: `uea import ifc <file> --by <who>` reads storeys, walls (an axis through the core with a type from the layers), doors and windows, one floor slab per storey (its finish becomes `fb` and a floor type) and spaces (rooms, with a `sep` where two are open to each other) from an architect's IFC, reports everything it does not map, and updates the model on a newer file by IFC GlobalId without touching what was edited in UEA. Slice 4b: grids along x or y, openings in floor slabs (tied to the stair under them with `over=`, else rectangles), and stairs and roofs. A stair or roof is fitted by building the UEA candidates with UEA's own layout code and keeping the one that lies where the file's faces lie; walls that end under a fitted roof get `top=`; what fits nothing is reported with the reason. Slice 4c: files in any length unit, plans in survey coordinates or turned off the axes (moved and turned, and kept so for later files), one building per import (`--building`), walls in parts, curtain walls as walls with windows over their face, niches, and `uea export bcf`: the requests to the architect as BCF topics that select the elements in the architect's own file. Tested on hand-built IFC files in IFC2X3, IFC4 and IFC4X3, and on UEA's own exports (Haus Müller, seven roof shapes, nine stairs), relabelled as another program's. Open: **the test with an office's file**, which the phase's "done when" needs (the user runs it): it imports, the agent plans its electrics on it, and the BCF opens in the architect's program. What the import reports instead of guessing stays open for later work: curved walls, curtain walls over several storeys, L-shaped roofs in one IfcRoof, dormers, spiral stairs, openings without a fill (the lists are in `0030` and `0031`); reading the architect's BCF replies back (`0032`).
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 
@@ -117,7 +117,7 @@ Phase 2 builds floor plans, sections and elevations. Beyond that:
 - **Property sets** in the IFC export (FireRating, ThermalTransmittance, ...).
 - **Custom properties** for an office's own attributes. UEA's strict schema rejects unknown fields, so this needs a design.
 - **Classification**, for example DIN 276 cost groups.
-- **BCF** for requests to and from people who work outside UEA (`docs/decisions/0011-ifc-import.md`).
+- **BCF replies.** Requests go out as BCF (`docs/decisions/0032-bcf-requests.md`); reading the answers of people who work outside UEA back is open.
 - **IDS:** check the IFC export against a client's information requirements (AIA), as public projects demand.
 - **IFC2x3 export** for older tools.
 - **DWG and PDF plans as an underlay**, because many Fachplaner still receive plans that way.

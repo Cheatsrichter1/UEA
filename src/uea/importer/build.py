@@ -28,7 +28,9 @@ from uea.derive import derive
 from uea.importer.common import Lv, core_index, layers_text, num, slug
 from uea.importer.ifc import (
     HOLE_MIN,
+    NICHE_FACE,
     Layer,
+    Niche,
     Opening,
     Roof,
     Slab,
@@ -140,6 +142,8 @@ class Plan:
     placeholders: dict[str, Item] = field(default_factory=dict[str, Item])
     known: dict[str, "Known"] = field(default_factory=dict[str, "Known"])
     src: Source | None = None
+    ground: float = 0.0
+    """The height in the file of the ground storey's FFL, UEA's ±0.00."""
 
     @property
     def text(self) -> str:
@@ -175,7 +179,7 @@ class Plan:
                 continue
             ids[it.key] = ident
             lines[ident] = digest
-        return {
+        out: dict[str, Any] = {
             "file": self.src.file,
             "sha": self.src.sha[:16],
             "app": self.src.app,
@@ -183,6 +187,13 @@ class Plan:
             "lines": lines,
             "gone": self.gone,
         }
+        if self.src.frame.moves:
+            out["frame"] = self.src.frame.record()
+        if self.src.building is not None:
+            out["building"] = self.src.building
+        if self.ground:
+            out["ground"] = self.ground
+        return out
 
 
 # ---------- geometry helpers ----------
@@ -213,6 +224,8 @@ class Sig:
     """The layers do not add up to the footprint: one core layer of the measured thickness."""
     votes_out: int = 0
     votes_in: int = 0
+    curtain: bool = False
+    """The wall type of curtain walls of this depth."""
 
     @property
     def total(self) -> float:
@@ -414,10 +427,17 @@ class Builder:
         for i, s in enumerate(storeys):
             name = self.level_name(s.guid, s, i, gi)
             self.levels[s.guid] = Lv(s, name, round(s.z - ground.z, 4), ground.z)
+        self.plan.ground = ground.z
 
     # --- types
 
     def wall_sig(self, w: Wall) -> Sig:
+        if w.curtain:
+            t = round(w.t, 3)
+            key = f"curtain:{num(t)}"
+            if key not in self.sigs:
+                self.sigs[key] = Sig(key, None, (Layer("curtain", t),), 0, True, curtain=True)
+            return self.sigs[key]
         measured = False
         layers = w.layers
         if not layers or abs(sum(lay.t for lay in layers) - w.t) > 0.01:
@@ -451,6 +471,8 @@ class Builder:
             if lv is None:
                 self.plan.skipped["IfcWall (no storey)"] += 1
                 continue
+            if w.note:
+                self.plan.notes.append(f"wall {w.name or w.guid}: {w.note}")
             sig = self.wall_sig(w)
             a, b, o = frame(w.a, w.b)
             n = _hi(a, b, o)
@@ -676,6 +698,7 @@ def plan(src: Source, model: Model, state: dict[str, Known]) -> Plan:
     p = b.plan
     p.known = state
     p.skipped.update(src.skipped)
+    p.notes += src.notes
     b.make_levels()
     if not b.levels:
         p.notes.append("no walls with a storey: nothing to import")
@@ -754,7 +777,8 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
     items.extend(_grids(b))
     wall_types: dict[str, str] = {}
     for s in b.sigs.values():
-        base = slug(s.type_name or "") or f"W{round(s.total * 1000)}"
+        mm = round(s.total * 1000)
+        base = f"CW{mm}" if s.curtain else slug(s.type_name or "") or f"W{mm}"
         name = b.name(s.key, base)
         wall_types[s.key] = name
         label = (
@@ -828,6 +852,11 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
     items.extend(_voids(b, picks))
     for op in b.src.openings:
         item = _opening(b, op, door_types)
+        if item is not None:
+            items.append(item)
+    items.extend(_glazing(b))
+    for n in b.src.niches:
+        item = _niche(b, n)
         if item is not None:
             items.append(item)
     items.extend(_seps(b))
@@ -999,6 +1028,31 @@ def _like(a: Polygon, b: Polygon) -> float:
     return float(a.intersection(b).area / both) if both > 0 else 0.0
 
 
+def _pts(poly: Polygon) -> list[Vec]:
+    return [(float(c[0]), float(c[1])) for c in poly.exterior.coords]
+
+
+def _along(rec: WRec, pts: list[Vec]) -> tuple[float, float, str]:
+    """Where points lie along a wall, as its openings give it: x, y or s from its start."""
+    if rec.o == "h":
+        return min(x for x, _ in pts), max(x for x, _ in pts), "x"
+    if rec.o == "v":
+        return min(y for _, y in pts), max(y for _, y in pts), "y"
+    u = _unit((rec.b[0] - rec.a[0], rec.b[1] - rec.a[1]))
+    ss = [(x - rec.a[0]) * u[0] + (y - rec.a[1]) * u[1] for x, y in pts]
+    return min(ss), max(ss), "s"
+
+
+def _sill(rec: WRec, kind: str, sill: float, height: float) -> str:
+    """sill= where an opening does not stand where UEA puts it by default."""
+    if kind == "door":
+        return f" sill={num(sill)}" if sill > 0.02 else ""
+    head = rec.lv.head
+    if head is None or abs(sill - (head - height)) > 0.01:
+        return f" sill={num(max(sill, 0.0))}"
+    return ""
+
+
 def _opening(b: Builder, op: Opening, types: dict[str, str]) -> Item | None:
     rec = b.by_guid.get(op.wall)
     if rec is None:
@@ -1007,30 +1061,14 @@ def _opening(b: Builder, op: Opening, types: dict[str, str]) -> Item | None:
         ] += 1
         return None
     ffl = rec.lv.storey.z
-    pts = list(op.fp.exterior.coords)
-    if rec.o == "h":
-        lo, hi, axis = min(x for x, _ in pts), max(x for x, _ in pts), "x"
-    elif rec.o == "v":
-        lo, hi, axis = min(y for _, y in pts), max(y for _, y in pts), "y"
-    else:
-        u = _unit((rec.b[0] - rec.a[0], rec.b[1] - rec.a[1]))
-        ss = [(x - rec.a[0]) * u[0] + (y - rec.a[1]) * u[1] for x, y in pts]
-        lo, hi, axis = min(ss), max(ss), "s"
+    lo, hi, axis = _along(rec, _pts(op.fp))
     width = hi - lo
     z0 = max(op.z0, ffl) if op.kind == "door" else op.z0
     height = op.z1 - z0
     if width < MIN_OPENING or height < MIN_OPENING:
         b.plan.skipped["opening smaller than 5 cm"] += 1
         return None
-    sill = z0 - ffl
-    extra = ""
-    if op.kind == "door":
-        if sill > 0.02:
-            extra += f" sill={num(sill)}"
-    else:
-        head = rec.lv.head
-        if head is None or abs(sill - (head - height)) > 0.01:
-            extra += f" sill={num(max(sill, 0.0))}"
+    extra = _sill(rec, op.kind, z0 - ffl, height)
     if op.type_guid is not None and f"type:{op.type_guid}" in types:
         extra += f" type={types[f'type:{op.type_guid}']}"
     if op.status != "new":
@@ -1038,6 +1076,96 @@ def _opening(b: Builder, op: Opening, types: dict[str, str]) -> Item | None:
     kind = op.kind
     tail = f"\0 {num(width)}x{num(height)} {axis}={num(lo)}+{extra}"
     return Item(op.guid, kind, f"{kind} in {rec.w.name or rec.w.guid}", tail, host=op.wall)
+
+
+FACES = {"h": ("s", "n"), "v": ("w", "e"), "d": ("r", "l")}
+"""The names of a wall's lo and hi face, as UEA gives them."""
+
+
+def _niche(b: Builder, n: Niche) -> Item | None:
+    """A recess in a wall face: the face it opens on, its depth from the core face (as UEA
+    measures it), its place."""
+    rec = b.by_guid.get(n.wall)
+    if rec is None:
+        b.plan.skipped["IfcOpeningElement (its wall was not imported)"] += 1
+        return None
+    w = rec.w
+    u = _unit((w.b[0] - w.a[0], w.b[1] - w.a[1]))
+    nn = (-u[1], u[0])
+    pts = _pts(n.fp)
+    body = [(x - w.a[0]) * nn[0] + (y - w.a[1]) * nn[1] for x, y in pts]
+    core = [(x - rec.a[0]) * nn[0] + (y - rec.a[1]) * nn[1] for x, y in pts]
+    half = rec.sig.core_t / 2
+    if min(body) <= -w.t / 2 + NICHE_FACE:
+        out, depth = (-nn[0], -nn[1]), max(core) + half
+    else:
+        out, depth = nn, half - min(core)
+    if depth < MIN_OPENING / 5:
+        b.plan.skipped["IfcOpeningElement (a recess in the finish only)"] += 1
+        return None
+    face = FACES[rec.o][1 if _dot(out, rec.n) > 0 else 0]
+    lo, hi, axis = _along(rec, _pts(n.fp))
+    ffl = rec.lv.storey.z
+    height = n.z1 - n.z0
+    if hi - lo < MIN_OPENING or height < MIN_OPENING:
+        b.plan.skipped["opening smaller than 5 cm"] += 1
+        return None
+    sill = n.z0 - ffl
+    extra = f" sill={num(sill)}" if abs(sill) > 0.005 else ""
+    extra += f" d={num(depth)}" + ("" if n.status == "new" else f" {n.status}")
+    tail = f"\0.{face} {num(hi - lo)}x{num(height)} {axis}={num(lo)}+{extra}"
+    return Item(n.guid, "niche", f"niche in {w.name or w.guid}", tail, host=n.wall)
+
+
+def _glazing(b: Builder) -> list[Item]:
+    """A curtain wall's glass: a window type from its type or U-value, and windows over its face
+    from its floor to its top, around the doors in it."""
+    out: list[Item] = []
+    names: dict[str, str] = {}
+    for rec in b.recs:
+        w = rec.w
+        if not w.curtain:
+            continue
+        type_ref = ""
+        if w.type_guid or w.u:
+            key = f"type:{w.type_guid}" if w.type_guid else f"glass:{num(w.u or 0)}"
+            if key not in names:
+                names[key] = b.name(key, slug(w.type_name or "") or "CW")
+                u = f" uw={num(w.u)}" if w.u else ""
+                out.append(
+                    Item(key, "type", names[key], f"win{u}", name=names[key], category="win")
+                )
+            type_ref = f" type={names[key]}"
+        lv = rec.lv
+        z0 = max(w.z0 - lv.off, lv.z)
+        top = w.z1 - lv.off
+        g = b.geo.walls.get(rec.tmp) if b.geo is not None else None
+        if rec.h is not None:
+            top = min(top, lv.ssl + rec.h)
+        elif g is not None and g.top:
+            top = min(top, *(z for _, z in g.top))
+        height = top - z0
+        lo, hi, axis = _along(rec, [w.a, w.b])
+        doors = sorted(
+            _along(rec, _pts(op.fp))[:2]
+            for op in b.src.openings
+            if op.wall == w.guid and op.kind == "door"
+        )
+        spans: list[tuple[float, float]] = []
+        at = lo
+        for d0, d1 in [*doors, (hi, hi)]:
+            if d0 - at >= MIN_OPENING:
+                spans.append((at, d0))
+            at = max(at, d1)
+        if height < MIN_OPENING:
+            continue
+        sill = _sill(rec, "win", z0 - lv.z, height)
+        status = "" if w.status == "new" else f" {w.status}"
+        for k, (s0, s1) in enumerate(spans):
+            tail = f"\0 {num(s1 - s0)}x{num(height)} {axis}={num(s0)}+{sill}{type_ref}{status}"
+            what = f"glass of {w.name or w.guid}"
+            out.append(Item(f"{w.guid}:glass#{k}", "win", what, tail, host=w.guid))
+    return out
 
 
 def _room(b: Builder, sp: Space, floors: dict[str, str]) -> Item | None:

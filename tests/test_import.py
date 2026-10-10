@@ -481,10 +481,10 @@ def test_haus_mueller_through_another_program(
     assert code == 0, out
     assert (
         "3 levels · 10 types · 1 roofs · 17 walls · 3 slabs · 1 stairs · 1 voids · 9 doors"
-        " · 13 windows · 1 separators · 11 rooms"
+        " · 13 windows · 2 niches · 1 separators · 11 rooms"
     ) in out
     assert "issues: 0 errors · 0 warnings" in out
-    assert "not imported: 2 IfcOpeningElement (a recess in a wall)" in out
+    assert "not imported" not in out
     d1, rep = report(Project(target).load())
     assert not rep.errors()
     # the rooms keep their shapes to a few millimetres (no layer set usage in a UEA export:
@@ -500,3 +500,12 @@ def test_haus_mueller_through_another_program(
     assert d1.arch.stairs["st1"].poly.symmetric_difference(d0.arch.stairs["st1"].poly).area < 1e-6
     assert d1.model["v1"].line() == "void v1 sl2 over=st1"
     assert [w.id for w in d1.model.of_kind("wall") if "top=rf1" in w.line()] == ["w16", "w17"]
+    # the niches: on the same face, as deep from the core, where they were (ni1 x=w7+0.4: the
+    # core face of w7 at 4.24, plus 0.4; ni2 x=w9-0.3: 10.125 minus 0.3, minus its 0.6)
+    assert [d1.model[n].line() for n in ("ni1", "ni2")] == [
+        "niche ni1 w5.n 0.6x0.75 x=4.64+ sill=0.3 d=0.11",
+        "niche ni2 w12.n 0.6x0.75 x=9.225+ sill=0.3 d=0.11",
+    ]
+    for n in ("ni1", "ni2"):
+        o0, o1 = d0.arch.openings[n], d1.arch.openings[n]
+        assert (o1.lo, o1.hi, o1.face) == (pytest.approx(o0.lo), pytest.approx(o0.hi), o0.face)

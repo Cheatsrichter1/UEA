@@ -22,7 +22,6 @@ from tests.conftest import Shell, model_from
 from tests.ifc_make import (
     GridSpec,
     House,
-    RecessSpec,
     Ring,
     RoofSpec,
     SlabSpec,
@@ -365,14 +364,6 @@ def test_an_opening_in_a_storey_without_walls_is_reported(sh: Shell, tmp_path: P
         "not imported: 1 IfcSlab (no storey with walls at its top)"
         " · 1 slab opening (its slab was not imported)"
     ) in out
-
-
-def test_a_niche_in_a_wall_is_not_a_window(sh: Shell, tmp_path: Path) -> None:
-    h = base()
-    h.recesses.append(RecessSpec("Nische", "EG-south", 4.0, 0.8, 0.5, 1.0))
-    out = do_import(sh, h, tmp_path)
-    assert "not imported: 1 IfcOpeningElement (a recess in a wall)" in out
-    assert "3 windows" in out and "1 doors" in out
 
 
 # ---------- stairs ----------

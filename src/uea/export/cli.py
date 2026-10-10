@@ -9,7 +9,7 @@ from uea.core.registry import natural
 if TYPE_CHECKING:
     from uea.cli import Ctx
 
-FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png")
+FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png", "bcf")
 SHEETS = ("pdf", "dxf", "svg", "png")
 """The formats of the sheets: floor plans and sections."""
 
@@ -167,6 +167,27 @@ def _xlsx(ctx: "Ctx", scope: str | None, out_path: str | None) -> str | list[str
     return [f"{_rel(ctx, path)} " + " ".join(f"{t.name}({len(t.rows)})" for t in sheets)]
 
 
+def _bcf(ctx: "Ctx", scope: str | None, out_path: str | None) -> str | list[str]:
+    """The requests to a discipline (the architect by default) as BCF topics (decision 0032)."""
+    from uea.export.bcf import topics, write_bcf
+
+    d, rep = ctx.derived()
+    owner = scope or "arch"
+    if owner not in d.model.reg.packs:
+        return f"unknown discipline {owner!r}: {' '.join(d.model.reg.packs)}"
+    found = topics(d, rep, ctx.project.history, owner)
+    if not found:
+        return f"no requests to {owner}"
+    name = d.model.project_name() or "project"
+    proj = d.model.of_kind("project")
+    title = (proj[0].label or proj[0].id) if proj else name
+    ctx.project.out.mkdir(exist_ok=True)
+    path = Path(out_path) if out_path else ctx.project.out / f"{name}-{owner}.bcf"
+    write_bcf(found, path, owner, name, title, ctx.project.history.last())
+    still = [t.req.id for t in found if t.req.open]
+    return [f"{_rel(ctx, path)} BCF 2.1: {len(found)} topics, open: {' '.join(still) or 'none'}"]
+
+
 def render(ctx: "Ctx", out: Callable[[Any], None]) -> int:
     res = _plans(ctx, ctx.args.scope, ctx.args.out)
     if isinstance(res, str):
@@ -183,6 +204,10 @@ def export(ctx: "Ctx", out: Callable[[Any], None]) -> int:
         return 1
     if fmt == "xlsx":
         res = _xlsx(ctx, ctx.args.scope, ctx.args.out)
+        out(res)
+        return 1 if isinstance(res, str) else 0
+    if fmt == "bcf":
+        res = _bcf(ctx, ctx.args.scope, ctx.args.out)
         out(res)
         return 1 if isinstance(res, str) else 0
     if fmt in SHEETS:

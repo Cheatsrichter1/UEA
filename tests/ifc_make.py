@@ -67,6 +67,13 @@ class WallSpec:
     top: tuple[tuple[float, float], ...] | None = None
     """The top as a polyline: (distance along the wall from p0, height) pairs from the first end
     to the last. The body is then a mesh; `z1` is ignored."""
+    on_type: bool = False
+    """Without `first`: the layer set is on the wall type, not on the wall."""
+    parts: Literal["skins", "stacked"] | None = None
+    """The body in parts, the wall itself without one: an IfcBuildingElementPart per layer, or
+    two walls one above the other (the lower one `split` high, the upper one of `upper`)."""
+    split: float = 2.0
+    upper: tuple[tuple[str, float], ...] = (("Putz", 0.015), ("Holz", 0.2), ("Putz", 0.015))
 
 
 @dataclass
@@ -175,6 +182,43 @@ class RecessSpec:
     width: float
     sill: float
     height: float
+    depth: float | None = None
+    """How deep it reaches into the body from the face it opens on; none: through the wall."""
+    side: float = 1.0
+    """The face it opens on: +1 left of p0 to p1, -1 right. Its body starts 0.1 m outside."""
+
+
+@dataclass
+class CurvedSpec:
+    """A wall on an arc: its body a band around the centre, its axis an arc of a circle."""
+
+    name: str
+    centre: Vec
+    r: float
+    a0: float
+    a1: float
+    """Start and end angle, degrees."""
+    t: float = 0.3
+    axis: bool = True
+    """With an axis representation (IfcTrimmedCurve on an IfcCircle); otherwise only the body."""
+
+
+@dataclass
+class CurtainSpec:
+    """A curtain wall: mullions at its ends and a glass panel between, parts of it."""
+
+    name: str
+    storey: str
+    p0: Vec
+    p1: Vec
+    depth: float = 0.15
+    z0: float = -0.15
+    z1: float = 2.55
+    """From the slab under it to the underside of the slab above."""
+    type_name: str | None = None
+    u: float | None = None
+    doors: tuple[tuple[float, float, float], ...] = ()
+    """Doors in it, parts of it: (from p0, width, height above the FFL)."""
 
 
 @dataclass
@@ -195,8 +239,22 @@ class House:
     stairs: list[StairSpec] = field(default_factory=list[StairSpec])
     roofs: list[RoofSpec] = field(default_factory=list[RoofSpec])
     recesses: list[RecessSpec] = field(default_factory=list[RecessSpec])
+    curved: list[CurvedSpec] = field(default_factory=list[CurvedSpec])
+    curtains: list[CurtainSpec] = field(default_factory=list[CurtainSpec])
+    annex: dict[str, float] = field(default_factory=dict[str, float])
+    """Storeys of a second building, the garage; walls on them are its walls."""
+    site_at: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """Where the site lies in the world: a file in survey coordinates."""
+    site_x: Vec = (1.0, 0.0)
+    """Where its x axis points: a plan turned off the axes."""
+    flat: bool = False
+    """Every storey placed at the building's height: only `Elevation` tells them apart, and the
+    elements carry their heights themselves."""
     app: str = "Test-CAD 1.0"
     schema: Literal["IFC2X3", "IFC4", "IFC4X3"] = "IFC4"
+
+    def z_of(self, storey: str) -> float:
+        return self.storeys[storey] if storey in self.storeys else self.annex[storey]
 
     def wall(self, name: str) -> WallSpec:
         return next(w for w in self.walls if w.name == name)
@@ -216,6 +274,8 @@ class House:
             stairs=[x for x in self.stairs if x.name not in gone],
             roofs=[x for x in self.roofs if x.name not in gone],
             recesses=[r for r in self.recesses if r.name not in gone and r.wall not in gone],
+            curved=[c for c in self.curved if c.name not in gone],
+            curtains=[c for c in self.curtains if c.name not in gone],
         )
 
     def raised(self, dz: float) -> "House":
@@ -516,6 +576,8 @@ class Writer:
         self.types: dict[str, Any] = {}
         self.slabs: dict[str, Any] = {}
         self.walls: dict[str, Any] = {}
+        self.cut: dict[str, Any] = {}
+        """What an opening in a wall cuts: the wall, or the first of its parts."""
 
     def guid(self, key: str) -> str:
         return ifcopenshell.guid.compress(uuid.uuid5(NS, key).hex)
@@ -530,6 +592,14 @@ class Writer:
         if name is not None and cls not in ("IfcProject", "IfcSite", "IfcBuilding"):
             self.guids[name] = e.GlobalId
         return e
+
+    def lz(self, storey: str) -> float:
+        """The height of a storey's placement, which its elements are placed from."""
+        return 0.0 if self.h.flat else self.h.z_of(storey)
+
+    def up(self, storey: str) -> float:
+        """What an element placed on its storey adds to heights given from the storey."""
+        return self.h.z_of(storey) - self.lz(storey)
 
     def pt(self, *c: float) -> Any:
         return self.f.createIfcCartesianPoint([float(x) for x in c])
@@ -639,22 +709,45 @@ class Writer:
         building = self.building = self.entity("IfcBuilding", "building", "Haus")
         ifcopenshell.api.aggregate.assign_object(f, products=[site], relating_object=project)
         ifcopenshell.api.aggregate.assign_object(f, products=[building], relating_object=site)
-        site.ObjectPlacement = self.placed(None, (0.0, 0.0, 0.0))
+        site.ObjectPlacement = self.placed(None, h.site_at, h.site_x)
         building.ObjectPlacement = self.placed(site.ObjectPlacement, (0.0, 0.0, 0.0))
         self.storeys: dict[str, Any] = {}
-        for name, z in h.storeys.items():
-            st = self.entity("IfcBuildingStorey", f"storey/{name}", name)
-            st.Elevation = float(z)
-            st.ObjectPlacement = self.placed(building.ObjectPlacement, (0.0, 0.0, z))
-            self.storeys[name] = st
-        ifcopenshell.api.aggregate.assign_object(
-            f, products=list(self.storeys.values()), relating_object=building
-        )
+        for bld, storeys in ((building, h.storeys), (None, h.annex)):
+            if not storeys:
+                continue
+            if bld is None:
+                bld = self.entity("IfcBuilding", "annex", "Garage")
+                ifcopenshell.api.aggregate.assign_object(f, products=[bld], relating_object=site)
+                bld.ObjectPlacement = self.placed(site.ObjectPlacement, (0.0, 0.0, 0.0))
+            mine: list[Any] = []
+            for name, z in storeys.items():
+                # the elevation is relative to the building, the placement is in its frame
+                st = self.entity("IfcBuildingStorey", f"storey/{name}", name)
+                st.Elevation = float(z)
+                st.ObjectPlacement = self.placed(
+                    bld.ObjectPlacement, (0.0, 0.0, 0.0 if self.h.flat else z)
+                )
+                self.storeys[name] = st
+                mine.append(st)
+            ifcopenshell.api.aggregate.assign_object(f, products=mine, relating_object=bld)
         self.contained: dict[str, list[Any]] = {k: [] for k in self.storeys}
+        if h.curved:
+            plan = ifcopenshell.api.context.add_context(f, context_type="Plan")
+            self.axis_ctx = ifcopenshell.api.context.add_context(
+                f,
+                context_type="Plan",
+                context_identifier="Axis",
+                target_view="GRAPH_VIEW",
+                parent=plan,
+            )
         for w in h.walls:
             self.walls[w.name] = self.wall(w)
+        for c in h.curved:
+            self.curved_wall(c)
+        for cw in h.curtains:
+            self.curtain(cw)
         for o in h.openings:
-            self.opening(o, h.wall(o.wall), self.walls[o.wall])
+            self.opening(o, h.wall(o.wall), self.cut.get(o.wall, self.walls[o.wall]))
         for r in h.recesses:
             self.recess(r)
         for s in h.slabs:
@@ -682,42 +775,56 @@ class Writer:
         f.write(str(path))
         return self.guids
 
+    @staticmethod
+    def across(
+        w: WallSpec, layers: tuple[tuple[str, float], ...], left: Vec
+    ) -> tuple[float, float, str | None, float]:
+        """Where the body lies across the line (lo, hi toward `left`), and the sense and offset of
+        its layer set usage (none: no usage, the body centred)."""
+        total = sum(t for _, t in layers)
+        core = max(range(len(layers)), key=lambda i: layers[i][1])
+        if w.first is None:
+            width = (w.body or total) if layers is w.layers else total
+            return -width / 2, width / 2, None, 0.0
+        before = sum(t for _, t in layers[:core]) + layers[core][1] / 2
+        if w.first[0] * left[0] + w.first[1] * left[1] > 0:
+            return before - total, before, "NEGATIVE", before
+        return -before, total - before, "POSITIVE", -before
+
     def wall(self, w: WallSpec) -> Any:
         e = self.entity(
             "IfcWall", f"wall/{w.name}", w.name, "SOLIDWALL" if w.lb else "PARTITIONING"
         )
-        st_z = self.h.storeys[w.storey]
+        st_z = self.lz(w.storey)
         a, b = (w.p1, w.p0) if w.reverse else (w.p0, w.p1)
         u = unit(a, b)
         left = (-u[1], u[0])
         length = math.hypot(b[0] - a[0], b[1] - a[1])
-        total = sum(t for _, t in w.layers)
-        core = max(range(len(w.layers)), key=lambda i: w.layers[i][1])
-        if w.first is None:
-            width = w.body or total
-            lo, hi = -width / 2, width / 2
-            ls = self.layer_set(w.type_name or w.name, w.layers)
-            ifcopenshell.api.material.assign_material(
-                self.f, products=[e], type="IfcMaterialLayerSet", material=ls
-            )
-        else:
-            before = sum(t for _, t in w.layers[:core]) + w.layers[core][1] / 2
-            towards_left = w.first[0] * left[0] + w.first[1] * left[1] > 0
-            if towards_left:
-                lo, hi = before - total, before
-                sense, offset = "NEGATIVE", before
-            else:
-                lo, hi = -before, total - before
-                sense, offset = "POSITIVE", -before
-            ls = self.layer_set(w.type_name or w.name, w.layers)
-            self.usage(e, ls, "AXIS2", sense, offset)
+        lo, hi, sense, offset = self.across(w, w.layers, left)
         e.ObjectPlacement = self.placed(
             self.storeys[w.storey].ObjectPlacement, (a[0], a[1], w.z0 - st_z), u
         )
-        if w.top is None:
+        if w.parts is not None:
+            self.wall_parts(w, e, length, left)
+        elif sense is None:
+            ls = self.layer_set(w.type_name or w.name, w.layers)
+            if w.on_type:
+                assert w.type_name is not None
+                t = self.type_of("IfcWallType", w.type_name)
+                if not t.HasAssociations:
+                    ifcopenshell.api.material.assign_material(
+                        self.f, products=[t], type="IfcMaterialLayerSet", material=ls
+                    )
+            else:
+                ifcopenshell.api.material.assign_material(
+                    self.f, products=[e], type="IfcMaterialLayerSet", material=ls
+                )
+        else:
+            self.usage(e, self.layer_set(w.type_name or w.name, w.layers), "AXIS2", sense, offset)
+        if w.parts is None and w.top is None:
             outline = ((0.0, lo), (length, lo), (length, hi), (0.0, hi))
             e.Representation = self.body(self.prism(outline, 0.0, w.z1 - w.z0))
-        else:
+        elif w.parts is None:
             faces = wall_faces(w, length, lo, hi)
             e.Representation = self.body(self.brep(faces), kind="Brep")
         if w.type_name:
@@ -739,14 +846,14 @@ class Writer:
         st = self.storeys[w.storey]
         op = self.entity("IfcOpeningElement", f"opening/{o.name}", None, "OPENING")
         op.ObjectPlacement = self.placed(st.ObjectPlacement, (0.0, 0.0, 0.0))
-        op.Representation = self.body(self.prism(box, o.sill, o.height))
+        op.Representation = self.body(self.prism(box, o.sill + self.up(w.storey), o.height))
         ifcopenshell.api.feature.add_feature(self.f, feature=op, element=wall)
         cls = "IfcDoor" if o.kind == "door" else "IfcWindow"
         e = self.entity(cls, f"{o.kind}/{o.name}", o.name, "DOOR" if o.kind == "door" else "WINDOW")
         e.ObjectPlacement = self.placed(st.ObjectPlacement, (0.0, 0.0, 0.0))
         e.OverallWidth = float(o.width)
         e.OverallHeight = float(o.height)
-        e.Representation = self.body(self.prism(box, o.sill, o.height))
+        e.Representation = self.body(self.prism(box, o.sill + self.up(w.storey), o.height))
         ifcopenshell.api.feature.add_filling(self.f, opening=op, element=e)
         if o.type_name:
             t = self.type_of("IfcDoorType" if o.kind == "door" else "IfcWindowType", o.type_name)
@@ -761,12 +868,140 @@ class Writer:
             )
         self.contained[w.storey].append(e)
 
+    def wall_parts(self, w: WallSpec, e: Any, length: float, left: Vec) -> None:
+        """The body of a wall in parts: one part per layer side by side, or two walls stacked."""
+        pieces: list[Any] = []
+        height = w.z1 - w.z0
+        if w.parts == "skins":
+            lo, hi, sense, _ = self.across(w, w.layers, left)
+            at = hi if sense == "NEGATIVE" else lo
+            for i, (material, t) in enumerate(w.layers):
+                q0, q1 = (at - t, at) if sense == "NEGATIVE" else (at, at + t)
+                at = q0 if sense == "NEGATIVE" else q1
+                p = self.entity("IfcBuildingElementPart", f"wall/{w.name}/part{i}", None)
+                p.ObjectPlacement = self.placed(e.ObjectPlacement, (0.0, 0.0, 0.0))
+                outline = ((0.0, q0), (length, q0), (length, q1), (0.0, q1))
+                p.Representation = self.body(self.prism(outline, 0.0, height))
+                ifcopenshell.api.material.assign_material(
+                    self.f, products=[p], type="IfcMaterial", material=self.material(material)
+                )
+                pieces.append(p)
+        else:
+            for i, (layers, z0, z1) in enumerate(
+                ((w.layers, 0.0, w.split), (w.upper, w.split, height))
+            ):
+                lo, hi, sense, offset = self.across(w, layers, left)
+                p = self.entity("IfcWall", f"wall/{w.name}/part{i}", None)
+                p.ObjectPlacement = self.placed(e.ObjectPlacement, (0.0, 0.0, 0.0))
+                outline = ((0.0, lo), (length, lo), (length, hi), (0.0, hi))
+                p.Representation = self.body(self.prism(outline, z0, z1 - z0))
+                ls = self.layer_set(f"{w.name} {i}", layers)
+                if sense is None:
+                    ifcopenshell.api.material.assign_material(
+                        self.f, products=[p], type="IfcMaterialLayerSet", material=ls
+                    )
+                else:
+                    self.usage(p, ls, "AXIS2", sense, offset)
+                pieces.append(p)
+        ifcopenshell.api.aggregate.assign_object(self.f, products=pieces, relating_object=e)
+        self.cut[str(w.name)] = pieces[0]
+
     def recess(self, r: RecessSpec) -> None:
         w = self.h.wall(r.wall)
         op = self.entity("IfcOpeningElement", f"recess/{r.name}", r.name, "RECESS")
         op.ObjectPlacement = self.placed(self.storeys[w.storey].ObjectPlacement, (0.0, 0.0, 0.0))
-        op.Representation = self.body(self.prism(wall_box(w, r.s0, r.width), r.sill, r.height))
-        ifcopenshell.api.feature.add_feature(self.f, feature=op, element=self.walls[r.wall])
+        if r.depth is None:
+            box = wall_box(w, r.s0, r.width)
+        else:
+            u = unit(w.p0, w.p1)
+            left = (-u[1], u[0])
+            lo, hi, _, _ = self.across(w, w.layers, left)
+            q0, q1 = (hi - r.depth, hi + 0.1) if r.side > 0 else (lo - 0.1, lo + r.depth)
+            box = tuple(
+                (w.p0[0] + u[0] * s + left[0] * q, w.p0[1] + u[1] * s + left[1] * q)
+                for s, q in ((r.s0, q0), (r.s0 + r.width, q0), (r.s0 + r.width, q1), (r.s0, q1))
+            )
+        op.Representation = self.body(self.prism(box, r.sill + self.up(w.storey), r.height))
+        wall = self.cut.get(r.wall, self.walls[r.wall])
+        ifcopenshell.api.feature.add_feature(self.f, feature=op, element=wall)
+
+    def curved_wall(self, c: CurvedSpec) -> None:
+        e = self.entity("IfcWall", f"curved/{c.name}", c.name, "SOLIDWALL")
+        steps = 24
+        angles = [math.radians(c.a0 + (c.a1 - c.a0) * i / steps) for i in range(steps + 1)]
+        ring = [
+            (c.centre[0] + r * math.cos(a), c.centre[1] + r * math.sin(a))
+            for r, seq in ((c.r + c.t / 2, angles), (c.r - c.t / 2, angles[::-1]))
+            for a in seq
+        ]
+        e.ObjectPlacement = self.placed(
+            self.storeys["EG"].ObjectPlacement, (0.0, 0.0, -0.15 - self.lz("EG"))
+        )
+        reps = [
+            self.f.createIfcShapeRepresentation(
+                self.ctx, "Body", "SweptSolid", [self.prism(tuple(ring), 0.0, 2.7)]
+            )
+        ]
+        if c.axis:
+            centre = self.f.createIfcAxis2Placement2D(self.pt(*c.centre), None)
+            circle = self.f.createIfcCircle(centre, float(c.r))
+            arc = self.f.createIfcTrimmedCurve(
+                circle,
+                [self.f.createIfcParameterValue(float(c.a0))],
+                [self.f.createIfcParameterValue(float(c.a1))],
+                True,
+                "PARAMETER",
+            )
+            reps.append(
+                self.f.createIfcShapeRepresentation(self.axis_ctx, "Axis", "Curve2D", [arc])
+            )
+        e.Representation = self.f.createIfcProductDefinitionShape(None, None, reps)
+        ifcopenshell.api.material.assign_material(
+            self.f,
+            products=[e],
+            type="IfcMaterialLayerSet",
+            material=self.layer_set(c.name, (("Mauerwerk", c.t),)),
+        )
+        self.contained["EG"].append(e)
+
+    def curtain(self, c: CurtainSpec) -> None:
+        e = self.entity("IfcCurtainWall", f"curtain/{c.name}", c.name)
+        st = self.storeys[c.storey]
+        st_z = self.lz(c.storey)
+        u = unit(c.p0, c.p1)
+        length = math.hypot(c.p1[0] - c.p0[0], c.p1[1] - c.p0[1])
+        e.ObjectPlacement = self.placed(st.ObjectPlacement, (c.p0[0], c.p0[1], c.z0 - st_z), u)
+        height, d = c.z1 - c.z0, c.depth
+        pieces: list[Any] = []
+        boxes = (
+            ("IfcMember", "MULLION", (0.0, 0.05), -d / 2, d / 2),
+            ("IfcMember", "MULLION", (length - 0.05, length), -d / 2, d / 2),
+            ("IfcPlate", "CURTAIN_PANEL", (0.05, length - 0.05), -0.01, 0.01),
+        )
+        for i, (cls, kind, (s0, s1), q0, q1) in enumerate(boxes):
+            p = self.entity(cls, f"curtain/{c.name}/{i}", None, kind)
+            p.ObjectPlacement = self.placed(e.ObjectPlacement, (0.0, 0.0, 0.0))
+            outline = ((s0, q0), (s1, q0), (s1, q1), (s0, q1))
+            p.Representation = self.body(self.prism(outline, 0.0, height))
+            pieces.append(p)
+        for i, (s0, width, door_h) in enumerate(c.doors):
+            p = self.entity("IfcDoor", f"curtain/{c.name}/door{i}", f"{c.name} Tür {i + 1}", "DOOR")
+            p.ObjectPlacement = self.placed(e.ObjectPlacement, (0.0, 0.0, 0.0))
+            p.OverallWidth, p.OverallHeight = float(width), float(door_h)
+            outline = ((s0, -0.025), (s0 + width, -0.025), (s0 + width, 0.025), (s0, 0.025))
+            p.Representation = self.body(self.prism(outline, self.h.z_of(c.storey) - c.z0, door_h))
+            pieces.append(p)
+        ifcopenshell.api.aggregate.assign_object(self.f, products=pieces, relating_object=e)
+        if c.type_name:
+            ifcopenshell.api.type.assign_type(
+                self.f,
+                related_objects=[e],
+                relating_type=self.type_of("IfcCurtainWallType", c.type_name),
+                should_map_representations=False,
+            )
+        if c.u is not None:
+            self.pset(e, "Pset_CurtainWallCommon", {"ThermalTransmittance": c.u})
+        self.contained[c.storey].append(e)
 
     def slab(self, s: SlabSpec) -> None:
         e = self.entity("IfcSlab", f"slab/{s.name}", s.name, "FLOOR")
@@ -774,7 +1009,7 @@ class Writer:
         total = sum(t for _, t in s.layers)
         e.ObjectPlacement = self.placed(self.storeys[s.storey].ObjectPlacement, (0.0, 0.0, 0.0))
         e.Representation = self.body(
-            self.prism(s.outline, s.z1 - total - self.h.storeys[s.storey], total, s.holes)
+            self.prism(s.outline, s.z1 - total - self.lz(s.storey), total, s.holes)
         )
         ordered = s.layers if s.sense == "NEGATIVE" else tuple(reversed(s.layers))
         ls = self.layer_set(s.type_name or s.name, ordered)
@@ -791,7 +1026,7 @@ class Writer:
     def void(self, v: VoidSpec) -> None:
         sl = next(x for x in self.h.slabs if x.name == v.slab)
         total = sum(t for _, t in sl.layers)
-        z0 = sl.z1 - total - self.h.storeys[sl.storey]
+        z0 = sl.z1 - total - self.lz(sl.storey)
         op = self.entity("IfcOpeningElement", f"void/{v.name}", v.name, "OPENING")
         op.ObjectPlacement = self.placed(self.storeys[sl.storey].ObjectPlacement, (0.0, 0.0, 0.0))
         op.Representation = self.body(self.prism(v.outline, z0 - 0.1, total + 0.2))
@@ -799,7 +1034,7 @@ class Writer:
 
     def stair(self, st: StairSpec) -> None:
         place = self.storeys[st.storey].ObjectPlacement
-        z_st = self.h.storeys[st.storey]
+        z_st = self.lz(st.storey)
 
         def blocks(treads: tuple[Tread, ...]) -> list[Any]:
             return [self.prism(o, st.base - z_st, top - st.base) for top, o in treads]
@@ -842,7 +1077,7 @@ class Writer:
 
     def roof(self, r: RoofSpec) -> None:
         place = self.storeys[r.storey].ObjectPlacement
-        z_st = self.h.storeys[r.storey]
+        z_st = self.lz(r.storey)
 
         def low(face: Ring) -> Ring:
             return tuple((x, y, z - z_st) for x, y, z in face)
@@ -907,9 +1142,7 @@ class Writer:
         e = self.entity("IfcSpace", f"space/{sp.name}", sp.name)
         e.LongName = sp.long_name
         e.ObjectPlacement = self.placed(self.storeys[sp.storey].ObjectPlacement, (0.0, 0.0, 0.0))
-        e.Representation = self.body(
-            self.prism(sp.outline, sp.z0 - self.h.storeys[sp.storey], sp.height)
-        )
+        e.Representation = self.body(self.prism(sp.outline, sp.z0 - self.lz(sp.storey), sp.height))
         if sp.parent:
             ifcopenshell.api.aggregate.assign_object(
                 self.f, products=[e], relating_object=self.storeys[sp.storey]

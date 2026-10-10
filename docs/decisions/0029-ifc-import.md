@@ -58,4 +58,4 @@ An IFC is geometry and properties; UEA wants intent. A wall in the file is a bod
 - Roofs, stairs, slab voids and grids (slice 4b) are listed as not imported; their walls get a plain top, or `h=`.
 - Walls with no layer set usage are a few millimetres off in position; the rooms of the round trip differ by about 0.1 %.
 - The per-import record in the log grows with the elements it changed, not with the whole model.
-- Slice 4c (open): units other than metres are scaled by IfcOpenShell, but untested; several buildings in one file; curved walls; BCF for requests to the architect (`0011`).
+- Slice 4c: units, several buildings, curved walls and the rest in `0031-ifc-import-files.md`; BCF for requests to the architect in `0032-bcf-requests.md`.

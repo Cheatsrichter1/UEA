@@ -25,6 +25,7 @@ LABEL = {
     "stair": "stairs",
     "void": "voids",
     "grid": "grids",
+    "niche": "niches",
 }
 
 
@@ -37,7 +38,7 @@ def run_import(
     result_json: Callable[[Result], dict[str, Any]],
 ) -> int:
     from uea.importer.build import Known, plan
-    from uea.importer.ifc import NotImportable, read
+    from uea.importer.ifc import Frame, NotImportable, read
 
     fmt: str = ctx.args.format
     if fmt not in FORMATS:
@@ -47,12 +48,16 @@ def run_import(
     if not path.is_file():
         out(f"uea: {path} is not a file")
         return 1
+    project = ctx.project
+    # a later import keeps where the first one put the plan, and the building it read
+    last = project.history.ifc_last()
+    frame = None if last is None else Frame(*(float(x) for x in last.get("frame", (0, 0, 0))))
+    remembered = None if last is None else last.get("building")
     try:
-        src = read(path)
+        src = read(path, building=ctx.args.building, remembered=remembered, frame=frame)
     except NotImportable as e:
         out(f"uea: {e}")
         return 1
-    project = ctx.project
     state = {k: Known(*v) for k, v in project.history.ifc_state().items()}
     pl = plan(src, ctx.model, state)
     head = f"{src.file}: {src.schema}" + (f" from {src.app}" if src.app else "")
