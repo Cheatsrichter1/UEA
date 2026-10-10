@@ -317,10 +317,12 @@ def _runs_rows(b: _Elec) -> list[list[Cell]]:
     e = b.d.elec
     rows: list[list[Cell]] = []
     here = {mt.id for mt in b.mounted("board", "sock", "conn", "switch", "data", "lum")}
+    here |= {k for k, mt in e.feeds.items() if mt.level == b.level}
+    at = {**b.d.mounts, **e.feeds}
     for cid in sorted(e.routes, key=natural):
         for r in e.routes[cid].runs:
             if b.level is None or r.b in here:
-                rows.append([cid, r.a, r.b, b.d.mounts[r.b].level, _q(r.length)])
+                rows.append([cid, r.a, r.b, at[r.b].level, _q(r.length)])
     for k in sorted(e.homeruns, key=natural):
         r = e.homeruns[k]
         if b.level is None or r.b in here:

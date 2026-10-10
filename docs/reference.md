@@ -554,6 +554,145 @@ A circuit feeding an element of another discipline (a heat pump, a fan): feed fd
 | circuit | positional |  | circuit |
 | w | `w=` | W | connected power |
 
+### Heating (`heat.uea`)
+
+Types: `type … gen`, `type … tank`, `type … man`, `type … ufh`, `type … rad`.
+
+Kinds: `gen`, `tank`, `man`, `ufh`, `rad`.
+
+#### `type … gen`
+
+Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the design outdoor temperature and flow temperature, from the manufacturer.
+
+`type <name> gen`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| kw | `kw=` | kW | heat output at the design point (required) |
+| source | `source=` | `air` `ground` `water` `gas` `oil` `wood` `district` `electric` | heat source: air, ground, water (heat pumps), gas, oil, wood, district, electric |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … tank`
+
+Storage tank type: type HM-200 tank vol=200 dhw (dhw: heats drinking water).
+
+`type <name> tank`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| vol | `vol=` | l | volume (required) |
+| default | flag `default` | | used by elements of its kind without type= |
+| dhw | flag `dhw` | | heats drinking water |
+
+#### `type … man`
+
+Manifold type (Heizkreisverteiler): type HKV-10 man outlets=10 w=0.55.
+
+`type <name> man`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| outlets | `outlets=` |  | heating circuits it can connect (required) |
+| w | `w=` | m | width of its cabinet |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … ufh`
+
+Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included.
+
+`type <name> ufh`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| spacing | `spacing=` | m | pipe spacing (required) |
+| q | `q=` | W/m² | heat output per floor area (required) |
+| max | `max=` | m | longest loop, with its connection lines (required) |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … rad`
+
+Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's design temperatures, from the manufacturer.
+
+`type <name> rad`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| w | `w=` | W | heat output at the design temperatures (required) |
+| length | `length=` | m | length |
+| height | `height=` | m | height |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `gen`
+
+A heat generator (heat pump, boiler) on a storey, inside or outside: gen g1 EG at=W-1.2,N-1 type=WP-8 "Wärmepumpe außen".
+
+`gen <id> <level>` · ids `g1`, `g2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey |
+| at | `at=` | m | plan point x,y (required) |
+| z | `z=` | m | height above the FFL |
+| type | `type=` |  | generator type; default if left out |
+
+#### `tank`
+
+A storage tank (or a heat pump's indoor unit with one) in a room: tank t1 r3 at=w4+0.4,w5+0.4 src=g1. at= default the middle of the room.
+
+`tank <id> <host>` · ids `t1`, `t2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| at | `at=` | m | plan point x,y |
+| src | `src=` |  | generator that heats it |
+| type | `type=` |  | tank type; default if left out |
+
+#### `man`
+
+A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6.
+
+`man <id> <host> <src>` · ids `hv1`, `hv2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | niche, or wall face |
+| src | positional |  | tank or generator it gets its heat from |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction |
+| z | `z=` | m | height of its centre above the FFL |
+| type | `type=` |  | manifold type; default if left out |
+
+#### `ufh`
+
+Underfloor heating over a room's floor, from a manifold: ufh uh1 r1 hv1. area= the heated part, if not the whole finished floor.
+
+`ufh <id> <room> <src>` · ids `uh1`, `uh2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| room | positional |  | room |
+| src | positional |  | manifold |
+| area | `area=` | m² | heated floor area |
+| type | `type=` |  | type; default if left out |
+
+#### `rad`
+
+A radiator (Heizkörper) on a wall face: rad hk1 w1 hv1 x=f1. z= its centre, 0.45 if left out.
+
+`rad <id> <host> <src>` · ids `hk1`, `hk2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| src | positional |  | manifold, tank or generator |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| type | `type=` |  | type; default if left out |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -637,6 +776,11 @@ E is an error, W a warning.
 | W-ELEC-030 | luminaire that no switch controls |
 | W-ELEC-031 | luminaire switched from more than one circuit |
 | W-ELEC-040 | distribution board without an RCD |
+| E-HEAT-002 | manifold or radiator on a wall without a usable face |
+| W-HEAT-001 | heating element without a type, and none of its kind is marked default |
+| W-HEAT-002 | manifold with more loops than outlets |
+| W-HEAT-003 | underfloor heating too far from its manifold for a loop |
+| W-HEAT-004 | generator, tank or manifold that supplies nothing |
 
 ## Calculators
 
@@ -647,6 +791,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `wofl` | norm | 0.1.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
+| `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
+| `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
 
 ### `cable` settings
 
@@ -668,9 +814,20 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `demand` | float | 1.0 | share of In taken as the current of a circuit with sockets, more than 0 and at most 1 |
 | `current` | str | auto | auto: declared load if the circuit has no socket, else In times demand; in: always In (auto / in) |
 
+### `heatload` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `tb` | float | required | thermal bridge surcharge ΔU_TB, W/(m²K), on the outer surfaces |
+| `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
+| `shielding` | str | required | shielding of the building (none / moderate / heavy) |
+| `groundwater` | str | deep | groundwater under the building (deep / shallow) |
+| `te` | float |  | θ_e in °C instead of the table outdoor |
+| `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+
 ### Norm tables
 
-One CSV file for each table, the first line the header: `uea data add <id> <file.csv> --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is read. Numbers must be more than 0. No two rows may have the same key.
+One CSV file for each table, the first line the header: `uea data add <id> <file.csv> --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is read. Numbers must be more than 0 unless the column says otherwise. No two rows may have the same key.
 
 #### `ampacity`: Current-carrying capacity Iz (DIN VDE 0298-4)
 
@@ -680,9 +837,9 @@ Copper conductors. One row for each installation method, insulation, number of l
 |---|---|---|
 | `method` | text | reference installation method as the table names it: A1, B2, C, ... |
 | `insulation` | text | insulation of the cable (one of PVC, XLPE) |
-| `loaded` | num | loaded conductors: 2 (single-phase) or 3 (three-phase) |
-| `mm2` | num | conductor cross-section, mm² |
-| `amps` | num | current-carrying capacity at reference conditions, A |
+| `loaded` | num > 0 | loaded conductors: 2 (single-phase) or 3 (three-phase) |
+| `mm2` | num > 0 | conductor cross-section, mm² |
+| `amps` | num > 0 | current-carrying capacity at reference conditions, A |
 
 One row for each: method, insulation, loaded, mm2.
 
@@ -693,8 +850,8 @@ Needed only when the calculation is run with temp=<°C>.
 | Column | Type | Meaning |
 |---|---|---|
 | `insulation` | text | insulation of the cable (one of PVC, XLPE) |
-| `celsius` | num | ambient temperature, °C |
-| `factor` | num | factor for Iz |
+| `celsius` | num > 0 | ambient temperature, °C |
+| `factor` | num > 0 | factor for Iz |
 
 One row for each: insulation, celsius.
 
@@ -705,8 +862,8 @@ Needed only when the calculation is run with group=<n> above 1.
 | Column | Type | Meaning |
 |---|---|---|
 | `arrangement` | text | how they are grouped, as the table names it |
-| `circuits` | num | number of circuits in the group |
-| `factor` | num | factor for Iz |
+| `circuits` | num > 0 | number of circuits in the group |
+| `factor` | num > 0 | factor for Iz |
 
 One row for each: arrangement, circuits.
 
@@ -717,10 +874,88 @@ One row for copper (cables NYM, NYY, ...) and one for aluminium (cables starting
 | Column | Type | Meaning |
 |---|---|---|
 | `material` | text | conductor material (one of Cu, Al) |
-| `rho` | num | resistivity of the conductor in service, Ω·mm²/m |
-| `lambda` | num | reactance of the cable per length, mΩ/m |
+| `rho` | num > 0 | resistivity of the conductor in service, Ω·mm²/m |
+| `lambda` | num > 0 | reactance of the cable per length, mΩ/m |
 
 One row for each: material.
+
+#### `material`: Thermal conductivity of building materials (DIN 4108-4, DIN EN ISO 10456, or the manufacturer's declared design value)
+
+One row for each material in layers= of the types, e.g. ziegel-t9 for *ziegel-t9:0.365.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the material name as the layers of the types write it |
+| `lambda` | num > 0 | design thermal conductivity λ, W/(m·K) |
+
+One row for each: material.
+
+#### `surface`: Surface resistances (DIN EN ISO 6946)
+
+Three rows: up, horizontal, down.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `flow` | text | direction of the heat flow (one of up, horizontal, down) |
+| `rsi` | num > 0 | internal surface resistance R_si, m²·K/W |
+| `rse` | num > 0 | external surface resistance R_se, m²·K/W |
+
+One row for each: flow.
+
+#### `outdoor`: Design outdoor temperature by postcode (DIN/TS 12831-1)
+
+One row for each postcode the office plans in, or only the project's.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `postcode` | text | postcode, as in postcode= of the project |
+| `te` | num | design outdoor temperature θ_e, °C |
+| `tme` | num | annual mean outdoor temperature θ_m,e, °C |
+
+One row for each: postcode.
+
+#### `room-temp`: Internal temperature and minimum air change by room use (DIN/TS 12831-1)
+
+One row for each use the rooms of the project have.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use, as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `heated` | text | whether rooms of this use are heated (one of yes, no) |
+| `ti` | num | internal design temperature θ_int, or of the unheated space, °C |
+| `nmin` | num ≥ 0 | minimum air change rate n_min, 1/h |
+
+One row for each: use.
+
+#### `infiltration`: Shielding coefficient e (DIN EN 12831-1, DIN/TS 12831-1)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `openings` | text | outside walls with windows or doors the room has (one of 0, 1, 2+) |
+| `shielding` | text | shielding of the building (one of none, moderate, heavy) |
+| `e` | num ≥ 0 | shielding coefficient e |
+
+One row for each: openings, shielding.
+
+#### `height-factor`: Height correction factor ε (DIN EN 12831-1, DIN/TS 12831-1)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | height of the room's middle above the terrain up to which it holds, m |
+| `eps` | num > 0 | height correction factor ε |
+
+One row for each: upto.
+
+#### `heatload-factors`: Factors of the Heizlast (DIN EN 12831-1, DIN/TS 12831-1)
+
+fg1: annual variation of the outdoor temperature for the ground; gw-deep, gw-shallow: G_w with the groundwater deeper or less deep than the standard's limit; rho-cp: heat capacity of air per volume, Wh/(m³·K).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which factor (one of fg1, gw-deep, gw-shallow, rho-cp) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
 
 ## Exports
 

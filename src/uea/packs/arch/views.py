@@ -255,6 +255,18 @@ def mounted_lines(d: Derived, level: str) -> list[str]:
         kinds[mt.kind] = kinds.get(mt.kind, 0) + 1
         if mt.kind == "sock":
             outlets += int(getattr(el, "n", 1))
+    heat = getattr(d, "heat", None)
+    if heat is not None:
+        found: dict[str, int] = {}
+        for kind in ("gen", "tank", "man", "ufh", "rad"):
+            for el in d.model.of_kind(kind):
+                mt = heat.at.get(el.id)
+                room = d.arch.rooms.get(getattr(el, "room").id) if kind == "ufh" else None  # noqa: B009
+                lv = mt.level if mt is not None else room.level if room is not None else None
+                if lv == level:
+                    found[kind] = found.get(kind, 0) + 1
+        if found:
+            by_pack["heat"] = found
     parts: list[str] = []
     for pack, kinds in by_pack.items():
         items = [

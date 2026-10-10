@@ -24,7 +24,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 )
 """Every command with a one-line description: the root help and docs/reference.md."""
 
-TOPICS = "start | ops | positions | arch | elec | <kind> | codes | calc | export | import"
+TOPICS = "start | ops | positions | arch | elec | heat | <kind> | codes | calc | export | import"
 
 ROOT = (
     """\
@@ -127,6 +127,15 @@ Cable sizing and voltage drop come with the calculators. The checks are planning
 cite no norm.
 """
 
+HEAT_NOTES = """\
+src= says where an element gets its heat: a tank from a generator, a manifold from a tank or a
+generator, underfloor heating from a manifold, a radiator from any of them. The types carry the
+manufacturer's data. Derived (uea get): the loops of each underfloor heating (its area over the
+spacing, plus the way to the manifold and back, each loop within max=), each manifold's loops
+against its outlets, each emitter's output. Whether the emitters cover each room's Heizlast,
+and the generators the building's: uea calc heatload (help calc).
+"""
+
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
@@ -136,7 +145,15 @@ uea calc cable method=B2 [scope] [insulation=PVC temp=<C> group=<n> arrangement=
 uea calc vdrop limit=<%> [scope] [reserve=1.2 cos=1 demand=1 current=auto|in]
                         voltage drop from the board to the farthest device (norm; table
                         conductor). Length: the derived cable length (uea get c1) times reserve
-Scope: a circuit, an RCD or a board; all if left out. Settings are name=value after the name.
+uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
+                        surface). Scope: a room or a type
+uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
+                  [groundwater=deep|shallow te=<C> tme=<C>]
+                        Heizlast room by room (norm). tb: thermal bridge surcharge. Scope: a
+                        storey or a room. Room temperatures by use and theta_e by postcode come
+                        from the office's tables (uea data)
+Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
+name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
 uea data show <id> gives the columns, uea data add <id> <file.csv> --edition <e> installs one.
 Without a table the calculator stops and names it.
@@ -216,6 +233,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(ARCH_NOTES.rstrip())
     if pack == "elec":
         lines.append(ELEC_NOTES.rstrip())
+    if pack == "heat":
+        lines.append(HEAT_NOTES.rstrip())
     lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 

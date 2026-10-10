@@ -2,7 +2,7 @@
 
 A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`ROADMAP.md`).
 
-Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA (the `illum` targets and the `feed` lines to the heat pump and the fans wait for the lighting design and for heat and vent). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
+Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too (the `illum` targets and the `feed` lines to the fans wait for the lighting design and for vent). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
 ## The house
 
@@ -45,11 +45,11 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | `arch.uea` | 72 | 3,294 |
 | `light.uea` | 25 | 838 |
 | `elec.uea` | 89 | 3,031 |
-| `heat.uea` | 14 | 324 |
+| `heat.uea` | 18 | 579 |
 | `plumb.uea` | 7 | 188 |
 | `vent.uea` | 4 | 170 |
 | `issues.uea` | 7 | 593 |
-| **Total** | **226** | **8,646** |
+| **Total** | **230** | **8,901** |
 
 `session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, and a calculation that leads to a design change.
 
@@ -105,7 +105,7 @@ Everything resolves relative to something else. Make the HWR wider by moving w6,
 | arch | `wall` w, `door` d, `win` f, `niche` ni, `slab` sl, `void` v, `roof` rf, `stair` st, `sep` rs, `room` r |
 | light | `lum` l |
 | elec | `board` b, `rcd` fi, `circ` c, `sock` s, `conn` a, `switch` sw, `data` dt, `smoke` rm, `feed` fd |
-| heat | `gen` g, `tank` t, `man` hv, `ufh` uh |
+| heat | `gen` g, `tank` t, `man` hv, `ufh` uh, `rad` hk |
 | plumb | `san` sa |
 | vent | `fan` vl |
 | issues | `req` q, `waive` wv |
@@ -134,7 +134,7 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 8. Every export asked for something the model lacked, and each gap was one small field: the terrain height (`ground=`) for the Ansichten; SLS, SPD and meters on the board for the Verteilungsplan; `src=` links for the Heizungsschema; luminaire types with flux and distribution, plus targets (`illum`), for the Lichtberechnung.
 9. Drawing the door swings in the electrical plan showed five doors hinged on the side of their light switch. The check became a validator rule. The warning belongs to Elektro, which placed the switches; it asked Architektur to turn the doors (q5), and Architektur did.
 10. The Lichtberechnung ran the loop the architecture intends: code calculated, variant A missed the target, the agent added four dimmed downlights, code calculated again. The downlights then needed a request to Architektur (q6), because the ceiling is concrete.
-11. The Heizungsschema derives 9 FBH loops for the EG manifold. Whether they fit the 0,60 m niche that heat asked for in q1 is a cross-discipline check that needs manufacturer data.
+11. The Heizungsschema derives 9 FBH loops for the EG manifold; UEA derives 8 with the placeholder type FBH-15 (`docs/decisions/0034-heating-elements.md`), 10 outlets each. Whether the manifold fits the 0,60 m niche that heat asked for in q1 needs manufacturer data; the type carries its width (`w=`). With the synthetic tables of the tests, `uea calc heatload` finds the WC and the bath short of underfloor heating: a towel radiator is the designer's next step.
 
 ## Not in the prototype
 

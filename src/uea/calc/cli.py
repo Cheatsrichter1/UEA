@@ -64,7 +64,7 @@ def run_data(
         lines.append("columns (CSV, first line the header):")
         for c in spec.cols:
             allowed = f" one of {', '.join(c.choices)}" if c.choices else ""
-            lines.append(f"  {c.name}  {c.kind}{allowed}  {c.doc}".rstrip())
+            lines.append(f"  {c.name}  {c.what}{allowed}  {c.doc}".rstrip())
         lines.append(f"one row per {', '.join(spec.key)}")
         if t is None:
             lines.append("not installed")

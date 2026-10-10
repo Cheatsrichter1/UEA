@@ -21,7 +21,7 @@ The prototype only derived the routes roughly (`docs/prototype/haus-mueller/READ
 
 **Data outlets** have one run each from the board they are cabled to (`data dt1 w2 b2`), and one cable per port: a two-port outlet counts twice. The cable type is not in the model, so the quantity sheet calls them Datenleitung.
 
-**What has no place is skipped.** A `feed` to an element of another discipline has no position until that discipline exists; it is reported as "not placed" on the circuit and adds no length. A circuit whose devices are all unplaced has no cable.
+**What has no place is skipped.** A `feed` reaches the element it powers where that has a place (a heat generator, a tank, a manifold: `0034-heating-elements.md`); a `feed` to an element of a discipline that does not exist yet has no position, is reported as "not placed" on the circuit and adds no length. A circuit whose devices are all unplaced has no cable.
 
 **Output.**
 
@@ -43,4 +43,4 @@ The prototype only derived the routes roughly (`docs/prototype/haus-mueller/READ
 - A switch is fed from the board like any device. A real lighting circuit runs the supply to the luminaire and a switch loop to the switch; the lengths differ by less than a run.
 - Boards fed from other boards are still open (several boards, the feeder to the sub-board is not a circuit).
 - The cable is not drawn on the installation plan. The derived runs are in the sheets and in `uea get`; drawing them (lightly, behind the symbols) can come with the zones.
-- Open: shafts and chases, the declared length of a circuit that leaves the model, the place of a `feed` once the powered element exists, the zones as drawn bands.
+- Open: shafts and chases, the declared length of a circuit that leaves the model, the place of a `feed` to ventilation and plumbing, the zones as drawn bands.
