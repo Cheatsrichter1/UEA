@@ -33,6 +33,9 @@ One file per major decision: what was decided, what else was considered, and why
 | 0027 | [Cable routes, slice 3a](0027-cable-routes.md) | Accepted (slice 3a built) |
 | 0028 | [Norm tables and the first electrical calculators, slice 3b](0028-norm-tables-and-electrical-calculators.md) | Accepted (slice 3b built) |
 | 0029 | [IFC import, slice 4a](0029-ifc-import.md) | Accepted (slice 4a built) |
+| 0030 | [IFC import, slice 4b: grids, slab openings, stairs and roofs](0030-ifc-import-shapes.md) | Accepted (slice 4b built) |
+| 0031 | [IFC import, slice 4c: how programs write a file](0031-ifc-import-files.md) | Accepted (slice 4c built) |
+| 0032 | [Requests as BCF](0032-bcf-requests.md) | Accepted (export built) |
 
 Template:
 

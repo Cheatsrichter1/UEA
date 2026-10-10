@@ -8,7 +8,6 @@ under several roofs and for rooms under a sloped ceiling.
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false, reportAttributeAccessIssue=false
 
 import math
-import uuid
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,6 @@ import ifcopenshell.api.pset
 import ifcopenshell.api.root
 import ifcopenshell.api.spatial
 import ifcopenshell.api.type
-import ifcopenshell.guid
 import shapely
 from shapely.geometry import Polygon
 from shapely.geometry.polygon import orient
@@ -30,6 +28,7 @@ from shapely.geometry.polygon import orient
 from uea import __version__
 from uea.core.values import Layers
 from uea.derive import Derived
+from uea.export.guid import ifc_guid
 from uea.geom import Lin, Part, halfplane, polys, union_pieces
 from uea.packs.arch.geometry import (
     ArchGeo,
@@ -43,7 +42,6 @@ from uea.packs.arch.geometry import (
 )
 from uea.packs.arch.kinds import DoorType, Roof, Room, WinType
 
-NS = uuid.UUID("6f1d2a8e-3c4b-5d6e-8f90-a1b2c3d4e5f6")
 STATUS = {"new": "NEW", "existing": "EXISTING", "demolish": "DEMOLISH", "temp": "TEMPORARY"}
 Entity = Any
 
@@ -76,7 +74,7 @@ class Writer:
     # ---------- basics ----------
 
     def guid(self, key: str) -> str:
-        return ifcopenshell.guid.compress(uuid.uuid5(NS, f"{self.project_name}/{key}").hex)
+        return ifc_guid(self.project_name, key)
 
     def entity(
         self, cls: str, key: str, name: str | None = None, predefined: str | None = None

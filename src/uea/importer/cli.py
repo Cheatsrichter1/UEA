@@ -21,6 +21,11 @@ LABEL = {
     "slab": "slabs",
     "sep": "separators",
     "room": "rooms",
+    "roof": "roofs",
+    "stair": "stairs",
+    "void": "voids",
+    "grid": "grids",
+    "niche": "niches",
 }
 
 
@@ -33,7 +38,7 @@ def run_import(
     result_json: Callable[[Result], dict[str, Any]],
 ) -> int:
     from uea.importer.build import Known, plan
-    from uea.importer.ifc import NotImportable, read
+    from uea.importer.ifc import Frame, NotImportable, read
 
     fmt: str = ctx.args.format
     if fmt not in FORMATS:
@@ -43,12 +48,16 @@ def run_import(
     if not path.is_file():
         out(f"uea: {path} is not a file")
         return 1
+    project = ctx.project
+    # a later import keeps where the first one put the plan, and the building it read
+    last = project.history.ifc_last()
+    frame = None if last is None else Frame(*(float(x) for x in last.get("frame", (0, 0, 0))))
+    remembered = None if last is None else last.get("building")
     try:
-        src = read(path)
+        src = read(path, building=ctx.args.building, remembered=remembered, frame=frame)
     except NotImportable as e:
         out(f"uea: {e}")
         return 1
-    project = ctx.project
     state = {k: Known(*v) for k, v in project.history.ifc_state().items()}
     pl = plan(src, ctx.model, state)
     head = f"{src.file}: {src.schema}" + (f" from {src.app}" if src.app else "")
@@ -83,10 +92,11 @@ def run_import(
     if res.applied is not None and not res.applied.ops:
         out([f"{head}: nothing to change", *_tail(pl)])
         return 0
-    counts = " · ".join(f"{n} {LABEL.get(k, k)}" for k, n in pl.counts(res.applied).items())
-    gone = f" · {len(pl.gone)} removed" if pl.gone else ""
+    done = [f"{n} {LABEL.get(k, k)}" for k, n in pl.counts(res.applied).items()]
+    if pl.gone:
+        done.append(f"{len(pl.gone)} removed")
     where = "dry run, nothing written" if res.dry else f"batch {res.batch}"
-    lines = [f"{head}: ok ({where}): {counts}{gone}"]
+    lines = [f"{head}: ok ({where}): {' · '.join(done)}"]
     if res.after is not None:
         errors = [i for i in res.new_issues if i.severity == "error"]
         warns = [i for i in res.new_issues if i.severity == "warning"]

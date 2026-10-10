@@ -14,41 +14,38 @@ those the IFC lost, and reports the rest.
 import hashlib
 import math
 import re
-import unicodedata
 from collections import Counter
-from collections.abc import Sequence
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Any
 
 from shapely.geometry import LineString, Point, Polygon
 
 from uea.core.model import Model, element_from_raw, refs_of
 from uea.core.ops import Applied
-from uea.core.syntax import fmt_num, parse_line
+from uea.core.syntax import parse_line
 from uea.derive import derive
-from uea.importer.ifc import Layer, Opening, Slab, Source, Space, Storey, Vec, Wall
-from uea.packs import default_registry
-
-STRUCTURAL = (
-    "beton",
-    "concrete",
-    "stahlbeton",
-    "stb",
-    "ziegel",
-    "brick",
-    "mauerwerk",
-    "masonry",
-    "kalksandstein",
-    "porenbeton",
-    "ytong",
-    "holz",
-    "timber",
-    "clt",
-    "stahl",
-    "steel",
-    "block",
+from uea.importer.common import Lv, core_index, layers_text, num, slug
+from uea.importer.ifc import (
+    HOLE_MIN,
+    NICHE_FACE,
+    Layer,
+    Niche,
+    Opening,
+    Roof,
+    Slab,
+    Source,
+    Space,
+    Stair,
+    Storey,
+    Vec,
+    Wall,
 )
-"""Material names that mark the load-bearing layer of a build-up."""
+from uea.importer.roofs import RoofFit, fit_roof, follows
+from uea.importer.stairs import StairFit, fit_stair
+from uea.packs import default_registry
+from uea.packs.arch.geometry import ArchGeo
+
 USES: tuple[tuple[str, str], ...] = (
     ("wc", r"\bwc\b|toilet|abort"),
     ("kitchen", r"k(ü|ue)che|kitchen|kochen"),
@@ -82,14 +79,8 @@ SEP_MIN = 0.4
 SEP_REACH = 0.05
 MIN_OPENING = 0.05
 MIN_ROOM = 0.5
-
-
-def slug(text: str, limit: int = 20) -> str:
-    """ASCII letters, digits and hyphens: the form a name takes in the model."""
-    s = text.translate(str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}))
-    s = s.replace("Ä", "Ae").replace("Ö", "Oe").replace("Ü", "Ue")
-    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
-    return re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-")[:limit].strip("-")
+STAIR_NOTE = 0.03
+"""A stair whose treads differ from the fitted layout by more than this share is mentioned."""
 
 
 def line_hash(line: str) -> str:
@@ -126,7 +117,14 @@ class Item:
     category: str | None = None
     """For types: wall, slab, floor, door, win."""
     host: str | None = None
-    """For openings: the key of the wall."""
+    """For openings and voids: the key of the wall or slab."""
+    link: str | None = None
+    """The key of an element this one points at beyond its host: a wall's roof (top=), a void's
+    stair (over=). `\\1` in the tail stands for ` top=<ref>` or ` over=<ref>`, or for `alt` where
+    that element is not imported (it was removed in UEA since)."""
+    link_as: str = "top"
+    alt: str | None = None
+    """What `\\1` becomes where the linked element is not imported; none: skip this item."""
     op: str = ""
     """What the plan does: new, update, keep (edited since), deleted (removed since), skip."""
     id: str | None = None
@@ -144,6 +142,8 @@ class Plan:
     placeholders: dict[str, Item] = field(default_factory=dict[str, Item])
     known: dict[str, "Known"] = field(default_factory=dict[str, "Known"])
     src: Source | None = None
+    ground: float = 0.0
+    """The height in the file of the ground storey's FFL, UEA's ±0.00."""
 
     @property
     def text(self) -> str:
@@ -179,7 +179,7 @@ class Plan:
                 continue
             ids[it.key] = ident
             lines[ident] = digest
-        return {
+        out: dict[str, Any] = {
             "file": self.src.file,
             "sha": self.src.sha[:16],
             "app": self.src.app,
@@ -187,6 +187,13 @@ class Plan:
             "lines": lines,
             "gone": self.gone,
         }
+        if self.src.frame.moves:
+            out["frame"] = self.src.frame.record()
+        if self.src.building is not None:
+            out["building"] = self.src.building
+        if self.ground:
+            out["ground"] = self.ground
+        return out
 
 
 # ---------- geometry helpers ----------
@@ -201,29 +208,8 @@ def _dot(a: Vec, b: Vec) -> float:
     return a[0] * b[0] + a[1] * b[1]
 
 
-def _num(v: float) -> str:
-    return fmt_num(round(v, 4))
-
-
 def _pt(p: Vec) -> str:
-    return f"{_num(p[0])},{_num(p[1])}"
-
-
-def layers_text(layers: Sequence[Layer], core: int | None = None) -> str:
-    """Layers as the model writes them: material:thickness, the core marked with a star."""
-    return ",".join(
-        f"{'*' if i == core else ''}{slug(lay.material, 16).lower() or 'layer'}:{_num(lay.t)}"
-        for i, lay in enumerate(layers)
-    )
-
-
-def core_index(layers: tuple[Layer, ...]) -> int:
-    """The load-bearing layer: the thickest with a structural material name, else the thickest."""
-    structural = [
-        i for i, lay in enumerate(layers) if any(w in lay.material.lower() for w in STRUCTURAL)
-    ]
-    pool = structural or list(range(len(layers)))
-    return max(pool, key=lambda i: (round(layers[i].t, 4), -i))
+    return f"{num(p[0])},{num(p[1])}"
 
 
 @dataclass
@@ -238,6 +224,8 @@ class Sig:
     """The layers do not add up to the footprint: one core layer of the measured thickness."""
     votes_out: int = 0
     votes_in: int = 0
+    curtain: bool = False
+    """The wall type of curtain walls of this depth."""
 
     @property
     def total(self) -> float:
@@ -277,22 +265,6 @@ class Sig:
 
 
 @dataclass
-class Lv:
-    storey: Storey
-    name: str
-    z: float
-    """FFL relative to the ground storey."""
-    off: float = 0.0
-    """Elevation of the ground storey in the file: absolute height = off + UEA height."""
-    fb: float = 0.0
-    head: float | None = None
-
-    @property
-    def ssl(self) -> float:
-        return self.z - self.fb
-
-
-@dataclass
 class WRec:
     w: Wall
     lv: Lv
@@ -305,6 +277,20 @@ class WRec:
     tmp: str = ""
     flip: bool = False
     h: float | None = None
+    top: str | None = None
+    """Key of the fitted roof the wall's top follows."""
+
+
+@dataclass
+class RoofRec:
+    roof: Roof
+    fit: RoofFit
+
+
+@dataclass
+class StairRec:
+    stair: Stair
+    fit: StairFit
 
 
 def frame(a: Vec, b: Vec) -> tuple[Vec, Vec, str]:
@@ -346,6 +332,11 @@ class Builder:
         self.floor_of: dict[str, str] = {}
         """Level name: the floor type its rooms get."""
         self.slab_key: dict[str, str] = {}
+        self.reg = default_registry()
+        self.geo: ArchGeo | None = None
+        """What UEA derived from the first pass."""
+        self.roofs: list[RoofRec] = []
+        self.stairs: list[StairRec] = []
 
     # --- names
 
@@ -377,6 +368,21 @@ class Builder:
         out, n = base, 2
         while out in self.model or out in self.taken:
             out = f"{base}_{n}"
+            n += 1
+        self.taken.add(out)
+        return out
+
+    def grid_name(self, key: str, tag: str) -> str:
+        known = self.state.get(key)
+        if known is not None:
+            self.taken.add(known.id)
+            return known.id
+        word = re.sub(r"[^A-Za-z0-9_]", "", tag.translate(str.maketrans("äöüß", "aouS")))
+        if not word or not word[0].isalpha() or re.fullmatch(r"[a-z]+\d+", word):
+            word = "G" + word
+        out, n = word, 2
+        while out in self.model or out in self.taken:
+            out = f"{word}_{n}"
             n += 1
         self.taken.add(out)
         return out
@@ -415,16 +421,23 @@ class Builder:
         ground = zero[0] if zero else storeys[0]
         self.plan.notes.append(
             f"ground storey {ground.name} (±0.00)"
-            + ("" if zero else f", the lowest; its elevation in the file is {_num(ground.z)} m")
+            + ("" if zero else f", the lowest; its elevation in the file is {num(ground.z)} m")
         )
         gi = storeys.index(ground)
         for i, s in enumerate(storeys):
             name = self.level_name(s.guid, s, i, gi)
             self.levels[s.guid] = Lv(s, name, round(s.z - ground.z, 4), ground.z)
+        self.plan.ground = ground.z
 
     # --- types
 
     def wall_sig(self, w: Wall) -> Sig:
+        if w.curtain:
+            t = round(w.t, 3)
+            key = f"curtain:{num(t)}"
+            if key not in self.sigs:
+                self.sigs[key] = Sig(key, None, (Layer("curtain", t),), 0, True, curtain=True)
+            return self.sigs[key]
         measured = False
         layers = w.layers
         if not layers or abs(sum(lay.t for lay in layers) - w.t) > 0.01:
@@ -432,7 +445,7 @@ class Builder:
             if layers:
                 self.plan.notes.append(
                     f"wall {w.name or w.guid}: its layers add up to"
-                    f" {_num(sum(lay.t for lay in layers))} m, its footprint is {_num(w.t)} m;"
+                    f" {num(sum(lay.t for lay in layers))} m, its footprint is {num(w.t)} m;"
                     " the footprint counts"
                 )
             layers = (Layer(material or "wall", round(w.t, 3)),)
@@ -458,6 +471,8 @@ class Builder:
             if lv is None:
                 self.plan.skipped["IfcWall (no storey)"] += 1
                 continue
+            if w.note:
+                self.plan.notes.append(f"wall {w.name or w.guid}: {w.note}")
             sig = self.wall_sig(w)
             a, b, o = frame(w.a, w.b)
             n = _hi(a, b, o)
@@ -478,11 +493,6 @@ class Builder:
             )
             self.recs.append(rec)
             self.by_guid[w.guid] = rec
-            if w.sloped:
-                self.plan.notes.append(
-                    f"wall {w.name or w.guid}: its top slopes (under a roof); set to its highest"
-                    " point until the roof is modelled"
-                )
 
     def close_gaps(self) -> None:
         """Walls whose end stops a few millimetres short of another wall's core reach it.
@@ -545,10 +555,10 @@ class Builder:
 
     def scratch(self, slabs: dict[str, "SlabPick"]) -> None:
         """Let UEA derive the outside of each wall and the height it reaches."""
-        reg = default_registry()
+        reg = self.reg
         m = Model(reg)
         names = {s.key: f"TS{i}" for i, s in enumerate(self.sigs.values())}
-        lines = [f"level {lv.name} z={_num(lv.z)} fb={_num(lv.fb)}" for lv in self.levels.values()]
+        lines = [f"level {lv.name} z={num(lv.z)} fb={num(lv.fb)}" for lv in self.levels.values()]
         lines += [f"type {names[s.key]} wall layers={s.core_text()}" for s in self.sigs.values()]
         for i, (lname, pick) in enumerate(slabs.items()):
             lines.append(f"type TL{i} slab layers={pick.layers_text()}")
@@ -569,6 +579,7 @@ class Builder:
                 f"could not derive the first pass ({e}); sides and heights not set"
             )
             return
+        self.geo = d.arch
         votes: list[tuple[WRec, Vec | None]] = []
         for rec in self.recs:
             g = d.arch.walls.get(rec.tmp)
@@ -599,6 +610,54 @@ class Builder:
             reach = top - rec.lv.ssl
             if not g.top or rec.w.sloped or abs(g.top[0][1] - top) > HEIGHT_TOL:
                 rec.h = reach
+
+    # --- roofs and stairs
+
+    def fit_roofs(self) -> None:
+        """Each roof of the file as the shape, pitch and heights UEA wants, if it fits one."""
+        levels = list(self.levels.values())
+        for r in self.src.roofs:
+            if self.geo is None:
+                self.plan.skipped[f"{r.label} (the first pass could not be derived)"] += 1
+                continue
+            home = self.levels.get(r.storey) if r.storey else None
+            got = fit_roof(r, levels, self.geo, self.reg, home)
+            if isinstance(got, str):
+                self.plan.skipped[f"{r.label} ({got})"] += 1
+                continue
+            self.roofs.append(RoofRec(r, got))
+            self.plan.notes += [f"roof {r.name or r.guid}: {n}" for n in got.notes]
+
+    def match_tops(self) -> None:
+        """Walls whose top is the underside of a fitted roof get top= instead of a height."""
+        if self.geo is None:
+            return
+        by_level: dict[str, list[RoofRec]] = {}
+        for rr in self.roofs:
+            by_level.setdefault(rr.fit.level.name, []).append(rr)
+        for rec in self.recs:
+            g = self.geo.walls.get(rec.tmp)
+            parts = by_level.get(rec.lv.name)
+            if g is None or not parts or not rec.w.profile:
+                continue
+            if follows(g, rec.w.profile, [rr.fit.geo for rr in parts], rec.lv.off):
+                mid = Point(g.plan_point((g.s0 + g.s1) / 2, g.mid))
+                near = min(parts, key=lambda rr: rr.fit.geo.foot.distance(mid))
+                rec.top = near.roof.guid
+
+    def fit_stairs(self) -> None:
+        levels = list(self.levels.values())
+        for st in self.src.stairs:
+            got = fit_stair(st, levels)
+            if isinstance(got, str):
+                self.plan.skipped[f"{st.label} ({got})"] += 1
+                continue
+            self.stairs.append(StairRec(st, got))
+            if got.error > STAIR_NOTE:
+                self.plan.notes.append(
+                    f"stair {st.name or st.guid}: its treads differ from UEA's by"
+                    f" {got.error:.0%} of their area"
+                )
 
 
 @dataclass
@@ -639,6 +698,7 @@ def plan(src: Source, model: Model, state: dict[str, Known]) -> Plan:
     p = b.plan
     p.known = state
     p.skipped.update(src.skipped)
+    p.notes += src.notes
     b.make_levels()
     if not b.levels:
         p.notes.append("no walls with a storey: nothing to import")
@@ -677,6 +737,23 @@ def plan(src: Source, model: Model, state: dict[str, Known]) -> Plan:
     for lname, c in tops.items():
         by_name[lname].head = c.most_common(1)[0][0]
     b.scratch(picks)
+    b.fit_roofs()
+    b.match_tops()
+    roofed = {rr.fit.level.name for rr in b.roofs}
+    for rec in b.recs:
+        if rec.w.sloped and rec.top is None:
+            name = rec.w.name or rec.w.guid
+            if rec.lv.name in roofed:
+                p.notes.append(
+                    f"wall {name}: its top slopes and is not the underside of the roof fitted on"
+                    f" {rec.lv.name}; set to its highest point"
+                )
+            else:
+                p.notes.append(
+                    f"wall {name}: its top slopes (under a roof); set to its highest point until"
+                    " the roof is modelled"
+                )
+    b.fit_stairs()
     _items(b, picks, by_name)
     _emit(b)
     return p
@@ -686,7 +763,7 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
     p = b.plan
     items = p.items
     for lv in b.levels.values():
-        tail = f"z={_num(lv.z)} fb={_num(lv.fb)}" + (f" head={_num(lv.head)}" if lv.head else "")
+        tail = f"z={num(lv.z)} fb={num(lv.fb)}" + (f" head={num(lv.head)}" if lv.head else "")
         label = f' "{_guard(lv.storey.name)}"' if lv.storey.name != lv.name else ""
         items.append(
             Item(
@@ -697,9 +774,11 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
                 name=lv.name,
             )
         )
+    items.extend(_grids(b))
     wall_types: dict[str, str] = {}
     for s in b.sigs.values():
-        base = slug(s.type_name or "") or f"W{round(s.total * 1000)}"
+        mm = round(s.total * 1000)
+        base = f"CW{mm}" if s.curtain else slug(s.type_name or "") or f"W{mm}"
         name = b.name(s.key, base)
         wall_types[s.key] = name
         label = (
@@ -752,20 +831,32 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
             continue
         name = b.name(key, slug(op.type_name or "") or ("TD" if op.kind == "door" else "TW"))
         door_types[key] = name
-        u = f" {'ud' if op.kind == 'door' else 'uw'}={_num(op.u)}" if op.u else ""
+        u = f" {'ud' if op.kind == 'door' else 'uw'}={num(op.u)}" if op.u else ""
         items.append(Item(key, "type", name, f"{op.kind}{u}", name=name, category=op.kind))
+    items.extend(_roofs(b))
     for rec in b.recs:
         flags = (" lb" if rec.w.lb else "") + (" flip" if rec.flip else "")
         flags += "" if rec.w.status == "new" else f" {rec.w.status}"
-        h = f" h={_num(rec.h)}" if rec.h is not None else ""
-        tail = f"{rec.lv.name} {wall_types[rec.sig.key]} a={_pt(rec.a)} b={_pt(rec.b)}{h}{flags}"
-        items.append(Item(rec.w.guid, "wall", rec.w.name or rec.w.guid, tail))
+        h = f" h={num(rec.h)}" if rec.h is not None else ""
+        end = "\1" if rec.top else h
+        tail = f"{rec.lv.name} {wall_types[rec.sig.key]} a={_pt(rec.a)} b={_pt(rec.b)}{end}{flags}"
+        items.append(Item(rec.w.guid, "wall", rec.w.name or rec.w.guid, tail, link=rec.top, alt=h))
     for lname, pick in picks.items():
         guid = pick.slab.guid
         items.append(Item(guid, "slab", f"slab of {lname}", f"{lname} {slab_types[lname]}"))
         b.slab_key[lname] = guid
+    for sr in b.stairs:
+        st = sr.stair
+        status = "" if st.status == "new" else f" {st.status}"
+        items.append(Item(st.guid, "stair", f"stair {st.name or st.guid}", sr.fit.tail + status))
+    items.extend(_voids(b, picks))
     for op in b.src.openings:
         item = _opening(b, op, door_types)
+        if item is not None:
+            items.append(item)
+    items.extend(_glazing(b))
+    for n in b.src.niches:
+        item = _niche(b, n)
         if item is not None:
             items.append(item)
     items.extend(_seps(b))
@@ -773,6 +864,193 @@ def _items(b: Builder, picks: dict[str, SlabPick], by_name: dict[str, Lv]) -> No
         item = _room(b, sp, floor_types)
         if item is not None:
             items.append(item)
+
+
+def _grids(b: Builder) -> list[Item]:
+    """Straight grid axes along x or y."""
+    out: list[Item] = []
+    for g in b.src.grids:
+        dx, dy = g.b[0] - g.a[0], g.b[1] - g.a[1]
+        length = math.hypot(dx, dy)
+        if abs(dy) <= SNAP * length:
+            tail = f"y={num((g.a[1] + g.b[1]) / 2)}"
+        elif abs(dx) <= SNAP * length:
+            tail = f"x={num((g.a[0] + g.b[0]) / 2)}"
+        else:
+            b.plan.skipped["IfcGrid axis (not parallel to x or y)"] += 1
+            continue
+        name = b.grid_name(g.key, g.tag)
+        out.append(Item(g.key, "grid", name, tail, name=name))
+    return out
+
+
+def _roofs(b: Builder) -> list[Item]:
+    """Roof types, then the roofs."""
+    out: list[Item] = []
+    texts: dict[str, str] = {}
+    names: dict[str, str] = {}
+    chosen: dict[str, str] = {}
+    for rr in b.roofs:
+        r, fit = rr.roof, rr.fit
+        text = layers_text(fit.layers, fit.core)
+        digest = hashlib.sha1(text.encode()).hexdigest()[:8]
+        key = f"type:{r.type_guid}" if r.type_guid else f"roof:{digest}"
+        if key in texts and texts[key] != text:
+            key += ":" + digest
+        if key not in texts:
+            texts[key] = text
+            base = slug(r.type_name or "") or f"R{round(sum(lay.t for lay in fit.layers) * 1000)}"
+            names[key] = b.name(key, base)
+            label = (
+                f' "{_guard(r.type_name)}"'
+                if r.type_name and slug(r.type_name).upper() != names[key]
+                else ""
+            )
+            out.append(
+                Item(
+                    key,
+                    "type",
+                    names[key],
+                    f"roof{label} layers={text}",
+                    name=names[key],
+                    category="roof",
+                )
+            )
+        chosen[r.guid] = names[key]
+    for rr in b.roofs:
+        r, fit = rr.roof, rr.fit
+        status = "" if r.status == "new" else f" {r.status}"
+        tail = f"{fit.level.name} {chosen[r.guid]} {fit.body}{status}"
+        out.append(Item(r.guid, "roof", f"roof {r.name or r.guid}", tail))
+    return out
+
+
+RECT = 0.02
+"""A void edge this close (m) to the x or y direction counts as along it."""
+STAIR_VOID = 0.95
+"""A slab opening this much like a stair's footprint (overlap over union) is tied to the stair."""
+
+
+def rects(poly: Polygon) -> list[tuple[float, float, float, float]] | None:
+    """A polygon whose edges all run along x or y as rectangles (x0, y0, x1, y1), else None."""
+    pts = list(poly.exterior.coords)
+    if any(min(abs(q[0] - p[0]), abs(q[1] - p[1])) > RECT for p, q in pairwise(pts)):
+        return None
+    x0, y0, x1, y1 = poly.bounds
+    if poly.area >= 0.98 * (x1 - x0) * (y1 - y0):
+        return [(x0, y0, x1, y1)]
+    rows: list[tuple[float, float, float, float]] = []
+    ys = sorted({round(y, 3) for _, y in pts})
+    for ya, yb in pairwise(ys):
+        if yb - ya < RECT:
+            continue
+        mid = (ya + yb) / 2
+        cut = poly.intersection(LineString([(x0 - 1.0, mid), (x1 + 1.0, mid)]))
+        for seg in getattr(cut, "geoms", [cut]):
+            if not seg.is_empty:
+                sx0, _, sx1, _ = seg.bounds
+                rows.append((sx0, ya, sx1, yb))
+    out: list[tuple[float, float, float, float]] = []
+    for row in rows:
+        for i, o in enumerate(out):
+            if (
+                abs(o[0] - row[0]) < RECT
+                and abs(o[2] - row[2]) < RECT
+                and abs(o[3] - row[1]) < RECT
+            ):
+                out[i] = (o[0], o[1], o[2], row[3])
+                break
+        else:
+            out.append(row)
+    return out
+
+
+def _voids(b: Builder, picks: dict[str, SlabPick]) -> list[Item]:
+    """The openings in the floor slabs: opening elements, and holes in the bodies of the slabs.
+
+    One that is the footprint of a fitted stair stays tied to it (over=); the others become
+    rectangles. The slab is the one UEA has for the storey.
+    """
+    slabs = {s.guid: s for s in b.src.slabs}
+    found: list[tuple[str, str, Polygon]] = [(f"void:{v.guid}", v.slab, v.fp) for v in b.src.voids]
+    for sl in b.src.slabs:
+        for h in sl.holes:
+            c = h.centroid
+            found.append((f"hole:{sl.guid}:{c.x:.1f},{c.y:.1f}", sl.guid, h))
+    out: list[Item] = []
+    done: dict[str, list[Polygon]] = {}
+    for key, guid, fp in found:
+        slab = slabs.get(guid)
+        st = b.slab_storey(slab) if slab is not None else None
+        lv = b.levels.get(st.guid) if st is not None else None
+        if lv is None or lv.name not in picks:
+            b.plan.skipped["slab opening (its slab was not imported)"] += 1
+            continue
+        if fp.area < HOLE_MIN:
+            continue
+        seen = done.setdefault(lv.name, [])
+        if any(fp.intersection(o).area >= 0.9 * min(fp.area, o.area) for o in seen):
+            continue
+        host = picks[lv.name].slab.guid
+        what = f"void in the slab of {lv.name}"
+        boxes = rects(fp)
+        stair = next(
+            (
+                sr.stair
+                for sr in b.stairs
+                if sr.fit.high.name == lv.name and _like(fp, sr.fit.poly) >= STAIR_VOID
+            ),
+            None,
+        )
+        if stair is not None:
+            seen.append(fp)
+            alt = _span_text(boxes[0]) if boxes is not None and len(boxes) == 1 else None
+            out.append(
+                Item(key, "void", what, "\0\1", host=host, link=stair.guid, link_as="over", alt=alt)
+            )
+        elif boxes is None:
+            b.plan.skipped["slab opening (not made of rectangles)"] += 1
+        else:
+            seen.append(fp)
+            for k, box in enumerate(boxes):
+                suffix = f"#{k}" if len(boxes) > 1 else ""
+                out.append(Item(key + suffix, "void", what, "\0" + _span_text(box), host=host))
+    return out
+
+
+def _span_text(rect: tuple[float, float, float, float]) -> str:
+    x0, y0, x1, y1 = rect
+    return f" x={num(x0)}..{num(x1)} y={num(y0)}..{num(y1)}"
+
+
+def _like(a: Polygon, b: Polygon) -> float:
+    both = a.union(b).area
+    return float(a.intersection(b).area / both) if both > 0 else 0.0
+
+
+def _pts(poly: Polygon) -> list[Vec]:
+    return [(float(c[0]), float(c[1])) for c in poly.exterior.coords]
+
+
+def _along(rec: WRec, pts: list[Vec]) -> tuple[float, float, str]:
+    """Where points lie along a wall, as its openings give it: x, y or s from its start."""
+    if rec.o == "h":
+        return min(x for x, _ in pts), max(x for x, _ in pts), "x"
+    if rec.o == "v":
+        return min(y for _, y in pts), max(y for _, y in pts), "y"
+    u = _unit((rec.b[0] - rec.a[0], rec.b[1] - rec.a[1]))
+    ss = [(x - rec.a[0]) * u[0] + (y - rec.a[1]) * u[1] for x, y in pts]
+    return min(ss), max(ss), "s"
+
+
+def _sill(rec: WRec, kind: str, sill: float, height: float) -> str:
+    """sill= where an opening does not stand where UEA puts it by default."""
+    if kind == "door":
+        return f" sill={num(sill)}" if sill > 0.02 else ""
+    head = rec.lv.head
+    if head is None or abs(sill - (head - height)) > 0.01:
+        return f" sill={num(max(sill, 0.0))}"
+    return ""
 
 
 def _opening(b: Builder, op: Opening, types: dict[str, str]) -> Item | None:
@@ -783,37 +1061,111 @@ def _opening(b: Builder, op: Opening, types: dict[str, str]) -> Item | None:
         ] += 1
         return None
     ffl = rec.lv.storey.z
-    pts = list(op.fp.exterior.coords)
-    if rec.o == "h":
-        lo, hi, axis = min(x for x, _ in pts), max(x for x, _ in pts), "x"
-    elif rec.o == "v":
-        lo, hi, axis = min(y for _, y in pts), max(y for _, y in pts), "y"
-    else:
-        u = _unit((rec.b[0] - rec.a[0], rec.b[1] - rec.a[1]))
-        ss = [(x - rec.a[0]) * u[0] + (y - rec.a[1]) * u[1] for x, y in pts]
-        lo, hi, axis = min(ss), max(ss), "s"
+    lo, hi, axis = _along(rec, _pts(op.fp))
     width = hi - lo
     z0 = max(op.z0, ffl) if op.kind == "door" else op.z0
     height = op.z1 - z0
     if width < MIN_OPENING or height < MIN_OPENING:
         b.plan.skipped["opening smaller than 5 cm"] += 1
         return None
-    sill = z0 - ffl
-    extra = ""
-    if op.kind == "door":
-        if sill > 0.02:
-            extra += f" sill={_num(sill)}"
-    else:
-        head = rec.lv.head
-        if head is None or abs(sill - (head - height)) > 0.01:
-            extra += f" sill={_num(max(sill, 0.0))}"
+    extra = _sill(rec, op.kind, z0 - ffl, height)
     if op.type_guid is not None and f"type:{op.type_guid}" in types:
         extra += f" type={types[f'type:{op.type_guid}']}"
     if op.status != "new":
         extra += f" {op.status}"
     kind = op.kind
-    tail = f"\0 {_num(width)}x{_num(height)} {axis}={_num(lo)}+{extra}"
+    tail = f"\0 {num(width)}x{num(height)} {axis}={num(lo)}+{extra}"
     return Item(op.guid, kind, f"{kind} in {rec.w.name or rec.w.guid}", tail, host=op.wall)
+
+
+FACES = {"h": ("s", "n"), "v": ("w", "e"), "d": ("r", "l")}
+"""The names of a wall's lo and hi face, as UEA gives them."""
+
+
+def _niche(b: Builder, n: Niche) -> Item | None:
+    """A recess in a wall face: the face it opens on, its depth from the core face (as UEA
+    measures it), its place."""
+    rec = b.by_guid.get(n.wall)
+    if rec is None:
+        b.plan.skipped["IfcOpeningElement (its wall was not imported)"] += 1
+        return None
+    w = rec.w
+    u = _unit((w.b[0] - w.a[0], w.b[1] - w.a[1]))
+    nn = (-u[1], u[0])
+    pts = _pts(n.fp)
+    body = [(x - w.a[0]) * nn[0] + (y - w.a[1]) * nn[1] for x, y in pts]
+    core = [(x - rec.a[0]) * nn[0] + (y - rec.a[1]) * nn[1] for x, y in pts]
+    half = rec.sig.core_t / 2
+    if min(body) <= -w.t / 2 + NICHE_FACE:
+        out, depth = (-nn[0], -nn[1]), max(core) + half
+    else:
+        out, depth = nn, half - min(core)
+    if depth < MIN_OPENING / 5:
+        b.plan.skipped["IfcOpeningElement (a recess in the finish only)"] += 1
+        return None
+    face = FACES[rec.o][1 if _dot(out, rec.n) > 0 else 0]
+    lo, hi, axis = _along(rec, _pts(n.fp))
+    ffl = rec.lv.storey.z
+    height = n.z1 - n.z0
+    if hi - lo < MIN_OPENING or height < MIN_OPENING:
+        b.plan.skipped["opening smaller than 5 cm"] += 1
+        return None
+    sill = n.z0 - ffl
+    extra = f" sill={num(sill)}" if abs(sill) > 0.005 else ""
+    extra += f" d={num(depth)}" + ("" if n.status == "new" else f" {n.status}")
+    tail = f"\0.{face} {num(hi - lo)}x{num(height)} {axis}={num(lo)}+{extra}"
+    return Item(n.guid, "niche", f"niche in {w.name or w.guid}", tail, host=n.wall)
+
+
+def _glazing(b: Builder) -> list[Item]:
+    """A curtain wall's glass: a window type from its type or U-value, and windows over its face
+    from its floor to its top, around the doors in it."""
+    out: list[Item] = []
+    names: dict[str, str] = {}
+    for rec in b.recs:
+        w = rec.w
+        if not w.curtain:
+            continue
+        type_ref = ""
+        if w.type_guid or w.u:
+            key = f"type:{w.type_guid}" if w.type_guid else f"glass:{num(w.u or 0)}"
+            if key not in names:
+                names[key] = b.name(key, slug(w.type_name or "") or "CW")
+                u = f" uw={num(w.u)}" if w.u else ""
+                out.append(
+                    Item(key, "type", names[key], f"win{u}", name=names[key], category="win")
+                )
+            type_ref = f" type={names[key]}"
+        lv = rec.lv
+        z0 = max(w.z0 - lv.off, lv.z)
+        top = w.z1 - lv.off
+        g = b.geo.walls.get(rec.tmp) if b.geo is not None else None
+        if rec.h is not None:
+            top = min(top, lv.ssl + rec.h)
+        elif g is not None and g.top:
+            top = min(top, *(z for _, z in g.top))
+        height = top - z0
+        lo, hi, axis = _along(rec, [w.a, w.b])
+        doors = sorted(
+            _along(rec, _pts(op.fp))[:2]
+            for op in b.src.openings
+            if op.wall == w.guid and op.kind == "door"
+        )
+        spans: list[tuple[float, float]] = []
+        at = lo
+        for d0, d1 in [*doors, (hi, hi)]:
+            if d0 - at >= MIN_OPENING:
+                spans.append((at, d0))
+            at = max(at, d1)
+        if height < MIN_OPENING:
+            continue
+        sill = _sill(rec, "win", z0 - lv.z, height)
+        status = "" if w.status == "new" else f" {w.status}"
+        for k, (s0, s1) in enumerate(spans):
+            tail = f"\0 {num(s1 - s0)}x{num(height)} {axis}={num(s0)}+{sill}{type_ref}{status}"
+            what = f"glass of {w.name or w.guid}"
+            out.append(Item(f"{w.guid}:glass#{k}", "win", what, tail, host=w.guid))
+    return out
 
 
 def _room(b: Builder, sp: Space, floors: dict[str, str]) -> Item | None:
@@ -866,16 +1218,16 @@ def _sep(level: str, one: Space, two: Space, k: int, part: Any) -> Item | None:
         return None
     if w >= h:
         pos, lo, hi = (y0 + y1) / 2, x0 - SEP_REACH, x1 + SEP_REACH
-        tail = f"{level} y={_num(pos)} x={_num(lo)}..{_num(hi)}"
+        tail = f"{level} y={num(pos)} x={num(lo)}..{num(hi)}"
     else:
         pos, lo, hi = (x0 + x1) / 2, y0 - SEP_REACH, y1 + SEP_REACH
-        tail = f"{level} x={_num(pos)} y={_num(lo)}..{_num(hi)}"
+        tail = f"{level} x={num(pos)} y={num(lo)}..{num(hi)}"
     return Item(f"sep:{one.guid}:{two.guid}:{k}", "sep", f"separator {one.name}/{two.name}", tail)
 
 
 # ---------- emitting ----------
 
-NAMED = ("level", "type")
+NAMED = ("level", "type", "grid")
 
 
 def _emit(b: Builder) -> None:
@@ -893,6 +1245,15 @@ def _emit(b: Builder) -> None:
                 it.op = "skip"
                 continue
             tail = tail.replace("\0", host)
+        if it.link is not None:
+            ref = refs.get(it.link)
+            if ref is not None:
+                tail = tail.replace("\1", f" {it.link_as}={ref}")
+            elif it.alt is not None:
+                tail = tail.replace("\1", it.alt)
+            else:
+                it.op = "skip"
+                continue
         if known is not None:
             cur = model.get(known.id)
             if cur is None:
@@ -928,14 +1289,15 @@ def _emit(b: Builder) -> None:
         if key in seen:
             continue
         el = model.get(known.id)
-        if el is None or el.prefix is None:
+        if el is None or (el.prefix is None and el.kind != "grid"):
             continue
         if line_hash(el.line()) != known.hash:
             p.kept.append(f"{known.id}: gone from the IFC, but edited in UEA since the import")
             continue
         removing.add(known.id)
+    updating = {it.id for it in p.items if it.op == "update" and it.id is not None}
     for el in model:
-        if el.id in removing:
+        if el.id in removing or el.id in updating:
             continue
         for _, ref in refs_of(el):
             if ref in removing:

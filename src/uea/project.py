@@ -134,18 +134,25 @@ class History:
             out.update(e.files)
         return out
 
-    def ifc_state(self) -> dict[str, tuple[str, str]]:
-        """What the imports of IFC files brought: IFC key to (element id, hash of its line).
-
-        An import that was reverted counts for nothing, unless the revert was reverted.
-        """
+    def _imports(self) -> list[Entry]:
+        """The batches that imported an IFC file. An import that was reverted counts for nothing,
+        unless the revert was reverted."""
         undone: set[int] = set()
         for e in self.entries():
             if e.revert is not None:
                 undone.symmetric_difference_update({e.revert})
+        return [e for e in self.entries() if e.ifc is not None and e.batch not in undone]
+
+    def ifc_last(self) -> dict[str, Any] | None:
+        """The record of the latest import that counts: where it put the plan, which building."""
+        found = self._imports()
+        return found[-1].ifc if found else None
+
+    def ifc_state(self) -> dict[str, tuple[str, str]]:
+        """What the imports of IFC files brought: IFC key to (element id, hash of its line)."""
         out: dict[str, tuple[str, str]] = {}
-        for e in self.entries():
-            if e.ifc is None or e.batch in undone:
+        for e in self._imports():
+            if e.ifc is None:
                 continue
             for key in e.ifc.get("gone", []):
                 out.pop(str(key), None)

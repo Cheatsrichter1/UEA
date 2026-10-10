@@ -179,6 +179,8 @@ req q1 elec w7 "Schlitz 10x5 cm für Steigleitung"
 
 The request is an open issue of `arch` until its agent closes it with the batch that resolved it, or rejects it with a reason. Agents may also talk to each other directly; the request is the record that outlives the session and that the human sees. Planning goes round this way: each discipline drafts, asks and improves, until no errors and no requests are open.
 
+Where the owner works outside UEA (an architect whose IFC was imported), `uea export bcf` hands the requests to their program as BCF topics, the targets selected by their GlobalIds in the architect's own file (`docs/decisions/0032-bcf-requests.md`).
+
 `issues.uea` also holds waivers: issues accepted on purpose, with who accepted them and why. Reports list every waiver for the engineer who signs.
 
 ## 6. Agent interface
@@ -199,8 +201,8 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea check [discipline]` | Open issues, requests and waivers |
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
 | `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
-| `uea import ifc <file>` | Architecture from an architect's IFC (§9). *Later* (phase 4) |
-| `uea export <format> [scope]` | Human-facing exports (§9): `ifc`, `svg`, `png` |
+| `uea import ifc <file>` | Architecture from an architect's IFC (§9) |
+| `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
 
@@ -253,13 +255,18 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
 | PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation and the electrical sheets |
 | XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); sockets and circuits come with the electrical pack |
+| BCF 2.1 | Python's standard library (zip, XML) | Built. The requests to a discipline as topics for the programs of people outside UEA (`0032-bcf-requests.md`) |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
 New exports are a good place for outside contributions: each one only needs the read API.
 
 ### IFC import
 
-Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>` maps it into `project.uea` and `arch.uea` (`docs/decisions/0011-ifc-import.md`, `0029-ifc-import.md`). Built: storeys, walls as axes through the core with a type from the layers, doors and windows as positions on their wall, one floor slab per storey, spaces as rooms with a separator where they are open to each other. Roofs, stairs, voids and grids are listed as not imported until slice 4b. Imported elements carry raw coordinates instead of grid intent, and geometry is read from IfcOpenShell's tessellation, so it does not matter how the exporting program wrote a body.
+Fachplaner usually receive the architect's model as IFC. `uea import ifc <file>` maps it into `project.uea` and `arch.uea` (`docs/decisions/0011-ifc-import.md`, `0029-ifc-import.md`, `0030-ifc-import-shapes.md`, `0031-ifc-import-files.md`). Built: storeys, grids along x or y, walls as axes through the core with a type from the layers (a wall in parts is one wall), curtain walls as walls with windows over their face, doors, windows and niches as positions on their wall, one floor slab per storey with its openings, spaces as rooms with a separator where they are open to each other, and stairs and roofs. Imported elements carry raw coordinates instead of grid intent, and geometry is read from IfcOpenShell's tessellation, so it does not matter how the exporting program wrote a body.
+
+A file is read in whatever length unit it has, and one building at a time (`--building`). A plan in survey coordinates or turned off the axes is moved to the origin and turned so its walls run along x and y; the history keeps how, so later files land in the same place, and a BCF export can point back into the architect's coordinates.
+
+A stair or a roof is parameters in UEA and only a body in the file. The importer reads the faces (the treads; the planes of the roof's top), builds the UEA stairs and roofs that could have made them with UEA's own layout code, and keeps the one that lies where the file's faces lie: within 6 % of the tread area, within 2 cm of the roof's top. Walls whose tops follow a fitted roof get `top=`. What fits no UEA element is reported with the reason, never approximated.
 
 The IFC GlobalId of each element is kept in the history entry of the import, with a hash of the line as imported, not in the model. A new version from the architect updates what nobody has edited since, adds what is new, removes what the file lost, and lists the rest as `kept:`; ids stay. The errors an import causes are reported like any upstream change, and do not reject it.
 

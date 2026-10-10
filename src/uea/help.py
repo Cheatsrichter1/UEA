@@ -17,7 +17,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
         "calculators, e.g. calc wofl; their norm tables: uea data (help calc)",
     ),
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
-    ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png (help export)"),
+    ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export)"),
     ("uea import ifc <file> --by <who>", "an architect's IFC into arch (help import)"),
     ("uea log [n]", "recent batches"),
     ("uea help [topic]", "this help, or a topic"),
@@ -154,6 +154,7 @@ uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a flo
                                     single-line diagram with phases and the field in rows)
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
 uea export ifc [-o file]            IFC4 model for humans and other software
+uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
 Files go to out/ unless -o says otherwise; the output names them. Sections: + section A x=W+5 look=w
 (uea help section). Sheets and tables are labelled in German, for the people who read them. The
@@ -161,14 +162,18 @@ title block stays unsigned: a human signs.
 """
 
 IMPORT = """\
-uea import ifc <file> --by <who> [-m why] [--dry-run]   an architect's IFC becomes arch
-Mapped: storeys (levels), walls (an axis through the core, a type from the layers), doors and
-windows (a position on their wall), one floor slab per storey (its finish is fb and a floor type),
-spaces (rooms; use from the names; a sep where two spaces meet with no wall). Roofs, stairs, voids
-and grids are listed as not imported. Errors the import causes in the model are listed, not
+uea import ifc <file> --by <who> [-m why] [--dry-run] [--building name]   an architect's IFC
+Mapped: storeys (levels), grids along x or y, walls (an axis through the core, a type from the
+layers; top= the roof they end under; curtain walls get windows over their face), doors, windows
+and niches (a position on their wall), one floor slab per storey (its finish is fb and a floor
+type) and its openings (voids; over= the stair below), stairs and roofs whose faces fit a UEA stair
+or roof, spaces (rooms; use from the names; a sep where two spaces meet with no wall). The rest is
+listed as not imported, with the reason. One building per import; a plan far from the origin or
+turned is moved and turned (noted). Errors the import causes in the model are listed, not
 blocking: fix them with a batch. The same project again with a newer file: elements nobody has
 edited since are updated, new ones added, ones the file lost removed, the rest listed as kept:.
-Ids stay. UEA's own exports are refused: the model is where the project lives.
+Ids stay. UEA's own exports are refused: the model is where the project lives. Requests to the
+architect: uea export bcf.
 """
 
 
