@@ -18,6 +18,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea calc [name] [scope]` | calculators, e.g. calc wofl; their norm tables: uea data (help calc) |
 | `uea render <level>` | plan image (PNG) to look at (help export) |
 | `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png (help export) |
+| `uea import ifc <file> --by <who>` | an architect's IFC into arch (help import) |
 | `uea log [n]` | recent batches |
 | `uea help [topic]` | this help, or a topic |
 
@@ -38,6 +39,7 @@ uea calc [name] [scope|name=value ...]
 uea data [--edition E] [--source S] [action] [rest ...]
 uea render [-o FILE] scope [view]
 uea export [-o FILE] format [scope]
+uea import [--by WHO] [-m WHY] [--dry-run] format file
 ```
 
 ## Operations

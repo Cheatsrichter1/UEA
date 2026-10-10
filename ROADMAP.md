@@ -2,7 +2,7 @@
 
 The order of work, from nothing to the Einfamilienhaus demo. Each phase ends with something an agent can actually do. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for later ideas see `FUTURE.md`. The order of the packs is `docs/decisions/0006-pack-order.md`.
 
-Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built and phase 3 has started (see below).
+Status, October 2026: phase 0 is done, phase 1 is nearly done, phase 2 is built, phase 3 is built apart from the leftovers below, and phase 4 has started (slice 4a built).
 
 ## Phases
 
@@ -47,6 +47,10 @@ The designs are `docs/decisions/0022-plans-and-tables.md`, `0023-sections.md` an
 ### Phase 3: where it stands
 
 The design is `docs/decisions/0025-electrical-devices.md`; the phase goes in three slices. Slice 1 is built: the electrical pack (`elec.uea`: board, rcd, circ, sock, conn, switch, data, smoke, feed) and the luminaires of the light pack (`light.uea`), devices placed on wall faces and in rooms by anchors, a luminaire wired by the switches that control it (single, two-way, intermediate), the load of each circuit against its breaker, twelve checks (a device in an opening, close to one, outside its wall, a switch behind the open leaf of a door, an overloaded circuit, a luminaire without a switch, ...), and the XLSX sheets Verteiler, Stromkreise, Installationsgeräte and Leuchten. Haus Müller's draft electrics load. Slice 2 is built too (`0026-electrical-sheets.md`): the installation plan per storey (`uea export pdf|dxf|svg|png elec:EG`, A3 1:50, symbols coloured by circuit, switching lines, legend) and the diagram of each board (a board id: single-line, the phases derived, the field in rows of 12 TE). Slice 3a is built too (`0027-cable-routes.md`): the cable of every circuit as the shortest rectilinear tree from its board, with an allowance per run, the home runs of the data outlets, `uea get` lines, and the XLSX sheets Leitungen and Kabelmengen. Slice 3b is built (`0028-norm-tables-and-electrical-calculators.md`): the office's norm tables as CSV files (`uea data add`), the calculators `cable` (cable against its breaker) and `vdrop` (voltage drop) on them with validation reports (`docs/validation/cable.md`, `vdrop.md`, not yet reviewed by a licensed person). Open in phase 3: the minimum equipment of a room (`W-ELEC-010`, as a calculator with its own table), the worked examples of the standards as a private test suite, and what the end-to-end Haus Müller electrics still lack (see the Todo).
+
+### Phase 4: where it stands
+
+The design is `docs/decisions/0029-ifc-import.md`; the phase goes in slices. Slice 4a is built: `uea import ifc <file> --by <who>` reads storeys, walls (an axis through the core with a type from the layers), doors and windows, one floor slab per storey (its finish becomes `fb` and a floor type) and spaces (rooms, with a `sep` where two are open to each other) from an architect's IFC, reports everything it does not map, and updates the model on a newer file by IFC GlobalId without touching what was edited in UEA. Tested on hand-built IFC files and on UEA's own export of Haus Müller, relabelled as another program's. Open: slice 4b, roofs, stairs, slab voids and grids; slice 4c, the polish a real file asks for. **Not yet tried on a real office file**, which the phase's "done when" needs: a file from an office is the next step, and what it shows (curtain walls, walls in several parts, split storeys, layer sets on types only) decides the order of 4b and 4c. Hand a real IFC to the importer before building more.
 
 The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by one agent, with the benchmark alongside.
 

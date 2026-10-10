@@ -32,6 +32,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0026 | [The electrical sheets, slice 2](0026-electrical-sheets.md) | Accepted (slice 2 built) |
 | 0027 | [Cable routes, slice 3a](0027-cable-routes.md) | Accepted (slice 3a built) |
 | 0028 | [Norm tables and the first electrical calculators, slice 3b](0028-norm-tables-and-electrical-calculators.md) | Accepted (slice 3b built) |
+| 0029 | [IFC import, slice 4a](0029-ifc-import.md) | Accepted (slice 4a built) |
 
 Template:
 

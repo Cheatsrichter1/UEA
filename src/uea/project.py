@@ -10,6 +10,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from uea.core.model import Model, element_from_raw
 from uea.core.registry import DISCIPLINES, Registry
@@ -45,6 +46,8 @@ class Entry:
     files: dict[str, str] = field(default_factory=dict[str, str])
     revert: int | None = None
     external: bool = False
+    ifc: dict[str, Any] | None = None
+    """For an import: the file, and which IFC element became which UEA element (0029)."""
 
     def to_json(self) -> str:
         d = asdict(self)
@@ -52,6 +55,8 @@ class Entry:
             del d["revert"]
         if not d["external"]:
             del d["external"]
+        if d["ifc"] is None:
+            del d["ifc"]
         return json.dumps(d, ensure_ascii=False, separators=(",", ":"))
 
     @classmethod
@@ -68,6 +73,7 @@ class Entry:
             files={str(k): str(v) for k, v in d.get("files", {}).items()},
             revert=d.get("revert"),
             external=bool(d.get("external", False)),
+            ifc=d.get("ifc"),
         )
 
     def touched(self) -> set[str]:
@@ -126,6 +132,26 @@ class History:
         out: dict[str, str] = {}
         for e in self.entries():
             out.update(e.files)
+        return out
+
+    def ifc_state(self) -> dict[str, tuple[str, str]]:
+        """What the imports of IFC files brought: IFC key to (element id, hash of its line).
+
+        An import that was reverted counts for nothing, unless the revert was reverted.
+        """
+        undone: set[int] = set()
+        for e in self.entries():
+            if e.revert is not None:
+                undone.symmetric_difference_update({e.revert})
+        out: dict[str, tuple[str, str]] = {}
+        for e in self.entries():
+            if e.ifc is None or e.batch in undone:
+                continue
+            for key in e.ifc.get("gone", []):
+                out.pop(str(key), None)
+            lines: dict[str, str] = e.ifc.get("lines", {})
+            for key, ident in e.ifc.get("ids", {}).items():
+                out[str(key)] = (str(ident), str(lines.get(ident, "")))
         return out
 
     def max_ids(self) -> dict[str, int]:
