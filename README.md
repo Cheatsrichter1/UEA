@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is still a design, and an agent has not yet run the whole house end to end. See `ROADMAP.md`.
+**Status:** the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural has its first slice, the loads and their takedown to the foundation, also unreviewed; the agent run of the whole house end to end is prepared, not yet run. See `ROADMAP.md`.
 
 ## Why
 

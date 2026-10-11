@@ -402,6 +402,10 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 | y | `y=` | m | y of a cut across y (the cut plane runs along x) |
 | look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
 
+### Structure (`struct.uea`)
+
+Kinds: .
+
 ### Luminaires (`light.uea`)
 
 Types: `type … lum`.
@@ -994,6 +998,8 @@ E is an error, W a warning.
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 | W-ARCH-060 | section outside the building (it cuts no wall) |
+| W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
+| W-STRUCT-002 | slab with no load-bearing wall under it |
 | E-LIGHT-002 | luminaire on a wall without a usable face |
 | E-ELEC-001 | device outside its host wall |
 | E-ELEC-002 | device on a wall without a usable face |
@@ -1046,6 +1052,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 | `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
 | `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
+| `loads` | norm | 0.1.0 | DIN EN 1991-1-1:2010-12 mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
 
 ### `cable` settings
 
@@ -1118,6 +1125,12 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
 | `insulation` | str | required | thermal insulation of the building (high / low) |
 | `vmax` | float | required | the highest air velocity in the ducts, m/s |
+
+### `loads` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `soil` | float |  | design resistance of the soil σ_R,d under strip footings, kN/m², from the geotechnical report |
 
 ### Norm tables
 
@@ -1373,6 +1386,50 @@ q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.
 | Column | Type | Meaning |
 |---|---|---|
 | `name` | text | which factor (one of komp, lage, dp, n) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `unit-weight`: Unit weights of building materials (DIN EN 1991-1-1, Anhang A, or the manufacturer)
+
+One row for each material the load-bearing walls, slabs, floors and partitions name.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | material, as the layers name it |
+| `gamma` | num > 0 | unit weight γ, kN/m³ |
+
+One row for each: material.
+
+#### `imposed-load`: Imposed loads on floors by room use (DIN EN 1991-1-1/NA, Tabelle 6.1DE)
+
+One row for each use the rooms of the project have.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use, as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `qk` | num ≥ 0 | imposed load q_k, kN/m² |
+
+One row for each: use.
+
+#### `partition-load`: Surcharge for light partitions (DIN EN 1991-1-1, 6.3.1.2(8), with NA)
+
+A partition heavier than the last row is a line load, which this calculator does not take.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | weight of the partition up to, kN/m |
+| `qk` | num > 0 | surcharge on the imposed load, kN/m² |
+
+One row for each: upto.
+
+#### `struct-factors`: Partial factors (DIN EN 1990/NA, Tabelle NA.A.1.2(B))
+
+γ_G for the permanent, γ_Q for the imposed actions.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which factor (one of gamma-g, gamma-q) |
 | `value` | num > 0 | its value |
 
 One row for each: name.

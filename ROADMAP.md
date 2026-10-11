@@ -64,6 +64,10 @@ The **Einfamilienhaus demo** is v1: the sum of phases 1–8, run end to end by o
 
 After v1, the light pack grows from luminaires into lighting design and photometric calculation (`docs/decisions/0006-pack-order.md`).
 
+### Phase 8: where it stands
+
+The plan is `docs/decisions/0040-structure.md`: four slices, each reviewed by the licensed engineer the phase needs before the next builds on it. Slice 8a is built, unreviewed: the pack `struct` with the load path from the architecture (a slab rests on the load-bearing walls under it, a wall on those under its core) and two checks where it breaks, and `uea calc loads` (DIN EN 1991-1-1 on the office's tables): the dead and imposed loads of each slab, light partitions as a surcharge, each wall's share of the slab by the 45° rule (the nearest-wall partition), the walls' own weight, the takedown to the foundation, the line loads on the strip footings and, with the soil's resistance, their width (`docs/validation/loads.md`). Haus Müller's load path is clean. Open: the roof, snow and wind, point and line loads and beams (8b); the member design on an open-source solver (8c); the Positionsplan and the Statische Berechnung (8d); the engineer partner and the review.
+
 ## Todo
 
 To be scheduled into the phases above.
@@ -152,6 +156,6 @@ The answers can reorder phases 2–7.
 
 - **Benchmark baseline:** which conventional tool to compare against. Revit with an MCP bridge is the most convincing for offices but needs Windows and a licence. Archicad, or Bonsai (BlenderBIM) as an open-source option, are alternatives.
 - **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/0008-office-supplied-norm-data.md`).
-- **Engineer partner:** who reviews the `norm` calculators, at the latest before phase 8.
+- **Engineer partner:** who reviews the `norm` calculators, and phase 8 from slice 8a on (`docs/decisions/0040-structure.md`).
 - **Type catalogues:** where realistic product and build-up data comes from (manufacturer data, BIM libraries) without licence trouble.
 - **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`).

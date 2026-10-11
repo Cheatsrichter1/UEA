@@ -25,8 +25,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | <kind> | codes | calc | export"
-    " | import"
+    "start | ops | positions | arch | elec | heat | plumb | vent | struct | <kind> | codes | calc"
+    " | export | import"
 )
 
 ROOT = (
@@ -164,6 +164,14 @@ change storey pass the slab through a hole, via= on the unit; units and terminal
 through a hole in the wall. Ask arch for them with a request.
 """
 
+STRUCT_NOTES = """\
+No elements of its own yet: the load path is the architecture's. A slab rests on the
+load-bearing walls (lb) of the storey below; a load-bearing wall stands on those of the storey
+below its core overlaps. The checks say where the path breaks. Loads, their takedown and the
+line loads on the footings: uea calc loads (help calc). The design of the members and the
+signature are the Tragwerksplaner's.
+"""
+
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
@@ -195,6 +203,10 @@ uea calc airflow n50=<1/h> insulation=high|low
                         measure is needed, each room's flow against the units in vent.uea
 uea calc ducts n50= insulation= vmax=<m/s>
                         duct sizes of the central units and each side's fan pressure (norm)
+uea calc loads [soil=<kN/m²>]
+                        the loads of the slabs and walls, their takedown to the foundation and
+                        the line loads on the footings (DIN EN 1991-1-1, norm); soil= the
+                        soil's design resistance gives each footing's width
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
@@ -291,7 +303,10 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(PLUMB_NOTES.rstrip())
     if pack == "vent":
         lines.append(VENT_NOTES.rstrip())
-    lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
+    if pack == "struct":
+        lines.append(STRUCT_NOTES.rstrip())
+    if p.kinds:
+        lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 
 
