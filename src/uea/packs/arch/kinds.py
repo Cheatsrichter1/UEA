@@ -269,6 +269,51 @@ class Void(Element):
         return self
 
 
+class Hole(Element):
+    kind: ClassVar[str] = "hole"
+    pack: ClassVar[str] = "arch"
+    prefix: ClassVar[str | None] = "ho"
+    positional: ClassVar[tuple[str, ...]] = ("host", "size")
+    doc: ClassVar[str] = (
+        "An opening without a fill (Durchbruch, Kernbohrung, Schlitz), the answer to a request:"
+        " through a wall (x=, y= or s= its edge, sill= its bottom), a chase in a wall face"
+        " (host w6.e, d= its depth), or through a slab (at= its centre, size along x and y)."
+        " round: a core drilling, the size its diameter twice: 0.18x0.18."
+    )
+    host: Annotated[Ref, F("wall, wall face (a chase) or slab", targets=("wall", "slab"))]
+    size: Annotated[Size, F("width x height in a wall; x by y in a slab", unit="m")]
+    x: Annotated[Anchor | None, F("edge position along a wall running along x", unit="m")] = None
+    y: Annotated[Anchor | None, F("edge position along a wall running along y", unit="m")] = None
+    s: Annotated[
+        Anchor | None, F("edge position along a wall in any direction, from its start a", unit="m")
+    ] = None
+    at: Annotated[Point | None, F("centre in a slab", unit="m")] = None
+    sill: Annotated[float, F("bottom above the FFL, in a wall", unit="m")] = 0.0
+    d: Annotated[float | None, F("depth of a chase into its wall face", unit="m")] = None
+    round: Annotated[bool, F("round (a core drilling)", flag=True)] = False
+    status: Status = "new"
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if sum(v is not None for v in (self.x, self.y, self.s, self.at)) != 1:
+            raise ValueError("give its position: x=, y= or s= along a wall, or at=<x,y> in a slab")
+        if self.round and abs(self.size.w - self.size.h) > 1e-9:
+            raise ValueError("a round hole has one diameter: give it twice, e.g. 0.18x0.18")
+        face = self.host.face is not None and self.host.face != "c"
+        if face != (self.d is not None):
+            raise ValueError(
+                "a chase is in a wall face and has a depth: host w6.e d=0.03; a hole through"
+                " the wall has neither"
+            )
+        if self.d is not None and self.d <= 0:
+            raise ValueError("d must be larger than 0")
+        return self
+
+    @property
+    def along(self) -> Anchor | None:
+        return self.x or self.y or self.s
+
+
 class Roof(Element):
     kind: ClassVar[str] = "roof"
     pack: ClassVar[str] = "arch"
@@ -517,6 +562,7 @@ KINDS: tuple[type[Element], ...] = (
     Niche,
     Slab,
     Void,
+    Hole,
     Roof,
     Stair,
     Sep,

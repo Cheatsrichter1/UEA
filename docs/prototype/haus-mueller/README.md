@@ -2,7 +2,7 @@
 
 A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`ROADMAP.md`).
 
-Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent` (the `illum` targets wait for the lighting design). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
+Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent` (the `illum` targets wait for the lighting design), and the holes the services asked for. The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
 ## The house
 
@@ -41,21 +41,21 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 
 | File | Lines | Characters |
 |---|---|---|
-| `project.uea` | 8 | 208 |
-| `arch.uea` | 72 | 3,294 |
-| `light.uea` | 25 | 838 |
-| `elec.uea` | 89 | 3,031 |
-| `heat.uea` | 19 | 700 |
+| `project.uea` | 8 | 213 |
+| `arch.uea` | 78 | 3,570 |
+| `light.uea` | 25 | 844 |
+| `elec.uea` | 86 | 2,979 |
+| `heat.uea` | 19 | 710 |
 | `plumb.uea` | 14 | 612 |
-| `vent.uea` | 5 | 247 |
-| `issues.uea` | 7 | 593 |
-| **Total** | **239** | **9,523** |
+| `vent.uea` | 14 | 572 |
+| `issues.uea` | 10 | 901 |
+| **Total** | **254** | **10,401** |
 
-`session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, and a calculation that leads to a design change.
+`session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, a calculation that leads to a design change, and the services' requests for holes answered by the architect.
 
 ### Tokens
 
-Counted with `tools/prototype/count_tokens.py` and `tiktoken` (`o200k_base`). That is OpenAI's tokenizer, so the absolute numbers are an approximation for Claude; the ratios are what matter.
+Counted with `tools/prototype/count_tokens.py` and `tiktoken` (`o200k_base`), on the files as they were on 2026-10-07 (the counts above are current; the tokens were not recounted, because this environment cannot download tiktoken's encoding). That is OpenAI's tokenizer, so the absolute numbers are an approximation for Claude; the ratios are what matter.
 
 | Format, same 226 elements | Tokens | Per element | vs. line format |
 |---|---|---|---|
@@ -138,6 +138,7 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 12. The plumbing needed four elements besides the fixtures: the meter, a riser, the stack that q3 asked for, and the sewer connection outside. UEA derives the pipes between them: 26 m cold, 21 m hot from the indoor unit, 21 m of waste pipe, all seven fixtures on the one stack. The cold tree runs past the washing machine to the riser, a shortest tree, not a planner's route; risers and `to=` are how an agent steers it.
 13. The heating pipes needed three values from the manufacturer: the copper pipe system (`hpipe`), the loop pipe of the underfloor type and the heat pump's loss. UEA derives 3.9 m from the heat pump to the indoor unit and 12.7 m on to both manifolds. With synthetic tables, `uea calc hydronic` makes the bath's loop the index circuit at hv2 and gives every other loop its valve setting.
 14. The ventilation first had two pairs of decentral units. With synthetic tables, `uea calc airflow` found that infiltration alone covers moisture protection, but the two pairs gave 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath had no extract. Following the calculator, the design changed to a central unit (KWL) in the HWR: supply in Wohnen/Essen and the three bedrooms, extract in Küche, HWR, WC and Bad, outdoor and exhaust air on two facades. Every room now gets its flow at the nominal level, and `uea calc ducts` sizes the ducts from Ø80 to Ø160 at 28 Pa of the unit's 150. The core drillings (q4) moved to the HWR's walls, and the ducts to the OG need a slab penetration (q7).
+15. With the central unit the services' checks asked for six holes: the core drillings for outdoor and exhaust air, and slab penetrations for the stack, the riser, the heating pipes to hv2 and the ducts to the OG (`docs/decisions/0039-openings-without-a-fill.md`). Two more requests (q8, q9) went to the architect, who answered all five open ones with holes ho1 to ho6 in one batch. The tank and the unit name the hole they go through (`via=`), and their pipes and ducts follow it. Only q6 stays open.
 
 ## Not in the prototype
 

@@ -15,7 +15,7 @@ from typing import Annotated, ClassVar, Literal, Self
 from pydantic import model_validator
 
 from uea.core.schema import Element, F
-from uea.core.values import Anchor, Point, Ref
+from uea.core.values import Anchor, Point, Ref, RefList
 from uea.packs.mount import WallMounted
 from uea.packs.pipes import Diameters
 
@@ -110,6 +110,10 @@ class Ahu(Element):
     at: Annotated[Point | None, F("plan point x,y", unit="m")] = None
     z: Annotated[float, F("height of its duct connections above the FFL", unit="m")] = 1.8
     type: Annotated[Ref | None, F("unit type; default if left out", targets=("type:ahu",))] = None
+    via: Annotated[
+        RefList | None,
+        F("slab holes or voids its ducts change storey through", targets=("hole", "void")),
+    ] = None
 
 
 class Fan(WallMounted):

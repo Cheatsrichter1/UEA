@@ -968,25 +968,28 @@ def rects(poly: Polygon) -> list[tuple[float, float, float, float]] | None:
 def _voids(b: Builder, picks: dict[str, SlabPick]) -> list[Item]:
     """The openings in the floor slabs: opening elements, and holes in the bodies of the slabs.
 
-    One that is the footprint of a fitted stair stays tied to it (over=); the others become
-    rectangles. The slab is the one UEA has for the storey.
+    One that is the footprint of a fitted stair stays tied to it (over=); a round one, or a
+    rectangle up to HOLE_MAX, becomes a hole (decision 0039); the others become rectangles. The
+    slab is the one UEA has for the storey.
     """
     slabs = {s.guid: s for s in b.src.slabs}
-    found: list[tuple[str, str, Polygon]] = [(f"void:{v.guid}", v.slab, v.fp) for v in b.src.voids]
+    found: list[tuple[str, str, Polygon, float | None]] = [
+        (f"void:{v.guid}", v.slab, v.fp, v.dia) for v in b.src.voids
+    ]
     for sl in b.src.slabs:
         for h in sl.holes:
             c = h.centroid
-            found.append((f"hole:{sl.guid}:{c.x:.1f},{c.y:.1f}", sl.guid, h))
+            found.append((f"hole:{sl.guid}:{c.x:.1f},{c.y:.1f}", sl.guid, h, None))
     out: list[Item] = []
     done: dict[str, list[Polygon]] = {}
-    for key, guid, fp in found:
+    for key, guid, fp, dia in found:
         slab = slabs.get(guid)
         st = b.slab_storey(slab) if slab is not None else None
         lv = b.levels.get(st.guid) if st is not None else None
         if lv is None or lv.name not in picks:
             b.plan.skipped["slab opening (its slab was not imported)"] += 1
             continue
-        if fp.area < HOLE_MIN:
+        if fp.area < HOLE_MIN and not key.startswith("void:"):
             continue
         seen = done.setdefault(lv.name, [])
         if any(fp.intersection(o).area >= 0.9 * min(fp.area, o.area) for o in seen):
@@ -1002,7 +1005,15 @@ def _voids(b: Builder, picks: dict[str, SlabPick]) -> list[Item]:
             ),
             None,
         )
-        if stair is not None:
+        single = boxes is not None and len(boxes) == 1
+        if stair is None and (dia is not None or (fp.area <= HOLE_MAX and single)):
+            seen.append(fp)
+            x0, y0, x1, y1 = fp.bounds
+            w, h = (dia, dia) if dia is not None else (x1 - x0, y1 - y0)
+            tail = f"\0 {num(w)}x{num(h)} at={num((x0 + x1) / 2)},{num((y0 + y1) / 2)}"
+            what = f"hole in the slab of {lv.name}"
+            out.append(Item(key, "hole", what, tail + (" round" if dia else ""), host=host))
+        elif stair is not None:
             seen.append(fp)
             alt = _span_text(boxes[0]) if boxes is not None and len(boxes) == 1 else None
             out.append(
@@ -1016,6 +1027,10 @@ def _voids(b: Builder, picks: dict[str, SlabPick]) -> list[Item]:
                 suffix = f"#{k}" if len(boxes) > 1 else ""
                 out.append(Item(key + suffix, "void", what, "\0" + _span_text(box), host=host))
     return out
+
+
+HOLE_MAX = 0.25
+"""A rectangular slab opening up to this area (m²) is a hole for services, a larger one a void."""
 
 
 def _span_text(rect: tuple[float, float, float, float]) -> str:
@@ -1103,8 +1118,10 @@ def _niche(b: Builder, n: Niche) -> Item | None:
     if depth < MIN_OPENING / 5:
         b.plan.skipped["IfcOpeningElement (a recess in the finish only)"] += 1
         return None
-    face = FACES[rec.o][1 if _dot(out, rec.n) > 0 else 0]
     lo, hi, axis = _along(rec, _pts(n.fp))
+    if n.through:
+        return _wall_hole(b, n, lo, hi, axis)
+    face = FACES[rec.o][1 if _dot(out, rec.n) > 0 else 0]
     ffl = rec.lv.storey.z
     height = n.z1 - n.z0
     if hi - lo < MIN_OPENING or height < MIN_OPENING:
@@ -1115,6 +1132,25 @@ def _niche(b: Builder, n: Niche) -> Item | None:
     extra += f" d={num(depth)}" + ("" if n.status == "new" else f" {n.status}")
     tail = f"\0.{face} {num(hi - lo)}x{num(height)} {axis}={num(lo)}+{extra}"
     return Item(n.guid, "niche", f"niche in {w.name or w.guid}", tail, host=n.wall)
+
+
+def _wall_hole(b: Builder, n: Niche, lo: float, hi: float, axis: str) -> Item | None:
+    """A hole through a wall that nothing fills (decision 0039); a core drilling by the diameter
+    of its circle, around the middle of its body."""
+    rec = b.by_guid[n.wall]
+    z0, height = n.z0, n.z1 - n.z0
+    if n.dia is not None:
+        mid, zmid = (lo + hi) / 2, (n.z0 + n.z1) / 2
+        lo, hi, z0, height = mid - n.dia / 2, mid + n.dia / 2, zmid - n.dia / 2, n.dia
+    if hi - lo < MIN_OPENING or height < MIN_OPENING:
+        b.plan.skipped["opening smaller than 5 cm"] += 1
+        return None
+    sill = z0 - rec.lv.storey.z
+    extra = f" sill={num(sill)}" if abs(sill) > 0.005 else ""
+    extra += " round" if n.dia is not None else ""
+    extra += "" if n.status == "new" else f" {n.status}"
+    tail = f"\0 {num(hi - lo)}x{num(height)} {axis}={num(lo)}+{extra}"
+    return Item(n.guid, "hole", f"hole in {rec.w.name or rec.w.guid}", tail, host=n.wall)
 
 
 def _glazing(b: Builder) -> list[Item]:

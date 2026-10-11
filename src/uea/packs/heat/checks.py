@@ -8,6 +8,7 @@ from uea.core.issues import Issue
 from uea.derive import Derived
 from uea.packs.heat.geometry import heat_type, man_type, tank_type
 from uea.packs.heat.kinds import GenType, ManType, RadType, TankType, UfhType
+from uea.packs.net import missing_holes
 
 CODES: dict[str, str] = {
     "E-HEAT-002": "manifold or radiator on a wall without a usable face",
@@ -16,6 +17,7 @@ CODES: dict[str, str] = {
     "W-HEAT-003": "underfloor heating too far from its manifold for a loop",
     "W-HEAT-004": "generator, tank or manifold that supplies nothing (a tank that heats drinking"
     " water supplies the hot water)",
+    "W-HEAT-005": "pipes that change storey through a slab with no hole for them",
 }
 
 TYPES = {"gen": GenType, "tank": TankType, "man": ManType, "ufh": UfhType, "rad": RadType}
@@ -66,4 +68,5 @@ def heat_checks(d: Derived) -> Iterable[Issue]:
                 continue  # it supplies the hot water (plumb.uea)
             if not h.supplies.get(el.id):
                 add("W-HEAT-004", el.id, "supplies nothing", f"connect something with src={el.id}")
+    out += missing_holes(h.crossings, "W-HEAT-005", "heat")
     return out

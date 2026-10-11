@@ -12,14 +12,14 @@ from uea.packs.arch.geometry import ArchGeo
 from uea.packs.arch.kinds import Door, FloorType, Room, Win
 
 CODES: dict[str, str] = {
-    "E-ARCH-001": "opening outside its wall",
-    "E-ARCH-002": "openings overlap in one wall",
-    "E-ARCH-003": "opening higher than its wall",
+    "E-ARCH-001": "opening or hole outside its wall",
+    "E-ARCH-002": "openings or holes overlap in one wall",
+    "E-ARCH-003": "opening or hole higher than its wall",
     "E-ARCH-004": "door opens into a room that is not next to it",
     "W-ARCH-005": "door handing incomplete (into= without hand= or the other way round)",
     "E-ARCH-006": "window sill below the FFL",
-    "E-ARCH-007": "niche as deep as its wall or deeper",
-    "E-ARCH-008": "new opening in a demolished wall",
+    "E-ARCH-007": "niche or chase as deep as its wall or deeper",
+    "E-ARCH-008": "new opening or hole in a demolished wall",
     "W-ARCH-010": "wall without a height yet (no storey or roof above)",
     "E-ARCH-011": "walls overlap",
     "E-ARCH-020": "room seed not in a free region",
@@ -28,7 +28,7 @@ CODES: dict[str, str] = {
     "W-ARCH-023": "room floor build-up differs from the storey's fb",
     "E-ARCH-030": "slab without an outline",
     "W-ARCH-031": "two slabs on one storey",
-    "W-ARCH-032": "void outside its slab",
+    "W-ARCH-032": "void or hole outside its slab",
     "W-ARCH-033": "stair runs into a slab without a void",
     "W-ARCH-034": "stair outside the step rule 2h+a = 0.59-0.65 m (Schrittmaßregel)",
     "W-ARCH-035": "stair not inside a room",
@@ -52,7 +52,8 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
 
     # openings
     by_host: dict[str, list[str]] = {}
-    for o in g.openings.values():
+    in_walls = {**g.openings, **{h.id: h.wall for h in g.holes.values() if h.wall is not None}}
+    for o in in_walls.values():
         by_host.setdefault(o.host, []).append(o.id)
         w = g.walls[o.host]
         a = o.axis
@@ -74,12 +75,12 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
                 "lower it or make it smaller",
                 w.id,
             )
-        if o.kind == "niche" and o.depth >= w.t - 1e-6:
+        if o.face is not None and o.depth >= w.t - 1e-6:
             add(
                 "E-ARCH-007",
                 o.id,
                 f"d={ln(o.depth)} but {w.id} is only {ln(w.t)} thick",
-                "make it shallower, or use a door or window for a hole through the wall",
+                "make it shallower, or use a door, window or hole through the wall",
                 w.id,
             )
         if o.status != "demolish" and w.status == "demolish":
@@ -116,11 +117,11 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
                     "give both: into=<room> hand=l|r",
                 )
     for host, ids in by_host.items():
-        ids = sorted(ids, key=lambda k: g.openings[k].lo)
+        ids = sorted(ids, key=lambda k: in_walls[k].lo)
         for i, a in enumerate(ids):
-            oa = g.openings[a]
+            oa = in_walls[a]
             for b in ids[i + 1 :]:
-                ob = g.openings[b]
+                ob = in_walls[b]
                 if ob.lo >= oa.hi - 1e-6:
                     break
                 vert = oa.sill < ob.top - 1e-6 and ob.sill < oa.top - 1e-6
@@ -196,6 +197,13 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
         outside = v.poly.difference(s.outline).area
         if outside > 1e-4:
             add("W-ARCH-032", v.id, f"{ar(outside)} m² of it lie outside {s.id}", None, s.id)
+    for h in g.holes.values():
+        if h.wall is not None:
+            continue
+        s = g.slabs[h.host]
+        outside = h.poly.difference(s.outline).area
+        if outside > 1e-6:
+            add("W-ARCH-032", h.id, f"{ar(outside)} m² of it lie outside {s.id}", None, s.id)
 
     # stairs
     for st in g.stairs.values():

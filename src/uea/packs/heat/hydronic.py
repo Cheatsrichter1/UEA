@@ -34,7 +34,7 @@ from uea.packs.hydraulics import full, heat_flow
 from uea.packs.net import Section
 from uea.packs.pipes import Bore
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 NORM = "Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09"
 PARAMS = (
     *heatload.PARAMS,
@@ -508,7 +508,8 @@ def report(d: Derived, res: Result, env: Env) -> str:
         "- Rohrnetz aus dem Modell: von jedem Wärmeerzeuger und Speicher der kürzeste Baum über"
         " die rechtwinkligen Abstände zu Speichern, Verteilern und Heizkörpern, Vor- und"
         " Rücklauf nebeneinander; Heizkörper an einem Verteiler mit eigener Anbindeleitung."
-        " Längen sind Untergrenzen.",
+        " Zwischen den Geschossen durch den Deckendurchbruch, den das Netz nennt. Längen sind"
+        " Untergrenzen.",
         "- Nennweite: die kleinste des Rohrsystems mit v ≤ v_max. Rohrreibung nach"
         " Darcy-Weisbach mit λ nach Colebrook-White; Einzelwiderstände: ζ des Rohrsystems je"
         " Bogen des rechtwinkligen Laufs und ein T-Stück am Abzweig.",

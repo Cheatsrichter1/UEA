@@ -26,6 +26,7 @@ LABEL = {
     "void": "voids",
     "grid": "grids",
     "niche": "niches",
+    "hole": "holes",
 }
 
 

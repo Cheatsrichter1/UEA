@@ -23,7 +23,7 @@ from uea.packs.net import Section
 from uea.packs.vent import airflow
 from uea.packs.vent.geometry import ahu_type, duct_type
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 NORM = "Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach"
 PARAMS = (*airflow.PARAMS, Param("vmax", float, None, "the highest air velocity in the ducts, m/s"))
 SIDE = {"oda": "sup", "sup": "sup", "ext": "ext", "eha": "ext"}
@@ -280,7 +280,8 @@ def report(d: Derived, res: Result) -> str:
         "## Verfahren",
         "",
         "- Luftleitungen aus dem Modell: je Gerät und Luftart der kürzeste Baum über die"
-        " rechtwinkligen Abstände; Längen sind Untergrenzen.",
+        " rechtwinkligen Abstände, zwischen den Geschossen durch den Deckendurchbruch, den das"
+        " Gerät nennt; Längen sind Untergrenzen.",
         "- Durchmesser: der kleinste des Kanalsystems mit v ≤ v_max. Druckverlust nach"
         " Darcy-Weisbach mit λ nach Colebrook-White; Einzelwiderstände ζ je Bogen und T-Stück.",
         "- Ventilator: ungünstigster Weg der Außen- bzw. Fortluft plus der Zu- bzw. Abluft.",

@@ -1,6 +1,6 @@
 # Haus Müller: agent session (draft)
 
-How the files in this folder came about, as an agent would build them through the CLI. The commands and the output format are drafts; the output is written by hand, with values computed from the files. Batches 3, 4, 6–8, 10, 11, 14, 20 and 22 are summarised rather than shown.
+How the files in this folder came about, as an agent would build them through the CLI. The commands and the output format are drafts; the output is written by hand, with values computed from the files. Batches 3, 4, 6–8, 10, 11, 14, 20, 22 and 23 are summarised rather than shown; batches 24 to 28 are real output of the CLI.
 
 | Batch | By | Content |
 |---|---|---|
@@ -26,6 +26,12 @@ How the files in this folder came about, as an agent would build them through th
 | 20 | elec | Luminaire types and illuminance targets for r2 |
 | 21 | elec | Four dimmed downlights in r2 after the lighting calculation; request q6 |
 | 22 | elec | Board contents for the Verteilungsplan: SLS, SPD, meter |
+| 23 | vent, elec, issues | A central unit in the HWR instead of the decentral units, after `uea calc airflow`; q4 moved to its facade, q7 for the slab |
+| 24 | plumb | Asks for a core drilling for the riser (q8) |
+| 25 | heat | Asks for a slab penetration for the pipes to hv2 (q9) |
+| 26 | arch | Holes ho1 to ho6; closes q3, q4, q7, q8, q9 |
+| 27 | heat | The pipes to the OG through ho4 |
+| 28 | vent | The ducts to the OG through ho3 |
 
 ## Start
 
@@ -268,11 +274,82 @@ report: out/lichtberechnung-r2.md
 
 `x=sw2+0.071` puts the dimmer into the same 2-gang frame as sw2, at the standard box spacing.
 
+## Batches 24 to 28: holes for the services
+
+After batch 23 the services' checks say where they pass a slab or the facade with no hole (`docs/decisions/0039-openings-without-a-fill.md`). Plumbing's stack (q3) and ventilation's facade and slab (q4, q7) were asked for already; the riser and the heating pipes were not.
+
+```
+$ uea check heat plumb vent
+W-HEAT-005 t1 hv1>hv2 changes storey through sl2, and no hole in it is in via= of t1. Fix: + req _ heat sl2 "Durchbruch für ...", then ~ t1 via=<hole>
+W-PLUMB-006 sr1 sr1:EG>sr1:OG passes sl2 at 0.515,6.925, and no hole is there. Fix: ask arch for one: + req _ plumb sl2 "Durchbruch für sr1 bei 0.515/6.925"
+W-PLUMB-006 fl1 fl1:EG>fl1:OG passes sl2 at 0.515,6.64, and no hole is there. Fix: ...
+W-VENT-006 ld1 is on w4 at y 7.79 z 2.4, and no hole goes through the wall there. Fix: ask arch for a core drilling: + req _ vent w4 "Kernbohrung für ld1"
+W-VENT-006 ld2 is on w3 at x 2.15 z 2.4, and no hole goes through the wall there. Fix: ...
+W-VENT-007 lg1 lg1>ld5 changes storey through sl2, and no hole in it is in via= of lg1. Fix: + req _ vent sl2 "Durchbruch für ...", then ~ lg1 via=<hole>
+
+$ uea apply --by plumb-agent -m "Kernbohrung für die Steigleitung" <<'EOF'
++ req _ plumb sl2 "Kernbohrung Ø 0,10 für die Steigleitung sr1, kalt und warm"
+EOF
+ok batch 24 (issues): +1
+ q8
+open for arch: q8
+
+$ uea apply --by heat-agent -m "Durchbruch für hv2" <<'EOF'
++ req _ heat sl2 "Deckendurchbruch 0,20x0,15 für Vor- und Rücklauf zu hv2, im HWR über t1"
+EOF
+ok batch 25 (issues): +1
+ q9
+open for arch: q9
+```
+
+The architect sizes and places each hole from its request (a core drilling around a terminal's point: its edge 0.09 before it), and closes the requests in the same batch.
+
+```
+$ uea apply --by arch-agent -m "Aussparungen für die Haustechnik" <<'EOF'
++ hole _ w4 0.18x0.18 y=N-0.61 sill=2.31 round
++ hole _ w3 0.18x0.18 x=W+2.06 sill=2.31 round
++ hole _ sl2 0.4x0.25 at=w6-0.6,w5+0.4
++ hole _ sl2 0.2x0.15 at=w4+0.6,w5+0.15
++ hole _ sl2 0.15x0.15 at=w4+0.15,f12.c round
++ hole _ sl2 0.1x0.1 at=w4+0.15,w3-1.2 round
+~ q3 done
+~ q4 done
+~ q7 done
+~ q8 done
+~ q9 done
+EOF
+ok batch 26 (arch, issues): +6 · 5 changed (q3 q4 q7-q9) · done q3 q4 q7 q8 q9
+ ho1-ho6
+fixed plumb: W-PLUMB-006 sr1 · W-PLUMB-006 fl1
+fixed vent: W-VENT-006 ld1 · W-VENT-006 ld2
+```
+
+The riser, the stack and the facade terminals find their holes by where they are. The pipes to hv2 and the ducts to the OG have no fixed point: their tank and unit name the hole they go through, and their routes follow it.
+
+```
+$ uea apply --by heat-agent -m "Leitungen zu hv2 durch ho4" <<'EOF'
+~ t1 via=ho4
+EOF
+ok batch 27 (heat): 1 changed (t1)
+fixed: W-HEAT-005 t1
+
+$ uea apply --by vent-agent -m "Luftleitungen ins OG durch ho3" <<'EOF'
+~ lg1 via=ho3
+EOF
+ok batch 28 (vent): 1 changed (lg1)
+fixed: W-VENT-007 lg1
+follows: ld5 (vent)
+
+$ uea get ho6
+hole ho6 sl2 0.1x0.1 at=w4+0.15,w3-1.2 round
+ in sl2 | centre 0.515,6.925 | round | z 2.515..2.875 | for sr1
+```
+
 ## End state
 
 ```
 $ uea check
 0 errors · 0 warnings
-requests open: q3 plumb→arch sl2 · q4 vent→arch w2 w8 w9 w11 · q6 elec→arch sl2
+requests open: q6 elec→arch sl2
 waived: W-ELEC-010 r5 (wv1, by elektroplaner)
 ```

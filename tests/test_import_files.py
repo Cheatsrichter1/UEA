@@ -299,12 +299,13 @@ def test_niches(sh: Shell, tmp_path: Path) -> None:
         RecessSpec("N1", "EG-south", 4.0, 0.8, 0.5, 1.0, depth=0.1, side=1.0),
         # 0.12 m into the outside face of the east wall, from the floor: 0.02 m render, 0.1 core
         RecessSpec("N2", "EG-east", 1.0, 0.6, 0.0, 2.0, depth=0.12, side=-1.0),
-        # through the north wall: an opening without a fill, which UEA does not have
+        # through the north wall (which runs west): an opening without a fill, a hole (0039)
         RecessSpec("N3", "EG-north", 3.0, 0.6, 0.3, 0.6),
     ]
     out = do_import(sh, h, tmp_path)
-    assert "2 niches" in out and "issues: 0 errors · 0 warnings" in out
-    assert "not imported: 1 IfcOpeningElement (a wall opening nothing fills)" in out
+    assert "2 niches · 1 holes" in out and "issues: 0 errors · 0 warnings" in out
+    assert "not imported" not in out
+    assert [x.line() for x in load(sh).of_kind("hole")] == ["hole ho1 w3 0.6x0.6 x=2.4+ sill=0.3"]
     assert lines(sh, "ni1", "ni2") == [
         "niche ni1 w1.n 0.8x1 x=4+ sill=0.5 d=0.085",
         "niche ni2 w2.e 0.6x2 y=1+ d=0.1",

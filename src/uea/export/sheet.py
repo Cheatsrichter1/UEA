@@ -47,7 +47,7 @@ from uea.export.paper import (
 from uea.export.plan import door_swing
 from uea.export.tables import USE_DE
 from uea.geom import polys
-from uea.packs.arch.geometry import OpeningGeo, SectionGeo, WallGeo
+from uea.packs.arch.geometry import HoleGeo, OpeningGeo, SectionGeo, WallGeo
 from uea.packs.arch.kinds import Room
 from uea.packs.project import Grid
 
@@ -284,9 +284,54 @@ class PlanSheet(Paper):
 
     # stairs and voids
 
+    def holes(self) -> None:
+        """The openings without a fill (decision 0039): in the walls of this storey and in its
+        floor slab, outline and cross; in the slab above dashed. Labelled with size and bottom."""
+        g = self.g
+        lv = g.levels[self.level]
+        floor = g.slab_on(self.level)
+        above = g.slab_on(lv.above) if lv.above is not None else None
+        solid, dash = self.pen(0.18), self.pen(0.18, BLACK, (1.0, 0.7))
+        for h in sorted(g.holes.values(), key=lambda h: h.id):
+            if h.status == "demolish":
+                continue
+            if h.wall is not None:
+                if h.level != self.level:
+                    continue
+                pen = solid
+                o = h.wall
+                size = f"{_cm(o.width)}/{_cm(o.top - o.sill)}"
+                name = "S" if h.chase else "KB" if h.round else "WD"
+                if h.round:
+                    size = f"Ø{_cm(o.width)}"
+                if h.chase:
+                    size += f" T {_cm(o.depth)}"
+                label = f"{name} {size} UK {height_text(h.z0)}"
+            elif floor is not None and h.host == floor.id:
+                pen = solid
+                label = (
+                    f"KB Ø{_cm(_span(h)[0])}" if h.round else "DD {}/{}".format(*map(_cm, _span(h)))
+                )
+            elif above is not None and h.host == above.id:
+                pen = dash
+                label = (
+                    f"KB Ø{_cm(_span(h)[0])}" if h.round else "DD {}/{}".format(*map(_cm, _span(h)))
+                )
+            else:
+                continue
+            x0, y0, x1, y1 = h.poly.bounds
+            if h.round and h.wall is None:
+                self.dw.add(Circle(h.centre, (x1 - x0) / 2, pen, None, L_VOID))
+            else:
+                self.dw.add(Poly(ring(h.poly)[0], None, pen, L_VOID))
+            self.dw.add(Line((x0, y0), (x1, y1), pen, L_VOID))
+            self.dw.add(Line((x0, y1), (x1, y0), pen, L_VOID))
+            self.text((x1 + self.sh.m(1.0), y0), label, 1.5, L_VOID, anchor="start")
+
     def stairs_and_voids(self) -> None:
         g = self.g
         thin, edge, dash = self.pen(0.13), self.pen(0.25), self.pen(0.18, GREY, (1.5, 1.0))
+        self.holes()
         slab = g.slab_on(self.level)
         for v in g.voids.values():
             if slab is None or v.slab != slab.id:
@@ -454,6 +499,16 @@ class PlanSheet(Paper):
             L_TEXT,
             bold=True,
         )
+
+
+def _cm(v: float) -> str:
+    """A size in cm the German way: 18, 12,5."""
+    return f"{v * 100:.1f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def _span(h: HoleGeo) -> tuple[float, float]:
+    x0, y0, x1, y1 = h.poly.bounds
+    return (x1 - x0, y1 - y0)
 
 
 def sheet_plan(d: Derived, level: str, stand: Stand | None = None) -> Drawing | None:

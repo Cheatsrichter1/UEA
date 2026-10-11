@@ -131,6 +131,7 @@ def describe(d: Derived, el: Element) -> list[str]:
         out = [f"{pos} | L {ln(w.length)} t {ln(w.t)} (fin {ln(fin)}) | {_wall_height(w)} | {kind}"]
         faces = _faces(g, w)
         hosts = [o.id for o in g.openings.values() if o.host == w.id]
+        hosts += [h.id for h in g.holes.values() if h.host == w.id]
         line = faces
         if hosts:
             line += (" | " if line else "") + f"hosts {ids(hosts)}"
@@ -149,6 +150,23 @@ def describe(d: Derived, el: Element) -> list[str]:
             else f"z 0..{ln(o.top)}"
         )
         return [f"{o.axis} {iv(o.lo, o.hi)} in {o.host} | {z} | {sides}"]
+    if el.kind == "hole" and el.id in g.holes:
+        from uea.packs.net import hole_users
+
+        h = g.holes[el.id]
+        shape = "round" if h.round else "rect"
+        z = f"z {ln(h.z0)}..{ln(h.z1)}"
+        users = hole_users(d).get(el.id)
+        tail = f" | for {ids(users)}" if users else ""
+        if h.wall is None:
+            cx, cy = h.centre
+            return [f"in {h.host} | centre {ln(cx)},{ln(cy)} | {shape} | {z}{tail}"]
+        o = h.wall
+        kind = f"chase d {ln(o.depth)}" if h.chase else "through"
+        return [
+            f"{o.axis} {iv(o.lo, o.hi)} in {o.host} | sill {ln(o.sill)} top {ln(o.top)}"
+            f" ({z}) | {kind} | {shape}{tail}"
+        ]
     if el.kind == "room" and el.id in g.rooms:
         return describe_room(d, g.rooms[el.id])
     if el.kind == "stair" and el.id in g.stairs:
@@ -217,7 +235,7 @@ def level_summary(d: Derived, level: str) -> list[str]:
     lv = g.levels[level]
     head = f" head={ln(lv.head)}" if lv.head is not None else ""
     counts: dict[str, int] = {}
-    for kind in ("wall", "door", "win", "niche", "stair", "slab", "roof", "sep"):
+    for kind in ("wall", "door", "win", "niche", "hole", "stair", "slab", "roof", "sep"):
         n = 0
         for el in m.of_kind(kind):
             lvl = _level_of(d, el)
@@ -310,6 +328,8 @@ def _level_of(d: Derived, el: Element) -> str | None:
     lvl = getattr(el, "level", None)
     if lvl is not None:
         return lvl.id
+    if el.id in g.holes:
+        return g.holes[el.id].level
     host = getattr(el, "host", None)
     if host is not None and host.id in g.walls:
         return g.walls[host.id].level

@@ -1,8 +1,10 @@
 req q1 heat w5 "Nische 0,60x0,75x0,11 für Heizkreisverteiler EG in der Diele" done=13
 req q2 heat w12 "Nische 0,60x0,75x0,11 für Heizkreisverteiler OG im Flur" done=13
-req q3 plumb sl2 "Durchbruch DN 125 für Fallleitung unter sa5, im HWR an w4"
-req q4 vent w3,w4 "Kernbohrungen Ø180 für Außen- und Fortluft ld1 und ld2 im HWR, z 2,40"
+req q3 plumb sl2 "Durchbruch DN 125 für Fallleitung unter sa5, im HWR an w4" done=26
+req q4 vent w3,w4 "Kernbohrungen Ø180 für Außen- und Fortluft ld1 und ld2 im HWR, z 2,40" done=26
 req q5 elec d1,d4,d6,d8,d9 "Türanschlag drehen: Lichtschalter liegen auf der Bandseite" done=19
 req q6 elec sl2 "4 Betoneinbaugehäuse für l17 bis l20 über r2, vor dem Betonieren"
-req q7 vent sl2 "Deckendurchbruch 0,40x0,25 für Zu- und Abluft ins OG, im HWR über lg1"
+req q7 vent sl2 "Deckendurchbruch 0,40x0,25 für Zu- und Abluft ins OG, im HWR über lg1" done=26
+req q8 plumb sl2 "Kernbohrung Ø 0,10 für die Steigleitung sr1, kalt und warm" done=26
+req q9 heat sl2 "Deckendurchbruch 0,20x0,15 für Vor- und Rücklauf zu hv2, im HWR über t1" done=26
 waive wv1 W-ELEC-010 r5 "Nur eine Steckdose in der Diele, Wunsch Bauherr" by=elektroplaner
