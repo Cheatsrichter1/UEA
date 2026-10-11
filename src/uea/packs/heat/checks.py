@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 from uea.core.issues import Issue
 from uea.derive import Derived
-from uea.packs.heat.geometry import heat_type, man_type
+from uea.packs.heat.geometry import heat_type, man_type, tank_type
 from uea.packs.heat.kinds import GenType, ManType, RadType, TankType, UfhType
 
 CODES: dict[str, str] = {
@@ -14,7 +14,8 @@ CODES: dict[str, str] = {
     "W-HEAT-001": "heating element without a type, and none of its kind is marked default",
     "W-HEAT-002": "manifold with more loops than outlets",
     "W-HEAT-003": "underfloor heating too far from its manifold for a loop",
-    "W-HEAT-004": "generator, tank or manifold that supplies nothing",
+    "W-HEAT-004": "generator, tank or manifold that supplies nothing (a tank that heats drinking"
+    " water supplies the hot water)",
 }
 
 TYPES = {"gen": GenType, "tank": TankType, "man": ManType, "ufh": UfhType, "rad": RadType}
@@ -61,6 +62,8 @@ def heat_checks(d: Derived) -> Iterable[Issue]:
         )
     for kind in ("gen", "tank", "man"):
         for el in m.of_kind(kind):
+            if kind == "tank" and getattr(tank_type(d, el), "dhw", False):
+                continue  # it supplies the hot water (plumb.uea)
             if not h.supplies.get(el.id):
                 add("W-HEAT-004", el.id, "supplies nothing", f"connect something with src={el.id}")
     return out

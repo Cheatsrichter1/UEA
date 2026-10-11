@@ -137,6 +137,14 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
         "infiltration",
         "height-factor",
         "heatload-factors",
+        "fixture-flow",
+        "peak-flow",
+        "water-factors",
+        "fixture-drain",
+        "drain-k",
+        "drain-branch",
+        "drain-stack",
+        "drain-factors",
         "folder:",
     ]
     code, out = sh("data", "show", "conductor")

@@ -615,5 +615,6 @@ def tables(d: Derived, level: str | None = None) -> list[Table]:
         b.quantities(),
     ]
     from uea.export.tables_elec import elec_tables
+    from uea.export.tables_tga import tga_tables
 
-    return [t for t in [*all_tables, *elec_tables(d, level)] if t.rows]
+    return [t for t in [*all_tables, *elec_tables(d, level), *tga_tables(d, level)] if t.rows]

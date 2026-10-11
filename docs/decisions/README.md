@@ -38,6 +38,8 @@ One file per major decision: what was decided, what else was considered, and why
 | 0032 | [Requests as BCF](0032-bcf-requests.md) | Accepted (export built) |
 | 0033 | [U-values and the Heizlast, slices 6a and 6b](0033-u-values-and-heizlast.md) | Accepted (slices 6a and 6b built) |
 | 0034 | [Heating elements, slice 6c](0034-heating-elements.md) | Accepted (slice 6c built) |
+| 0035 | [Plumbing and pipe sizing, slice 6d](0035-plumbing.md) | Accepted (slice 6d built) |
+| 0036 | [Heating and plumbing sheets, slice 6e](0036-heating-and-plumbing-sheets.md) | Accepted (slice 6e built) |
 
 Template:
 

@@ -51,14 +51,20 @@ class GenType(_HeatType):
 class TankType(_HeatType):
     category: ClassVar[str | None] = "tank"
     doc: ClassVar[str] = (
-        "Storage tank type: type HM-200 tank vol=200 dhw (dhw: heats drinking water)."
+        "Storage tank type: type HM-200 tank vol=200 dhw dp=150 (dhw: heats drinking water; dp:"
+        " its pressure loss on the drinking-water side at the design flow, for uea calc water)."
     )
     vol: Annotated[float, F("volume", unit="l")]
     dhw: Annotated[bool, F("heats drinking water", flag=True)] = False
+    dp: Annotated[
+        float | None, F("drinking-water pressure loss at the design flow", unit="hPa")
+    ] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
         self._positive("vol")
+        if self.dp is not None and self.dp < 0:
+            raise ValueError("dp must be 0 or more")
         return self
 
 

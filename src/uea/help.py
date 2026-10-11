@@ -24,7 +24,9 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 )
 """Every command with a one-line description: the root help and docs/reference.md."""
 
-TOPICS = "start | ops | positions | arch | elec | heat | <kind> | codes | calc | export | import"
+TOPICS = (
+    "start | ops | positions | arch | elec | heat | plumb | <kind> | codes | calc | export | import"
+)
 
 ROOT = (
     """\
@@ -136,6 +138,15 @@ against its outlets, each emitter's output. Whether the emitters cover each room
 and the generators the building's: uea calc heatload (help calc).
 """
 
+PLUMB_NOTES = """\
+The pipes are derived, not written: cold water from the meter, through a riser to the other
+storeys; hot water from the nearest tank in heat.uea whose type is dhw; waste water from each
+fixture to its stack (to=, else the nearest on its storey) or the sewer connection, down the
+stack and under the floor to the sewer. Each network is the shortest tree over the rectilinear
+distances, a lower bound like the cables. uea get shows each fixture's way. Pipe sizes: uea calc
+water and uea calc drain (help calc).
+"""
+
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
@@ -152,6 +163,13 @@ uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
                         Heizlast room by room (norm). tb: thermal bridge surcharge. Scope: a
                         storey or a room. Room temperatures by use and theta_e by postcode come
                         from the office's tables (uea data)
+uea calc water [building=residential]
+                        drinking-water pipe sizes and each fixture's pressure (norm). Flows by
+                        fixture, the peak flow and vmax from the office's tables; the supply
+                        pressure from the meter, the pipes from the pipe type
+uea calc drain slope=<%> [building=residential]
+                        waste-water pipe sizes and the branch lengths (norm); slope: the pipes
+                        under the building
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
@@ -168,8 +186,14 @@ uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a flo
                                     facades (north|east|south|west), with dimensions and height
                                     marks; all if none is given. Electrical: elec (all),
                                     elec:<level> (installation plan, 1:50), a board id (its
-                                    single-line diagram with phases and the field in rows)
-uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
+                                    single-line diagram with phases and the field in rows).
+                                    Heating: heat (all), heat:<level>, heat:schema (the
+                                    Heizungs- und Trinkwasserschema). Plumbing: plumb,
+                                    plumb:<level> (fixtures and the derived pipes)
+uea export pdf <result>             a calculation report to sign: out/<result>.md on A4 (e.g.
+                                    heatload); refused if the model changed since uea calc
+uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
+                                    quantities, electrical, emitters, manifolds, fixtures, pipes
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
@@ -235,6 +259,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(ELEC_NOTES.rstrip())
     if pack == "heat":
         lines.append(HEAT_NOTES.rstrip())
+    if pack == "plumb":
+        lines.append(PLUMB_NOTES.rstrip())
     lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 
