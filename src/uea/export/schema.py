@@ -50,7 +50,65 @@ class Branch:
     y: float = 0.0
 
 
-class Schema(Paper):
+class Diagram(Paper):
+    """A diagram drawn 1:1 in mm from its top left corner, on the first paper it fits."""
+
+    layer: str = H_SCHEMA
+    width: float = 0.0
+    height: float = 0.0
+    ox: float = 0.0
+    oy: float = 0.0
+
+    # ---------- coordinates ----------
+
+    def P(self, x: float, y: float) -> Pt:
+        return self.sh.pt(self.ox + x, self.oy - y)
+
+    def line(
+        self,
+        x0: float,
+        y0: float,
+        x1: float,
+        y1: float,
+        color: str,
+        mm: float = 0.5,
+        dash: tuple[float, ...] = (),
+    ) -> None:
+        pen = self.pen(mm, color, dash)
+        self.dw.add(Line(self.P(x0, y0), self.P(x1, y1), pen, self.layer))
+
+    def box(self, x0: float, y0: float, x1: float, y1: float, fill: str = "#f4f4f4") -> None:
+        pts = [self.P(x0, y0), self.P(x1, y0), self.P(x1, y1), self.P(x0, y1)]
+        self.dw.add(Poly(pts, fill, self.pen(0.35), self.layer))
+
+    def say(
+        self,
+        x: float,
+        y: float,
+        txt: str,
+        mm: float = 2.0,
+        *,
+        anchor: str = "middle",
+        bold: bool = False,
+        color: str = BLACK,
+    ) -> None:
+        self.text(self.P(x, y), txt, mm, self.layer, anchor=anchor, bold=bold, color=color)
+
+    # ---------- the sheet ----------
+
+    def sheet(self) -> Sheet:
+        """The first paper whose frame holds the diagram above the title block's top."""
+        for size in ("A3", "A2", "A1", "A0"):
+            fx0, fy0, fx1, fy1 = frame(PAPER[size])
+            if self.width <= fx1 - fx0 - 8 and self.height <= fy1 - fy0 - BLOCK_H - 10:
+                self.ox, self.oy = fx0 + 6, fy1 - 4
+                return Sheet(size, PAPER[size], 1, (0.0, 0.0))
+        fx0, _, _, fy1 = frame(PAPER["A0"])
+        self.ox, self.oy = fx0 + 6, fy1 - 4
+        return Sheet("A0", PAPER["A0"], 1, (0.0, 0.0))
+
+
+class Schema(Diagram):
     def __init__(self, d: Derived, stand: Stand) -> None:
         self.heading = "Heizungs- und Trinkwasserschema"
         super().__init__(d, stand, self.heading)
@@ -120,44 +178,6 @@ class Schema(Paper):
             else:
                 out.append((x, 1, 0))
         return out
-
-    # ---------- coordinates ----------
-
-    def P(self, x: float, y: float) -> Pt:
-        return self.sh.pt(self.ox + x, self.oy - y)
-
-    def line(self, x0: float, y0: float, x1: float, y1: float, color: str, mm: float = 0.5) -> None:
-        self.dw.add(Line(self.P(x0, y0), self.P(x1, y1), self.pen(mm, color), H_SCHEMA))
-
-    def box(self, x0: float, y0: float, x1: float, y1: float, fill: str = "#f4f4f4") -> None:
-        pts = [self.P(x0, y0), self.P(x1, y0), self.P(x1, y1), self.P(x0, y1)]
-        self.dw.add(Poly(pts, fill, self.pen(0.35), H_SCHEMA))
-
-    def say(
-        self,
-        x: float,
-        y: float,
-        txt: str,
-        mm: float = 2.0,
-        *,
-        anchor: str = "middle",
-        bold: bool = False,
-        color: str = BLACK,
-    ) -> None:
-        self.text(self.P(x, y), txt, mm, H_SCHEMA, anchor=anchor, bold=bold, color=color)
-
-    # ---------- the sheet ----------
-
-    def sheet(self) -> Sheet:
-        """The first paper whose frame holds the diagram above the title block's top."""
-        for size in ("A3", "A2", "A1", "A0"):
-            fx0, fy0, fx1, fy1 = frame(PAPER[size])
-            if self.width <= fx1 - fx0 - 8 and self.height <= fy1 - fy0 - BLOCK_H - 10:
-                self.ox, self.oy = fx0 + 6, fy1 - 4
-                return Sheet(size, PAPER[size], 1, (0.0, 0.0))
-        fx0, _, _, fy1 = frame(PAPER["A0"])
-        self.ox, self.oy = fx0 + 6, fy1 - 4
-        return Sheet("A0", PAPER["A0"], 1, (0.0, 0.0))
 
     def draw(self) -> Drawing | None:
         if not (self.rows or self.gens or self.tanks or self.fixtures):

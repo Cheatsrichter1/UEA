@@ -5,7 +5,7 @@ from uea.core.schema import Element
 from uea.derive import Derived
 from uea.fmt import ids
 from uea.packs.light.views import where
-from uea.packs.plumb.geometry import Net
+from uea.packs.net import Net
 from uea.packs.plumb.kinds import San
 
 WATER_EN = {"cold": "cold", "both": "cold+hot", "none": "no water"}

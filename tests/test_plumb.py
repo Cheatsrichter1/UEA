@@ -20,6 +20,9 @@ from tests.conftest import BOX, PROTOTYPE, Shell, derive_text
 from tests.test_calc_elec import install, run
 from tests.test_elec import found
 from uea.derive import Derived, Report
+from uea.packs.hydraulics import friction, full, geodetic, gravity, wetted
+from uea.packs.net import Net
+from uea.packs.pipes import Bores
 from uea.packs.plumb.drain import (
     DRAIN,
     DRAIN_BRANCH,
@@ -28,9 +31,6 @@ from uea.packs.plumb.drain import (
     DRAIN_STACK,
     FIXTURE_DRAIN,
 )
-from uea.packs.plumb.geometry import Net
-from uea.packs.plumb.hydraulics import friction, full, geodetic, gravity, wetted
-from uea.packs.plumb.kinds import Bores
 from uea.packs.plumb.views import describe
 from uea.packs.plumb.water import FIXTURE_FLOW, PEAK_FLOW, WATER, WATER_FACTORS, peak
 

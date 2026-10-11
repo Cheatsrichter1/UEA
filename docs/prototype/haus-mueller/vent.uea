@@ -1,3 +1,4 @@
+type DZ-160 fan "Dezentrales Lüftungsgerät mit WRG" flow=30 hr=0.8 default
 fan vl1 w11 y=w12-0.5 z=2.2 type=DZ-160 pair=vl2
 fan vl2 w8 x=w13+0.4 z=2.2 type=DZ-160
 fan vl3 w9 y=w12-0.5 z=2.2 type=DZ-160 pair=vl4

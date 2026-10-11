@@ -25,7 +25,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | <kind> | codes | calc | export | import"
+    "start | ops | positions | arch | elec | heat | plumb | vent | <kind> | codes | calc | export"
+    " | import"
 )
 
 ROOT = (
@@ -134,8 +135,10 @@ src= says where an element gets its heat: a tank from a generator, a manifold fr
 generator, underfloor heating from a manifold, a radiator from any of them. The types carry the
 manufacturer's data. Derived (uea get): the loops of each underfloor heating (its area over the
 spacing, plus the way to the manifold and back, each loop within max=), each manifold's loops
-against its outlets, each emitter's output. Whether the emitters cover each room's Heizlast,
-and the generators the building's: uea calc heatload (help calc).
+against its outlets, each emitter's output, and the pipes from each generator and tank (a
+tree over what it supplies; a home run from a manifold to each radiator on it). Whether the
+emitters cover each room's Heizlast, and the generators the building's: uea calc heatload.
+Pipe sizes, valve settings and pump heads: uea calc hydronic (help calc).
 """
 
 PLUMB_NOTES = """\
@@ -145,6 +148,14 @@ fixture to its stack (to=, else the nearest on its storey) or the sewer connecti
 stack and under the floor to the sewer. Each network is the shortest tree over the rectilinear
 distances, a lower bound like the cables. uea get shows each fixture's way. Pipe sizes: uea calc
 water and uea calc drain (help calc).
+"""
+
+VENT_NOTES = """\
+A central unit's terminals take its air: sup and ext in the rooms, oda and eha on an exterior
+wall. The ducts are derived like the pipes: from the unit, the shortest tree over its terminals
+of each kind of air. A decentral unit goes through an exterior wall; pair= joins a push-pull
+pair, the other side is derived. The flows the rooms need, and whether the system gives them:
+uea calc airflow; duct sizes and the fans' pressure: uea calc ducts (help calc).
 """
 
 CALC = """\
@@ -170,6 +181,14 @@ uea calc water [building=residential]
 uea calc drain slope=<%> [building=residential]
                         waste-water pipe sizes and the branch lengths (norm); slope: the pipes
                         under the building
+uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s>
+                        heating pipe sizes and the hydraulic balance on each room's Heizlast
+                        (norm): valve and kv per circuit, throttles, pump heads
+uea calc airflow n50=<1/h> insulation=high|low
+                        the dwelling's air flows (DIN 1946-6, norm), whether a ventilation
+                        measure is needed, each room's flow against the units in vent.uea
+uea calc ducts n50= insulation= vmax=<m/s>
+                        duct sizes of the central units and each side's fan pressure (norm)
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
@@ -189,11 +208,13 @@ uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a flo
                                     single-line diagram with phases and the field in rows).
                                     Heating: heat (all), heat:<level>, heat:schema (the
                                     Heizungs- und Trinkwasserschema). Plumbing: plumb,
-                                    plumb:<level> (fixtures and the derived pipes)
+                                    plumb:<level> (fixtures and the derived pipes), plumb:schema
+                                    (the Strangschema). Ventilation: vent, vent:<level>
 uea export pdf <result>             a calculation report to sign: out/<result>.md on A4 (e.g.
                                     heatload); refused if the model changed since uea calc
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
-                                    quantities, electrical, emitters, manifolds, fixtures, pipes
+                                    quantities, electrical, emitters, manifolds, fixtures, pipes,
+                                    ventilation units, air terminals, ducts
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
@@ -261,6 +282,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(HEAT_NOTES.rstrip())
     if pack == "plumb":
         lines.append(PLUMB_NOTES.rstrip())
+    if pack == "vent":
+        lines.append(VENT_NOTES.rstrip())
     lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 

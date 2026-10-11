@@ -30,3 +30,11 @@ python3 tools/prototype/make_exports.py docs/prototype/haus-mueller docs/prototy
 ```
 
 `tiktoken` is OpenAI's tokenizer. Claude tokenizes differently, so its counts are an approximation; the ratios between formats are the useful part.
+
+## `fonts/`
+
+`subset.py` cuts DejaVu Sans and its bold down to Latin, Greek and the signs the calculation reports use, for `src/uea/export/fonts/` (`docs/decisions/0036-heating-and-plumbing-sheets.md`). It needs fontTools, which UEA does not depend on:
+
+```bash
+uv run --no-project --with fonttools python tools/fonts/subset.py /usr/share/fonts/truetype/dejavu
+```

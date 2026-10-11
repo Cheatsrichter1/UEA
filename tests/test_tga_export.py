@@ -11,10 +11,14 @@ from tests.test_heat import HEAT
 from tests.test_plumb import HOUSE as HOUSE2
 from tests.test_plumb import PLUMB, plumb, tables
 from uea.export.drawing import Drawing, Line, Text
-from uea.export.report import rerun, stale
+from uea.export.report import Styles, rerun, stale, write_report
 from uea.export.schema import sheet_schema
+from uea.export.strang import BAND, S_SCHEMA, sheet_strang
 from uea.export.tables_tga import tga_tables
+from uea.export.tga import COLD as S_COLD_COLOR
+from uea.export.tga import HOT as S_HOT_COLOR
 from uea.export.tga import S_COLD, S_HOT, sheet_tga
+from uea.export.tga import WASTE as S_WASTE_COLOR
 
 FIN = 9.38 * 7.38
 
@@ -79,6 +83,41 @@ def test_schema() -> None:
     assert {"sa1 Spüle", "sa2 Dusche", "sa3 WC", "wz1 Hausanschluss"} <= set(found)
 
 
+def test_strangschema() -> None:
+    d, _ = plumb()
+    dw = sheet_strang(d)
+    assert dw is not None and dw.sheet is not None and dw.sheet.scale == 1
+    found = texts(dw)
+    # the storeys from the top, with their FFL; the fixtures on theirs
+    assert [t for t in found if t.startswith("OKFF")] == ["OKFF +2,90", "OKFF ±0,00"]
+    assert {"sa1 SP", "sa2 DU", "sa3 WC", "wz1 WZ", "t1 Speicher", "sr1", "kn1 Kanal"} <= set(found)
+    assert "fl1 über Dach" in found
+    mm = dw.sheet.m(1.0)
+
+    def verticals(color: str) -> list[float]:
+        return [
+            round(abs(it.a[1] - it.b[1]) / mm, 3)
+            for it in dw.items
+            if isinstance(it, Line)
+            and it.layer == S_SCHEMA
+            and it.pen.color == color
+            and abs(it.a[0] - it.b[0]) < 1e-9
+        ]
+
+    # the riser carries cold and hot water from the EG's distribution to the OG's: one band
+    assert BAND in verticals(S_COLD_COLOR) and BAND in verticals(S_HOT_COLOR)
+    # the stack runs from above the OG down to the pipes under the building
+    assert max(verticals(S_WASTE_COLOR)) > 2 * BAND
+    # all three fixtures drop their waste water: one dashed drop each
+    drops = [
+        it
+        for it in dw.items
+        if isinstance(it, Line) and it.pen.color == S_WASTE_COLOR and it.pen.dash
+        and abs(it.a[0] - it.b[0]) < 1e-9 and abs(abs(it.a[1] - it.b[1]) / mm - 8.0) < 1e-6
+    ]  # fmt: skip
+    assert len(drops) == 3
+
+
 def test_tables() -> None:
     d, _ = plumb("ufh uh1 r1 hv1\nman hv1 w2 t1 y=S+1\ntype FBH ufh spacing=0.15 q=60 max=100 "
                  "default\ntype HKV man outlets=10 default\n")  # fmt: skip
@@ -117,6 +156,15 @@ def test_report_records() -> None:
     assert stale(record, {"a.uea": "y"}) and not stale(record, {"a.uea": "x"})
 
 
+def test_report_font(tmp_path: Path) -> None:
+    # the bundled DejaVu Sans sets the Greek letters on every machine, never spelled out
+    md = "# Heizlast\n\nΦ_HL = 1.200 W bei θ_e = −12 °C\n\n| Raum | Φ W |\n|---|---:|\n| r1 | 9 |"
+    pdf = tmp_path / "r.pdf"
+    assert write_report(md, {"calculator": "heatload", "state": {"batch": 1}}, "Box", pdf) == 1
+    assert b"/BaseFont /AAAAAA+DejaVuSans" in pdf.read_bytes()
+    assert Styles().inline("Φ_HL θ_e Σζ") == "Φ_HL θ_e Σζ"
+
+
 def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     tables(tmp_path)
     ops = re.sub(r"\b((?:w|sl|r|t|wz|sr|fl|kn|sa)\d)\b", r"@\1", HOUSE2 + PLUMB)
@@ -126,6 +174,8 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 0, out
     code, out = sh("export", "svg", "plumb")
     assert code == 0 and "plumb-EG.svg" in out and "plumb-OG.svg" in out, out
+    code, out = sh("export", "pdf", "plumb:schema")
+    assert code == 0 and "plumb-schema.pdf A3 o. M." in out, out
     code, out = sh("export", "dxf", "heat:schema")
     assert code == 0 and "heat-schema.dxf" in out and "o. M." in out, out
     code, out = sh("export", "png", "heat:OG")

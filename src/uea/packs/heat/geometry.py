@@ -5,6 +5,11 @@ Underfloor heating: the pipe in the room is its area over the pipe spacing; each
 to the manifold and back, the rectilinear distance from the manifold to the room's finished
 outline plus the height between them. The loops are as few as keep each within the type's
 longest loop, all of the same length.
+
+Heating pipes (decision 0037), derived like the plumbing: from each generator or tank, the
+shortest rectilinear tree over what it supplies directly (tanks, manifolds, radiators), a flow
+and a return pipe side by side; from each manifold, a home run (Anbindeleitung) to each radiator
+on it. The underfloor loops are the manifold's own circuits.
 """
 
 import math
@@ -32,6 +37,7 @@ from uea.packs.heat.kinds import (
     UfhType,
 )
 from uea.packs.mount import Mounted, Mounts
+from uea.packs.net import Net, Section, finish, gap, grow, node_of
 
 PLACED = ("gen", "tank", "man", "rad")
 
@@ -66,6 +72,16 @@ class HeatGeo:
     """The emitters of each room."""
     too_far: list[str] = field(default_factory=list[str])
     """Underfloor heatings whose manifold is farther than half a loop."""
+    nets: dict[str, Net] = field(default_factory=dict[str, Net])
+    """The pipes from each generator, tank or manifold to what it supplies directly; a section
+    stands for its flow and its return pipe."""
+
+    def pipe_from(self, end: str) -> tuple[str, float] | None:
+        """The net an element hangs from and the length of pipe to it, one way."""
+        for root, net in self.nets.items():
+            if end in net.nodes and end != root:
+                return root, net.reach(end)
+        return None
 
 
 def heat_type[T: Element](m: Model, el: Element, cls: type[T], category: str) -> T | None:
@@ -118,6 +134,28 @@ def derive_heat(d: Derived) -> None:
         h.emitters.setdefault(el.room.id, []).append(el.id)
     for lst in h.emitters.values():
         lst.sort(key=natural)
+    _pipes(d)
+
+
+def _pipes(d: Derived) -> None:
+    m, h = d.model, d.heat
+    rank = {"gen": 0, "tank": 1, "man": 2}
+    roots = [k for k in h.supplies if k in h.at and m[k].kind in rank]
+    for root in sorted(roots, key=lambda k: (rank[m[k].kind], natural(k))):
+        ends = [k for k in h.supplies[root] if k in h.at]  # an underfloor heating has no point
+        if not ends:
+            continue
+        net = Net(root, {root: node_of(h.at[root])})
+        for k in ends:
+            net.nodes[k] = node_of(h.at[k])
+        if m[root].kind == "man":
+            for k in ends:
+                length, legs = gap(net.nodes[root], net.nodes[k])
+                net.sections.append(Section(root, k, length, legs, "home", [k]))
+        else:
+            grow(net, {root}, [root], ends, "pipe")
+            finish(net, set(ends))
+        h.nets[root] = net
 
 
 class Placer:
@@ -208,6 +246,9 @@ def heat_signatures(d: Derived) -> dict[str, tuple[float | str, ...]]:
     }
     for k, lp in h.loops.items():
         out[k] = (lp.n, round(lp.each, 3))
+    for net in h.nets.values():
+        for sec in net.sections:
+            out[sec.name] = (round(sec.length, 3),)
     return out
 
 

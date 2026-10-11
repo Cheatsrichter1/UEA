@@ -96,7 +96,11 @@ def test_checks() -> None:
 
 def test_describe() -> None:
     d, _ = heat("rad hk1 w3 hv1 x=W+2\n")
-    assert describe(d, d.model["g1"]) == ["at 11,1 z 0 | no room EG", "8 kW | supplies t1"]
+    assert describe(d, d.model["g1"]) == [
+        "at 11,1 z 0 | no room EG",
+        "8 kW | supplies t1",
+        "pipes 16.0 m to t1 (flow and return each)",
+    ]
     assert describe(d, d.model["t1"])[1] == "200 l dhw | from g1 | supplies hv1"
     assert describe(d, d.model["hv1"])[1] == "from t1 | 5 loops of 4 outlets | supplies hk1 uh1"
     assert describe(d, d.model["hk1"])[1] == "from hv1 | 800 W"

@@ -1,5 +1,6 @@
-"""Heating and plumbing tables for humans (decision 0036): emitters, manifolds, fixtures, pipe
-sections and pipe quantities. German, from the derived model; outputs are the manufacturer's
+"""Heating, plumbing and ventilation tables for humans (decisions 0036, 0038): emitters,
+manifolds, fixtures, pipe sections and pipe quantities, ventilation units, air terminals, duct
+sections and duct quantities. German, from the derived model; outputs are the manufacturer's
 values in the types, lengths are the derived lower bounds.
 """
 
@@ -9,8 +10,10 @@ from uea.export.tables import USE_DE, Cell, Col, Table
 from uea.export.tga import FIXTURE_DE
 from uea.packs.heat.geometry import heat_type, man_type
 from uea.packs.heat.kinds import RadType, Ufh, UfhType
-from uea.packs.plumb.geometry import Net
+from uea.packs.net import Net
 from uea.packs.plumb.kinds import San
+from uea.packs.vent.geometry import ahu_type, fan_flow, vent_type
+from uea.packs.vent.kinds import Air, Fan, FanType
 
 M1 = "0.0"
 M2 = "0.00"
@@ -22,7 +25,10 @@ SECTION_DE = {
     "branch": "Anschlussleitung",
     "stack": "Fallleitung",
     "ground": "Grundleitung",
+    "home": "Anbindeleitung",
 }
+AIR_DE = {"oda": "Außenluft", "sup": "Zuluft", "ext": "Abluft", "eha": "Fortluft"}
+MODE_DE = {"alt": "Pendellüfter", "ext": "Abluftventilator", "both": "Zu- und Abluft"}
 
 
 def _q(v: float) -> float:
@@ -191,6 +197,7 @@ class _Tga:
         nets += [(f"Trinkwasser warm ({k})", n) for k, n in p.hot.items()]
         if p.drain is not None:
             nets.append(("Schmutzwasser", p.drain))
+        nets += [(f"Heizung ab {k}", n) for k, n in self.d.heat.nets.items()]
         for name, net in nets:
             for s in net.sections:
                 level = net.nodes[s.b].level
@@ -213,8 +220,8 @@ class _Tga:
         total: list[Cell] = ["Summe", None, None, None, None, _sum(rows, 5), _sum(rows, 6), None]
         notes = [
             "Teilstrecken abgeleitet: je Netz der kürzeste Baum über die rechtwinkligen Abstände;"
-            " ein Bogen je Richtungswechsel. Nennweiten liefern uea calc water und uea calc drain"
-            " mit den Tabellen des Büros.",
+            " ein Bogen je Richtungswechsel. Heizung: Vor- und Rücklauf je mit dieser Länge."
+            " Nennweiten liefern uea calc water, drain und hydronic mit den Tabellen des Büros.",
         ]
         return Table("Rohrleitungen", self.title("Rohrleitungen"), cols, rows, total, notes)
 
@@ -227,6 +234,8 @@ class _Tga:
             rows.append([f"Trinkwasser warm ({k})", len(n.sections), _q(n.total)])
         if p.drain is not None:
             rows.append(["Schmutzwasser", len(p.drain.sections), _q(p.drain.total)])
+        for k, n in h.nets.items():
+            rows.append([f"Heizung Vor- und Rücklauf ab {k}", len(n.sections), _q(2 * n.total)])
         by_type: dict[str, list[float]] = {}
         for el in self.m.of_kind("ufh"):
             lp = h.loops.get(el.id)
@@ -245,6 +254,112 @@ class _Tga:
         return Table("Rohrmengen", self.title("Rohrmengen"), cols, rows, total, notes)
 
 
+class _Vent(_Tga):
+    def units(self) -> Table:
+        v = self.d.vent
+        rows: list[list[Cell]] = []
+        for el in [*self.m.of_kind("ahu"), *self.m.of_kind("fan")]:
+            mt = v.at.get(el.id)
+            if mt is None or not self.mine(mt.level):
+                continue
+            if isinstance(el, Fan):
+                flow = fan_flow(self.d, el)
+                ft = vent_type(self.d, el, FanType, "fan")
+                t = ft.id if ft else None
+                kind, extra = MODE_DE[el.mode], v.pairs.get(el.id)
+            else:
+                at = ahu_type(self.d, el)
+                flow, t = (at.flow, at.id) if at else (None, None)
+                kind = "Zentralgerät"
+                extra = " ".join(k for k, u in v.unit_of.items() if u == el.id) or None
+            rows.append(
+                [el.id, mt.level, mt.room, self.room_name(mt.room), kind, t,
+                 _q(flow) if flow is not None else None, extra]
+            )  # fmt: skip
+        rows.sort(key=lambda r: (self.rank.get(str(r[1]), 99), natural(str(r[0]))))
+        cols = [
+            Col("Nr.", 6),
+            Col("Geschoss", 9),
+            Col("Raum", 7),
+            Col("Raumname", 16),
+            Col("Art", 18),
+            Col("Typ", 10),
+            Col("Volumenstrom m³/h", 12, W0),
+            Col("Paar / Durchlässe", 26),
+        ]
+        notes = ["Volumenstrom nach Herstellerangabe im Typ (Zentralgerät: größter)."]
+        return Table("Lüftungsgeräte", self.title("Lüftungsgeräte"), cols, rows, None, notes)
+
+    def terminals(self) -> Table:
+        v = self.d.vent
+        rows: list[list[Cell]] = []
+        for el in self.m.of_kind("air"):
+            assert isinstance(el, Air)
+            mt = v.at.get(el.id)
+            if mt is None or not self.mine(mt.level):
+                continue
+            up = v.duct_from(el.id)
+            where = f"{mt.wall}.{mt.letter}" if mt.wall else "Decke"
+            rows.append(
+                [el.id, mt.level, mt.room, self.room_name(mt.room), AIR_DE[el.role], where,
+                 v.unit_of.get(el.id), _q(up[1]) if up else None]
+            )  # fmt: skip
+        rows.sort(key=lambda r: (self.rank.get(str(r[1]), 99), natural(str(r[0]))))
+        cols = [
+            Col("Nr.", 6),
+            Col("Geschoss", 9),
+            Col("Raum", 7),
+            Col("Raumname", 16),
+            Col("Luftart", 11),
+            Col("Ort", 8),
+            Col("Gerät", 7),
+            Col("Weg m", 9, M1),
+        ]
+        notes = [
+            "Volumenströme liefert uea calc airflow (DIN 1946-6) mit den Tabellen des Büros.",
+        ]
+        return Table("Luftdurchlässe", self.title("Luftdurchlässe"), cols, rows, None, notes)
+
+    def ducts(self) -> Table:
+        rows: list[list[Cell]] = []
+        for (unit, role), net in self.d.vent.ducts.items():
+            for s in net.sections:
+                level = net.nodes[s.b].level
+                if self.mine(level):
+                    rows.append(
+                        [unit, AIR_DE[role], s.a, s.b, level, _q(s.length), s.bends,
+                         " ".join(s.serves)]
+                    )  # fmt: skip
+        cols = [
+            Col("Gerät", 7),
+            Col("Luftart", 11),
+            Col("Von", 8),
+            Col("Nach", 8),
+            Col("Geschoss", 9),
+            Col("Länge m", 9, M2),
+            Col("Bögen", 7, W0),
+            Col("Versorgt", 24),
+        ]
+        total: list[Cell] = ["Summe", *([None] * 4), _sum(rows, 5), _sum(rows, 6), None]
+        notes = [
+            "Teilstrecken abgeleitet: je Gerät und Luftart der kürzeste Baum über die"
+            " rechtwinkligen Abstände. Durchmesser liefert uea calc ducts.",
+        ]
+        return Table("Luftleitungen", self.title("Luftleitungen"), cols, rows, total, notes)
+
+    def quantities(self) -> Table:
+        rows: list[list[Cell]] = [
+            [f"{AIR_DE[role]} ab {unit}", len(net.sections), _q(net.total)]
+            for (unit, role), net in self.d.vent.ducts.items()
+        ]
+        cols = [Col("Leitung", 30), Col("Teilstrecken", 12, W0), Col("Länge m", 10, M1)]
+        total: list[Cell] = ["Summe", None, _sum(rows, 2)]
+        notes = ["Abgeleitete Längen ohne Verschnitt; keine Ausschreibungsmenge."]
+        if self.level is not None:
+            notes.append("Mengen für das ganze Gebäude.")
+        return Table("Luftmengen", self.title("Luftleitungsmengen"), cols, rows, total, notes)
+
+
 def _reach(net: Net | None, k: str) -> float | None:
     return _q(net.reach(k)) if net is not None and net.has(k) else None
 
@@ -254,7 +369,9 @@ def _sum(rows: list[list[Cell]], i: int) -> float:
 
 
 def tga_tables(d: Derived, level: str | None = None) -> list[Table]:
-    """The heating and plumbing tables; tables without rows are left out."""
+    """The heating, plumbing and ventilation tables; tables without rows are left out."""
     b = _Tga(d, level)
     tables = [b.emitters(), b.manifolds(), b.fixtures(), b.sections(), b.quantities()]
+    v = _Vent(d, level)
+    tables += [v.units(), v.terminals(), v.ducts(), v.quantities()]
     return [t for t in tables if t.rows]

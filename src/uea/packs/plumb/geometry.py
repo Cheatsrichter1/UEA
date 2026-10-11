@@ -18,7 +18,6 @@ the rectilinear distances, so a pipe runs along x, y and z, and its length is a 
 from contextlib import suppress
 from dataclasses import dataclass, field
 from itertools import pairwise
-from typing import Literal
 
 from uea.core.model import Model
 from uea.core.registry import natural
@@ -28,74 +27,10 @@ from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import TankType
 from uea.packs.mount import Mounted, Mounts
+from uea.packs.net import Net, Node, finish, gap, grow, node_of, vertical
 from uea.packs.plumb.kinds import OUTLET_Z, Meter, Riser, San, Sewer, Stack
 
 PLACED = ("meter", "riser", "stack", "sewer", "san")
-SectionKind = Literal["pipe", "riser", "branch", "stack", "ground"]
-EPS = 1e-6
-
-
-@dataclass(frozen=True)
-class Node:
-    id: str
-    """An element id, or a riser or stack on a storey: sr1:OG."""
-    level: str
-    point: tuple[float, float]
-    z: float
-
-
-@dataclass
-class Section:
-    """A pipe between two nodes of a network (a Teilstrecke)."""
-
-    a: str
-    """The end toward the meter, the tank or the sewer."""
-    b: str
-    length: float
-    legs: int
-    """How many of x, y and z it runs along; a bend between each two."""
-    kind: SectionKind
-    serves: list[str] = field(default_factory=list[str])
-    """The fixtures and tanks beyond b: those it supplies, or whose waste water it carries."""
-
-    @property
-    def bends(self) -> int:
-        return max(self.legs - 1, 0)
-
-    @property
-    def name(self) -> str:
-        return f"{self.a}>{self.b}"
-
-
-@dataclass
-class Net:
-    root: str
-    nodes: dict[str, Node] = field(default_factory=dict[str, Node])
-    sections: list[Section] = field(default_factory=list[Section])
-    """Each after the section it hangs from."""
-
-    def up(self) -> dict[str, Section]:
-        return {s.b: s for s in self.sections}
-
-    def path(self, end: str) -> list[Section]:
-        """The sections from the root to end, in order."""
-        up = self.up()
-        out: list[Section] = []
-        k = end
-        while k in up:
-            out.append(up[k])
-            k = up[k].a
-        return out[::-1]
-
-    def reach(self, end: str) -> float:
-        return sum(s.length for s in self.path(end))
-
-    def has(self, end: str) -> bool:
-        return end == self.root or end in self.up()
-
-    @property
-    def total(self) -> float:
-        return sum(s.length for s in self.sections)
 
 
 @dataclass
@@ -116,12 +51,6 @@ class PlumbGeo:
     """Fixtures whose waste water has nowhere to go, and why."""
 
 
-def gap(a: Node, b: Node) -> tuple[float, int]:
-    """Rectilinear distance and how many axes it runs along."""
-    legs = [abs(a.point[0] - b.point[0]), abs(a.point[1] - b.point[1]), abs(a.z - b.z)]
-    return sum(legs), sum(x > EPS for x in legs)
-
-
 def derive_plumb(d: Derived) -> None:
     m = d.model
     p = d.plumb = PlumbGeo()
@@ -139,9 +68,9 @@ def derive_plumb(d: Derived) -> None:
         ),
         key=natural,
     )
-    node = {k: _node(v) for k, v in p.at.items()}
+    node = {k: node_of(v) for k, v in p.at.items()}
     for t in p.tanks:
-        node[t] = _node(d.heat.at[t])
+        node[t] = node_of(d.heat.at[t])
     risers = [node[el.id] for el in m.of_kind("riser") if el.id in node]
     # hot water from the nearest tank that heats drinking water
     for el in fixtures:
@@ -202,57 +131,6 @@ class Placer:
         return Mounted(el.id, el.kind, rg.level, (x, y), lv.z + z, rg.id, width=0.3)
 
 
-def _node(mt: Mounted) -> Node:
-    return Node(mt.id, mt.level, mt.point, mt.z)
-
-
-def _grow(net: Net, done: set[str], inside: list[str], left: list[str], kind: SectionKind) -> None:
-    """Prim's algorithm: join each of left to the nearest node inside, ties to the lower id."""
-    inside = sorted(inside, key=natural)
-    left = sorted(set(left) - done, key=natural)
-    while left:
-        best = min(
-            (gap(net.nodes[u], net.nodes[v]), natural(v), natural(u), u, v)
-            for u in inside
-            for v in left
-        )
-        (length, legs), _, _, u, v = best
-        net.sections.append(Section(u, v, length, legs, kind))
-        inside.append(v)
-        left.remove(v)
-        done.add(v)
-
-
-def _vertical(net: Net, done: set[str], a: str, b: str, kind: SectionKind) -> None:
-    length, legs = gap(net.nodes[a], net.nodes[b])
-    net.sections.append(Section(a, b, length, legs, kind))
-    done.add(b)
-
-
-def _finish(net: Net, ends: set[str]) -> None:
-    """Drop the pipes that lead to no fixture, then say what each section serves."""
-    while True:
-        heads = {s.a for s in net.sections}
-        dead = [s for s in net.sections if s.b not in heads and s.b not in ends]
-        if not dead:
-            break
-        net.sections = [s for s in net.sections if s not in dead]
-    used = {net.root} | {s.b for s in net.sections}
-    net.nodes = {k: v for k, v in net.nodes.items() if k in used}
-    below: dict[str, list[Section]] = {}
-    for s in net.sections:
-        below.setdefault(s.a, []).append(s)
-
-    def serves(k: str) -> list[str]:
-        out = [k] if k in ends else []
-        for s in below.get(k, []):
-            s.serves = sorted(serves(s.b), key=natural)
-            out += s.serves
-        return out
-
-    serves(net.root)
-
-
 def supply(d: Derived, root: Node, ends: list[Node], risers: list[Node]) -> Net:
     """The tree of a drinking-water network from its root over the ends (see the module)."""
     order = d.arch.level_order()
@@ -275,13 +153,13 @@ def supply(d: Derived, root: Node, ends: list[Node], risers: list[Node]) -> Net:
             for k in on.get(lv, []):
                 rid = k.partition(":")[0]
                 if f"{rid}:{near}" in done:
-                    _vertical(net, done, f"{rid}:{near}", k, "riser")
+                    vertical(net, done, f"{rid}:{near}", k, "riser")
         inside = [k for k in done if net.nodes[k].level == lv]
         if inside:
             left = [e.id for e in ends if e.level == lv] + on.get(lv, [])
-            _grow(net, done, inside, left, "pipe")
-    _grow(net, done, list(done), [e.id for e in ends], "pipe")
-    _finish(net, {e.id for e in ends})
+            grow(net, done, inside, left, "pipe")
+    grow(net, done, list(done), [e.id for e in ends], "pipe")
+    finish(net, {e.id for e in ends})
     return net
 
 
@@ -333,12 +211,12 @@ def drainage(d: Derived, fixtures: list[San], node: dict[str, Node]) -> Net | No
             k = f"{sid}:{lv}"
             net.nodes[k] = Node(k, lv, st.point, d.arch.levels[lv].z)
         feet.append(f"{sid}:{levels[0]}")
-    _grow(net, done, [sewer.id], feet, "ground")
+    grow(net, done, [sewer.id], feet, "ground")
     for sid in sorted(stacks, key=natural):
         levels = [k for k in net.nodes if k.startswith(f"{sid}:")]
         levels.sort(key=lambda k: idx[k.partition(":")[2]])
         for a, b in pairwise(levels):
-            _vertical(net, done, a, b, "stack")
+            vertical(net, done, a, b, "stack")
     for k in sorted(p.drains_to, key=natural):
         f = node[k]
         net.nodes[k] = Node(k, f.level, f.point, d.arch.levels[f.level].z)
@@ -349,8 +227,8 @@ def drainage(d: Derived, fixtures: list[San], node: dict[str, Node]) -> Net | No
                 by_level.setdefault(net.nodes[k].level, []).append(k)
         for lv, ks in by_level.items():
             start = taker if taker == sewer.id else f"{taker}:{lv}"
-            _grow(net, done, [start], ks, "branch")
-    _finish(net, set(p.drains_to))
+            grow(net, done, [start], ks, "branch")
+    finish(net, set(p.drains_to))
     return net
 
 

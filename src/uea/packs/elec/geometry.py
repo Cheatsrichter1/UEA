@@ -114,7 +114,10 @@ def route_cables(d: Derived) -> None:
     e = d.elec
     # a feed reaches the element of another discipline it powers, where that has a place
     at = dict(d.mounts)
-    placed: dict[str, Mounted] = getattr(getattr(d, "heat", None), "at", {})
+    placed: dict[str, Mounted] = {
+        **getattr(getattr(d, "heat", None), "at", {}),
+        **getattr(getattr(d, "vent", None), "at", {}),
+    }
     for el in d.model.of_kind("feed"):
         assert isinstance(el, Feed)
         if el.target.id in placed:

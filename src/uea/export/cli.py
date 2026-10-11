@@ -64,6 +64,9 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     has_schema = bool(schema.rows or schema.gens or schema.tanks or schema.fixtures)
     heating = [*(("heat", lv) for lv in heated), *([("schema", "heat")] if has_schema else [])]
     plumbing = [("plumb", lv) for lv in tga_levels(d, "plumb")]
+    if plumbing:
+        plumbing.append(("strang", "plumb"))
+    venting = [("vent", lv) for lv in tga_levels(d, "vent")]
     if scope is None or scope == "all":
         return [
             *(("plan", lv) for lv in levels),
@@ -72,19 +75,26 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
             *electrical,
             *heating,
             *plumbing,
+            *venting,
         ]
     if scope == "elec":
         return electrical or "nothing electrical to draw yet"
-    if scope in ("heat", "plumb"):
-        found = heating if scope == "heat" else plumbing
+    if scope in ("heat", "plumb", "vent"):
+        found = {"heat": heating, "plumb": plumbing, "vent": venting}[scope]
         return found or f"nothing of {scope} to draw yet"
     if scope in ("heat:schema", "schema"):
         return [("schema", "heat")] if has_schema else "no heating and no water to draw yet"
-    if scope.startswith(("heat:", "plumb:")):
+    if scope == "plumb:schema":
+        return [("strang", "plumb")] if plumbing else "no plumbing to draw yet"
+    if scope.startswith(("heat:", "plumb:", "vent:")):
         pack, _, rest = scope.partition(":")
-        on = heated if pack == "heat" else [lv for _, lv in plumbing]
+        on = {
+            "heat": heated,
+            "plumb": [lv for k, lv in plumbing if k == "plumb"],
+            "vent": [lv for _, lv in venting],
+        }[pack]
         if rest not in levels:
-            extra = " or schema" if pack == "heat" else ""
+            extra = "" if pack == "vent" else " or schema"
             return f"unknown level {rest!r}{extra}. Levels: {' '.join(levels)}"
         return [(pack, rest)] if rest in on else f"nothing of {pack} on {rest}"
     if scope.startswith("elec:") or scope in boards:
@@ -108,7 +118,9 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     if heating:
         more += " Heating: heat, heat:<level>, heat:schema."
     if plumbing:
-        more += " Plumbing: plumb, plumb:<level>."
+        more += " Plumbing: plumb, plumb:<level>, plumb:schema."
+    if venting:
+        more += " Ventilation: vent, vent:<level>."
     return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
 
 
@@ -125,6 +137,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     from uea.export.schema import H_SCHEMA, sheet_schema
     from uea.export.section import sheet_section
     from uea.export.sheet import sheet_plan
+    from uea.export.strang import S_SCHEMA, sheet_strang
     from uea.export.tga import TGA_LAYER_COLORS, sheet_tga
 
     targets = _sheet_targets(ctx, scope)
@@ -147,18 +160,22 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_install(d, key, stand)
         elif kind == "board":
             dw = sheet_board(d, key, stand)
-        elif kind in ("heat", "plumb"):
+        elif kind in ("heat", "plumb", "vent"):
             dw = sheet_tga(d, key, kind, stand)
         elif kind == "schema":
             dw = sheet_schema(d, stand)
+        elif kind == "strang":
+            dw = sheet_strang(d, stand)
         else:
             dw = sheet_elevation(d, key, stand)
         if dw is None or dw.sheet is None:
             why = "the cut meets no wall" if kind == "section" else "no walls"
             lines.append(f"{key}: {why}, nothing to draw")
             continue
-        name = {"install": "elec", "board": "board", "schema": "heat"}.get(kind, kind)
-        stem = f"{name}-schema" if kind == "schema" else f"{name}-{key}"
+        name = {"install": "elec", "board": "board", "schema": "heat", "strang": "plumb"}.get(
+            kind, kind
+        )
+        stem = f"{name}-schema" if kind in ("schema", "strang") else f"{name}-{key}"
         path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{stem}.{fmt}"
         if fmt == "svg":
             path.write_text(to_svg(dw), encoding="utf-8")
@@ -167,9 +184,15 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
         elif fmt == "pdf":
             to_pdf(dw, path)
         else:
-            colors = {**LAYER_COLORS, **ELEC_LAYER_COLORS, **TGA_LAYER_COLORS, H_SCHEMA: "#000000"}
+            colors = {
+                **LAYER_COLORS,
+                **ELEC_LAYER_COLORS,
+                **TGA_LAYER_COLORS,
+                H_SCHEMA: "#000000",
+                S_SCHEMA: "#000000",
+            }
             to_dxf(dw, path, colors)
-        scale = "o. M." if kind in ("board", "schema") else f"1:{dw.sheet.scale}"
+        scale = "o. M." if kind in ("board", "schema", "strang") else f"1:{dw.sheet.scale}"
         lines.append(f"{_rel(ctx, path)} {dw.sheet.size} {scale}")
     return lines
 

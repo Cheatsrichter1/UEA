@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from uea.packs.issues import Req, Waive
     from uea.packs.mount import Mounted
     from uea.packs.plumb.geometry import PlumbGeo
+    from uea.packs.vent.geometry import VentGeo
 
 T = TypeVar("T")
 
@@ -60,6 +61,7 @@ class Derived:
         self.elec: ElecGeo
         self.heat: HeatGeo
         self.plumb: PlumbGeo
+        self.vent: VentGeo
         self.mounts: dict[str, Mounted] = {}
         """What is mounted on a wall or in a room: luminaires and electrical devices."""
 

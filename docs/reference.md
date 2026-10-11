@@ -556,13 +556,13 @@ A circuit feeding an element of another discipline (a heat pump, a fan): feed fd
 
 ### Heating (`heat.uea`)
 
-Types: `type … gen`, `type … tank`, `type … man`, `type … ufh`, `type … rad`.
+Types: `type … gen`, `type … tank`, `type … man`, `type … ufh`, `type … rad`, `type … hpipe`.
 
 Kinds: `gen`, `tank`, `man`, `ufh`, `rad`.
 
 #### `type … gen`
 
-Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the design outdoor temperature and flow temperature, from the manufacturer.
+Heat generator type: type WP-8 gen kw=8 source=air dp=120. kw: heat output at the design outdoor temperature and flow temperature; dp: its loss on the heating side, for uea calc hydronic; from the manufacturer.
 
 `type <name> gen`
 
@@ -570,6 +570,7 @@ Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the desig
 |---|---|---|---|
 | kw | `kw=` | kW | heat output at the design point (required) |
 | source | `source=` | `air` `ground` `water` `gas` `oil` `wood` `district` `electric` | heat source: air, ground, water (heat pumps), gas, oil, wood, district, electric |
+| dp | `dp=` | hPa | its pressure loss on the heating side at the design flow |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … tank`
@@ -599,7 +600,7 @@ Manifold type (Heizkreisverteiler): type HKV-10 man outlets=10 w=0.55.
 
 #### `type … ufh`
 
-Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included.
+Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
 
 `type <name> ufh`
 
@@ -608,6 +609,8 @@ Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 ma
 | spacing | `spacing=` | m | pipe spacing (required) |
 | q | `q=` | W/m² | heat output per floor area (required) |
 | max | `max=` | m | longest loop, with its connection lines (required) |
+| pipe | `pipe=` | mm | the loop's pipe, outer diameter x wall |
+| k | `k=` | mm | roughness of the loop's pipe |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … rad`
@@ -621,6 +624,20 @@ Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the 
 | w | `w=` | W | heat output at the design temperatures (required) |
 | length | `length=` | m | length |
 | height | `height=` | m | height |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … hpipe`
+
+Heating pipe system, for the pipes between generators, tanks, manifolds and radiators: type CU hpipe sizes=15x1,18x1,22x1,28x1.5 k=0.0015 bend=0.5 tee=1.3 default. k: roughness; bend, tee: loss coefficients ζ, from the manufacturer.
+
+`type <name> hpipe`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| sizes | `sizes=` | mm | sizes from small to large, outer diameter x wall (required) |
+| k | `k=` | mm | roughness of the pipe wall (required) |
+| bend | `bend=` |  | loss coefficient ζ of a bend (required) |
+| tee | `tee=` |  | loss coefficient ζ of a tee (required) |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `gen`
@@ -793,6 +810,98 @@ Where the waste water leaves the building for the public sewer (an inspection ch
 | at | `at=` | m | plan point x,y (required) |
 | type | `type=` |  | drain pipe system; the default drain type if left out |
 
+### Ventilation (`vent.uea`)
+
+Types: `type … ahu`, `type … fan`, `type … duct`.
+
+Kinds: `ahu`, `fan`, `air`.
+
+#### `type … ahu`
+
+Central ventilation unit type (Lüftungsgerät mit Wärmerückgewinnung): type KWL-250 ahu flow=250 dp=150 hr=0.85. flow: the largest air flow; dp: the external pressure it delivers at that flow, for each side; hr: heat recovery; from the manufacturer.
+
+`type <name> ahu`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| flow | `flow=` | m³/h | largest air flow (required) |
+| dp | `dp=` | Pa | external pressure at that flow |
+| hr | `hr=` |  | heat recovery efficiency, 0 to 1 |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … fan`
+
+Decentral unit type (dezentrales Lüftungsgerät, Abluftventilator): type DZ-160 fan flow=30 hr=0.8. flow: its air flow at the nominal level, through the unit; from the manufacturer.
+
+`type <name> fan`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| flow | `flow=` | m³/h | air flow at the nominal level (required) |
+| hr | `hr=` |  | heat recovery efficiency, 0 to 1 |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … duct`
+
+Round duct system: type R duct sizes=80,100,125,160 k=0.15 bend=0.3 tee=0.6 default (inner diameters, mm). k: roughness; bend, tee: loss coefficients ζ, from the manufacturer.
+
+`type <name> duct`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| sizes | `sizes=` | mm | inner diameters from small to large (required) |
+| k | `k=` | mm | roughness of the duct wall (required) |
+| bend | `bend=` |  | loss coefficient ζ of a bend (required) |
+| tee | `tee=` |  | loss coefficient ζ of a tee (required) |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `ahu`
+
+A central ventilation unit with heat recovery in a room: ahu lg1 r3 at=w4+0.5,w3-0.4. at= default the middle of the room; z= its duct connections above the FFL.
+
+`ahu <id> <host>` · ids `lg1`, `lg2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| at | `at=` | m | plan point x,y |
+| z | `z=` | m | height of its duct connections above the FFL |
+| type | `type=` |  | unit type; default if left out |
+
+#### `fan`
+
+A decentral unit through an exterior wall: fan vl1 w11 y=w12-0.5 pair=vl2. mode: alt (push-pull, in pairs; the default), ext (exhaust fan), both (supplies and extracts at once). pair= the other unit of a push-pull pair; the other side is derived. z= 2.2 if left out.
+
+`fan <id> <host>` · ids `vl1`, `vl2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| mode | `mode=` | `alt` `ext` `both` | alt (push-pull pair), ext (exhaust) or both |
+| pair | `pair=` |  | the other unit of its push-pull pair |
+| type | `type=` |  | unit type; default if left out |
+
+#### `air`
+
+An air terminal of a central unit (Luftdurchlass): in a room for supply or extract air (air ld1 r2 sup at=w2-1.5,w1+2; at= default the middle, z= default the ceiling), or on an exterior wall for outdoor or exhaust air (air ld9 w4 oda y=w3-1 z=2.4). role: sup, ext, oda (outdoor air in), eha (exhaust air out). src= its unit; the only or nearest if left out.
+
+`air <id> <host> <role>` · ids `ld1`, `ld2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room, or wall for oda and eha |
+| role | positional | `sup` `ext` `oda` `eha` | sup, ext, oda or eha |
+| at | `at=` | m | plan point in the room, x,y |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction |
+| z | `z=` | m | height of its centre above the FFL |
+| src | `src=` |  | its central unit |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -887,6 +996,12 @@ E is an error, W a warning.
 | W-PLUMB-003 | fixture whose waste water has nowhere to go |
 | W-PLUMB-004 | riser or stack that nothing runs through |
 | W-PLUMB-005 | a second meter or sewer connection; the first one serves |
+| E-VENT-002 | unit or terminal on a wall without a usable face, or outdoor or exhaust air in a room |
+| W-VENT-001 | ventilation unit without a type, and none of its kind is marked default |
+| W-VENT-002 | push-pull unit without a matching pair |
+| W-VENT-003 | decentral unit, or outdoor or exhaust air terminal, not on an exterior wall |
+| W-VENT-004 | air terminal with no central unit |
+| W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
 
 ## Calculators
 
@@ -899,8 +1014,11 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
+| `hydronic` | norm | 0.1.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
+| `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
+| `ducts` | norm | 0.1.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
 
 ### `cable` settings
 
@@ -933,6 +1051,19 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
 
+### `hydronic` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `tb` | float | required | thermal bridge surcharge ΔU_TB, W/(m²K), on the outer surfaces |
+| `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
+| `shielding` | str | required | shielding of the building (none / moderate / heavy) |
+| `groundwater` | str | deep | groundwater under the building (deep / shallow) |
+| `te` | float |  | θ_e in °C instead of the table outdoor |
+| `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+| `spread` | float | required | design spread between flow and return, K |
+| `vmax` | float | required | the highest velocity in the heating pipes, m/s |
+
 ### `water` settings
 
 | Setting | Type | Default | Meaning |
@@ -945,6 +1076,21 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|
 | `slope` | float | required | slope of the pipes under the building, % |
 | `building` | str | residential | building use, a row of the table drain-k |
+
+### `airflow` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
+| `insulation` | str | required | thermal insulation of the building (high / low) |
+
+### `ducts` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
+| `insulation` | str | required | thermal insulation of the building (high / low) |
+| `vmax` | float | required | the highest air velocity in the ducts, m/s |
 
 ### Norm tables
 
@@ -1162,6 +1308,44 @@ single-lmax: the longest unvented branch to one fixture, m; kb: the roughness of
 | Column | Type | Meaning |
 |---|---|---|
 | `name` | text | which value (one of single-lmax, kb, fill) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `vent-total`: Total air flow of the dwelling by ventilation level (DIN 1946-6)
+
+q_v,ges = f · (a · A_NE² + b · A_NE + c), m³/h, with A_NE in m².
+
+| Column | Type | Meaning |
+|---|---|---|
+| `level` | text | fl-high, fl-low (by insulation), rl, nl or il (one of fl-high, fl-low, rl, nl, il) |
+| `a` | num | a, m³/h per m⁴ |
+| `b` | num | b, m³/h per m² |
+| `c` | num | c, m³/h |
+| `f` | num > 0 | factor f |
+
+One row for each: level.
+
+#### `vent-room`: Air flows by room use (DIN 1946-6)
+
+One row for each use the rooms of the project have.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use, as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `role` | text | supply, extract, overflow, or none (not in the dwelling) (one of supply, extract, overflow, none) |
+| `extract` | num ≥ 0 | extract flow of an extract room at the nominal level, m³/h |
+| `fr` | num ≥ 0 | factor of a supply room for its share of the supply air |
+
+One row for each: use.
+
+#### `vent-infiltration`: Infiltration of the dwelling (DIN 1946-6)
+
+q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which factor (one of komp, lage, dp, n) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
