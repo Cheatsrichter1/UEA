@@ -175,7 +175,7 @@ class Wall:
 
 @dataclass
 class Niche:
-    """A recess in one face of a wall."""
+    """A recess in one face of a wall, or a hole through it that nothing fills."""
 
     guid: str
     wall: str
@@ -184,6 +184,9 @@ class Niche:
     z0: float
     z1: float
     status: str
+    through: bool = False
+    dia: float | None = None
+    """A core drilling: its diameter."""
 
 
 @dataclass
@@ -224,6 +227,8 @@ class Void:
     slab: str
     """GlobalId of the slab it opens."""
     fp: Polygon
+    dia: float | None = None
+    """A core drilling: its diameter."""
 
 
 @dataclass
@@ -751,7 +756,7 @@ def read(
     by_guid = {w.guid: w for w in src.walls}
     for o, host in recesses:
         handled.add(o.id())
-        niche = _niche(o, by_guid.get(walled.get(host.id(), "")), sh, src)
+        niche = _niche(o, by_guid.get(walled.get(host.id(), "")), sh, scale, src)
         if niche is not None:
             src.niches.append(niche)
     for s in slabs:
@@ -765,7 +770,7 @@ def read(
         if space is not None:
             src.spaces.append(space)
     for o, host in voiding:
-        void = _void(o, host, sh, src)
+        void = _void(o, host, sh, scale, src)
         if void is not None:
             src.voids.append(void)
     for root, fam in stairs:
@@ -1162,9 +1167,10 @@ NICHE_FACE = 0.005
 """A recess that reaches this close to a face of its wall opens on that face."""
 
 
-def _niche(o: Entity, w: Wall | None, sh: dict[int, Shape], src: Source) -> Niche | None:
-    """A recess in one face of a wall. One that goes through the wall is an opening without a
-    fill, which UEA does not have yet."""
+def _niche(
+    o: Entity, w: Wall | None, sh: dict[int, Shape], scale: float, src: Source
+) -> Niche | None:
+    """A recess in one face of a wall, or a hole through it (decision 0039)."""
     if w is None:
         src.skipped["IfcOpeningElement (its wall was not imported)"] += 1
         return None
@@ -1178,23 +1184,34 @@ def _niche(o: Entity, w: Wall | None, sh: dict[int, Shape], src: Source) -> Nich
     n = (-u[1] / size, u[0] / size)
     qs = [(x - w.a[0]) * n[0] + (y - w.a[1]) * n[1] for x, y in fp.exterior.coords]
     lo, hi = max(min(qs), -w.t / 2), min(max(qs), w.t / 2)
+    status = _status(o, "Pset_OpeningElementCommon")
     if hi - lo >= w.t - 0.01:
-        src.skipped["IfcOpeningElement (a wall opening nothing fills)"] += 1
-        return None
+        z0, z1 = body.z()
+        return Niche(o.GlobalId, w.guid, fp, z0, z1, status, through=True, dia=_dia(o, scale))
     if min(qs) > -w.t / 2 + NICHE_FACE and max(qs) < w.t / 2 - NICHE_FACE:
         src.skipped["IfcOpeningElement (a recess inside its wall)"] += 1
         return None
     z0, z1 = body.z()
-    return Niche(o.GlobalId, w.guid, fp, z0, z1, _status(o, "Pset_OpeningElementCommon"))
+    return Niche(o.GlobalId, w.guid, fp, z0, z1, status)
 
 
-def _void(o: Entity, host: Entity, sh: dict[int, Shape], src: Source) -> Void | None:
+def _dia(o: Entity, scale: float) -> float | None:
+    """The diameter of an opening whose body is a swept circle: a core drilling."""
+    rep = o.Representation
+    for r in rep.Representations if rep is not None else ():
+        for it in r.Items:
+            if it.is_a("IfcExtrudedAreaSolid") and it.SweptArea.is_a("IfcCircleProfileDef"):
+                return float(it.SweptArea.Radius) * 2 * scale
+    return None
+
+
+def _void(o: Entity, host: Entity, sh: dict[int, Shape], scale: float, src: Source) -> Void | None:
     body = sh.get(o.id())
     fp = footprint(body) if body is not None else None
     if fp is None:
         src.skipped["IfcOpeningElement (no body)"] += 1
         return None
-    return Void(o.GlobalId, host.GlobalId, fp)
+    return Void(o.GlobalId, host.GlobalId, fp, _dia(o, scale))
 
 
 def _stair_roots(f: Entity) -> list[Entity]:

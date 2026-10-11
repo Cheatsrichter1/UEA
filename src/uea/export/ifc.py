@@ -32,6 +32,7 @@ from uea.export.guid import ifc_guid
 from uea.geom import Lin, Part, halfplane, polys, union_pieces
 from uea.packs.arch.geometry import (
     ArchGeo,
+    HoleGeo,
     OpeningGeo,
     RoofGeo,
     StairGeo,
@@ -313,6 +314,58 @@ class Writer:
         for o in self.g.openings.values():
             if o.host == w.id:
                 self.opening(o, w, e)
+        for h in self.g.holes.values():
+            if h.host == w.id:
+                self.hole(h, e)
+
+    def hole(self, h: HoleGeo, host: Entity) -> None:
+        """An opening without a fill (decision 0039): through a wall or slab, or a chase."""
+        lv = self.g.levels[h.level]
+        op = self.entity(
+            "IfcOpeningElement", f"{h.id}/opening", h.id, "RECESS" if h.chase else "OPENING"
+        )
+        label = self.d.model[h.id].label
+        if label:
+            op.Description = label
+        op.ObjectPlacement = self.placement(self.storeys[h.level].ObjectPlacement)
+        o = h.wall
+        if o is None and h.round:
+            x0, _, x1, _ = h.poly.bounds
+            circle = self.f.createIfcCircleProfileDef("AREA", None, None, float((x1 - x0) / 2))
+            at = self.axis((*h.centre, h.z0 - lv.z - 0.05))
+            solid = self.f.createIfcExtrudedAreaSolid(
+                circle, at, self.dir(0, 0, 1), float(h.z1 - h.z0 + 0.1)
+            )
+        elif o is None:
+            solid = self.extrude(h.poly, h.z0 - lv.z - 0.05, h.z1 - h.z0 + 0.1)
+        else:
+            w = self.g.walls[o.host]
+            if o.face is None:
+                a, b = w.lo - w.finish("lo") - 0.05, w.hi + w.finish("hi") + 0.05
+            elif o.face == "hi":
+                a, b = w.hi - o.depth, w.hi + w.finish("hi") + 0.05
+            else:
+                a, b = w.lo - w.finish("lo") - 0.05, w.lo + o.depth
+            if h.round:
+                px, py = w.plan_point(o.mid, a)
+                (ux, uy), (nx, ny) = w.u, w.n
+                circle = self.f.createIfcCircleProfileDef("AREA", None, None, float(o.width / 2))
+                at = self.axis((px, py, (o.sill + o.top) / 2), (nx, ny, 0.0), (ux, uy, 0.0))
+                solid = self.f.createIfcExtrudedAreaSolid(
+                    circle, at, self.dir(0, 0, 1), float(b - a)
+                )
+            else:
+                box = Polygon(
+                    [
+                        w.plan_point(o.lo, a),
+                        w.plan_point(o.hi, a),
+                        w.plan_point(o.hi, b),
+                        w.plan_point(o.lo, b),
+                    ]
+                )
+                solid = self.extrude(box, o.sill, o.top - o.sill)
+        op.Representation = self.body([solid], "SweptSolid")
+        ifcopenshell.api.feature.add_feature(self.f, feature=op, element=host)
 
     def opening(self, o: OpeningGeo, w: WallGeo, wall: Entity) -> None:
         m = self.d.model
@@ -401,6 +454,9 @@ class Writer:
             {"IsExternal": lowest, "LoadBearing": True, "Status": STATUS[sl.status]},
         )
         self.contained[sl.level].append(e)
+        for h in self.g.holes.values():
+            if h.host == key:
+                self.hole(h, e)
 
     def roof_pieces(self, level: str) -> list[tuple[int, Lin, Polygon]]:
         """The planes of all roofs of a storey, cut against each other where they meet."""

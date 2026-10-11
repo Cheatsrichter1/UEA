@@ -62,7 +62,8 @@ def air(d: Derived, **given: str | float) -> Output:
 
 def test_placement_and_ducts() -> None:
     d, rep = box(CENTRAL + PAIR)
-    assert [i for i in rep.issues if i.code.startswith(("E-", "W-VENT"))] == []
+    # no holes yet: test_holes
+    assert [i.code for i in rep.issues if i.code.startswith(("E-", "W-VENT"))] == ["W-VENT-006"] * 4
     v = d.vent
     # the unit at its point, 1.8 m up; a supply terminal under r1's ceiling
     assert v.at["lg1"].point == (1.0, 7.0) and v.at["lg1"].z == pytest.approx(1.8)
@@ -254,9 +255,11 @@ def test_haus_mueller_ventilation() -> None:
                 out.append(line)
     d, rep = derive_text("\n".join(out) + "\n")
     assert [i for i in rep.issues if i.code.startswith(("E-", "W-VENT"))] == []
-    # two push-pull pairs, the second half of each derived
-    assert d.vent.pairs == {"vl1": "vl2", "vl2": "vl1", "vl3": "vl4", "vl4": "vl3"}
-    assert [d.vent.at[k].room for k in ("vl1", "vl2", "vl3", "vl4")] == ["r6", "r7", "r8", "r2"]
-    # the circuit of the units now feeds them
+    # a central unit in the HWR, its four kinds of air, a terminal in every room with a flow
+    assert d.vent.unit_of["ld1"] == "lg1" and d.vent.pairs == {}
+    rooms = {d.vent.at[f"ld{i}"].room or "" for i in range(3, 12)}
+    assert sorted(rooms) == ["r1", "r2", "r3", "r4", "r6", "r7", "r8", "r9"]
+    assert sorted(role for _, role in d.vent.ducts) == ["eha", "ext", "oda", "sup"]
+    # the circuit of the unit now feeds it
     assert "c18" not in found(rep, "W-ELEC-022")
-    assert len(d.elec.routes["c18"].runs) == 4
+    assert len(d.elec.routes["c18"].runs) == 1

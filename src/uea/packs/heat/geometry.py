@@ -37,7 +37,7 @@ from uea.packs.heat.kinds import (
     UfhType,
 )
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Net, Section, finish, gap, grow, node_of
+from uea.packs.net import Crossing, Net, Section, finish, gap, grow, node_of, routed, through
 
 PLACED = ("gen", "tank", "man", "rad")
 
@@ -75,6 +75,8 @@ class HeatGeo:
     nets: dict[str, Net] = field(default_factory=dict[str, Net])
     """The pipes from each generator, tank or manifold to what it supplies directly; a section
     stands for its flow and its return pipe."""
+    crossings: list[Crossing] = field(default_factory=list[Crossing])
+    """Where the pipes pass the slabs (decision 0039)."""
 
     def pipe_from(self, end: str) -> tuple[str, float] | None:
         """The net an element hangs from and the length of pipe to it, one way."""
@@ -145,16 +147,20 @@ def _pipes(d: Derived) -> None:
         ends = [k for k in h.supplies[root] if k in h.at]  # an underfloor heating has no point
         if not ends:
             continue
+        el = m[root]
+        assert isinstance(el, Gen | Tank | Man)
+        via = el.via.refs() if el.via else ()
         net = Net(root, {root: node_of(h.at[root])})
         for k in ends:
             net.nodes[k] = node_of(h.at[k])
-        if m[root].kind == "man":
+        if el.kind == "man":
             for k in ends:
                 length, legs = gap(net.nodes[root], net.nodes[k])
                 net.sections.append(Section(root, k, length, legs, "home", [k]))
         else:
-            grow(net, {root}, [root], ends, "pipe")
+            grow(net, {root}, [root], ends, "pipe", routed(d, via))
             finish(net, set(ends))
+        h.crossings += through(d, net, via)
         h.nets[root] = net
 
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `hydronic` 0.1.0, kind `norm` |
+| Calculator | `hydronic` 0.1.1, kind `norm` |
 | Method | Verfahren B of the hydraulic balance, on the Heizlast per DIN EN 12831-1:2017-09 |
 | Code | `src/uea/packs/heat/hydronic.py`; the pipes from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py`, the Heizlast in `heatload.py` |
 | Tests | `tests/test_hydronic.py` |
@@ -32,7 +32,7 @@ For each emitter: its design heat flow and water flow. For each section of the h
 | Φ_HL per room | `heatload` with the settings `tb`, `n50`, `shielding`, `groundwater`, `te`, `tme` and its tables |
 | Δθ | setting `spread` |
 | v_max | setting `vmax` |
-| Sections, lengths, bends | the derived heating pipes (`geometry.py`): rectilinear, lower bounds |
+| Sections, lengths, bends | the derived heating pipes (`geometry.py`): rectilinear, lower bounds; between storeys through the hole of `via=` (`docs/decisions/0039-openings-without-a-fill.md`) |
 | Loops and their length | the derived loops of each underfloor heating (`0034`) |
 | Sizes, k, ζ_bend, ζ_tee | the heating pipe type marked default (`type … hpipe`) |
 | Loop pipe and k | the underfloor type's `pipe=` and `k=` |
@@ -69,3 +69,4 @@ The box of `tests/test_heatload.py` with its synthetic tables: r1 (living) with 
 | Version | Change |
 |---|---|
 | 0.1.0 | First version |
+| 0.1.1 | Pipes that change storey run through the hole their network names (`via=`, decision 0039), with the detour; the report says so |

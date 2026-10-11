@@ -1,0 +1,6 @@
+# synthetic values for the agent test, not a standard's
+name,value
+fg1,1.4
+gw-deep,1
+gw-shallow,1.15
+rho-cp,0.34

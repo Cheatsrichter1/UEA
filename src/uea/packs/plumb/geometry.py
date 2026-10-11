@@ -27,7 +27,7 @@ from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import TankType
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Net, Node, finish, gap, grow, node_of, vertical
+from uea.packs.net import Crossing, Net, Node, finish, gap, grow, node_of, through, vertical
 from uea.packs.plumb.kinds import OUTLET_Z, Meter, Riser, San, Sewer, Stack
 
 PLACED = ("meter", "riser", "stack", "sewer", "san")
@@ -49,6 +49,8 @@ class PlumbGeo:
     """The stack or sewer each fixture's waste water runs to."""
     stray: dict[str, str] = field(default_factory=dict[str, str])
     """Fixtures whose waste water has nowhere to go, and why."""
+    crossings: list[Crossing] = field(default_factory=list[Crossing])
+    """Where the pipes pass the slabs (decision 0039)."""
 
 
 def derive_plumb(d: Derived) -> None:
@@ -88,6 +90,9 @@ def derive_plumb(d: Derived) -> None:
         if ends:
             p.hot[t] = supply(d, node[t], ends, risers)
     p.drain = drainage(d, [el for el in fixtures if el.drains], node)
+    for net in (p.cold, *p.hot.values(), p.drain):
+        if net is not None:
+            p.crossings += through(d, net)
 
 
 class Placer:

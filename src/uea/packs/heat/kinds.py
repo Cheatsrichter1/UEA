@@ -12,7 +12,7 @@ from typing import Annotated, ClassVar, Literal, Self
 from pydantic import model_validator
 
 from uea.core.schema import Element, F
-from uea.core.values import Anchor, Point, Ref
+from uea.core.values import Anchor, Point, Ref, RefList
 from uea.packs.mount import WallMounted
 from uea.packs.pipes import Bores
 
@@ -166,6 +166,10 @@ class Gen(Element):
     type: Annotated[Ref | None, F("generator type; default if left out", targets=("type:gen",))] = (
         None
     )
+    via: Annotated[
+        RefList | None,
+        F("slab holes or voids its pipes change storey through", targets=("hole", "void")),
+    ] = None
 
 
 class Tank(Element):
@@ -181,6 +185,10 @@ class Tank(Element):
     at: Annotated[Point | None, F("plan point x,y", unit="m")] = None
     src: Annotated[Ref | None, F("generator that heats it", targets=("gen",))] = None
     type: Annotated[Ref | None, F("tank type; default if left out", targets=("type:tank",))] = None
+    via: Annotated[
+        RefList | None,
+        F("slab holes or voids its pipes change storey through", targets=("hole", "void")),
+    ] = None
 
 
 class Man(Element):
@@ -201,6 +209,10 @@ class Man(Element):
     type: Annotated[Ref | None, F("manifold type; default if left out", targets=("type:man",))] = (
         None
     )
+    via: Annotated[
+        RefList | None,
+        F("slab holes or voids its pipes change storey through", targets=("hole", "void")),
+    ] = None
     default_z: ClassVar[float | None] = 0.6
 
     @property

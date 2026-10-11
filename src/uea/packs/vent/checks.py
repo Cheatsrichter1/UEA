@@ -6,6 +6,8 @@ from collections.abc import Iterable
 
 from uea.core.issues import Issue
 from uea.derive import Derived
+from uea.fmt import ln
+from uea.packs.net import missing_holes
 from uea.packs.vent.geometry import vent_type
 from uea.packs.vent.kinds import AhuType, Air, Fan, FanType
 
@@ -17,6 +19,9 @@ CODES: dict[str, str] = {
     "W-VENT-003": "decentral unit, or outdoor or exhaust air terminal, not on an exterior wall",
     "W-VENT-004": "air terminal with no central unit",
     "W-VENT-005": "central unit without outdoor air, exhaust air, supply or extract terminals",
+    "W-VENT-006": "decentral unit, or outdoor or exhaust air terminal, with no hole through its"
+    " wall",
+    "W-VENT-007": "ducts that change storey through a slab with no hole for them",
 }
 TYPES = {"ahu": AhuType, "fan": FanType}
 
@@ -67,6 +72,17 @@ def vent_checks(d: Derived) -> Iterable[Issue]:
                     "put it on an exterior wall",
                     mt.wall,
                 )
+                continue
+            if el.id in v.holes and v.holes[el.id] is None:
+                add(
+                    "W-VENT-006",
+                    el.id,
+                    f"is on {mt.wall} at {mt.axis} {ln(mt.s)} z {ln(mt.z)}, and no hole goes"
+                    " through the wall there",
+                    f'ask arch for a core drilling: + req _ vent {mt.wall} "Kernbohrung für'
+                    f' {el.id}"',
+                    mt.wall,
+                )
     units = {el.id for el in m.of_kind("ahu")}
     for el in m.of_kind("air"):
         if el.id in v.at and el.id not in v.unit_of:
@@ -83,4 +99,5 @@ def vent_checks(d: Derived) -> Iterable[Issue]:
                 f"has no {', '.join(missing)} terminal",
                 f"add air terminals: air <host> {missing[0]} src={u}",
             )
+    out += missing_holes(v.crossings, "W-VENT-007", "vent")
     return out

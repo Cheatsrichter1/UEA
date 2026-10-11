@@ -25,8 +25,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | <kind> | codes | calc | export"
-    " | import"
+    "start | ops | positions | arch | elec | heat | plumb | vent | struct | <kind> | codes | calc"
+    " | export | import"
 )
 
 ROOT = (
@@ -117,6 +117,8 @@ Status flags on physical elements: existing (Bestand), demolish, temp; none mean
 Derived, never stored: exterior walls, room outlines and areas (shell: between core faces;
 fin: between finished surfaces), heights, volumes, slab outlines, stair risers, eaves and
 ridge heights. Read them with uea get.
+Holes (Durchbrüche, Kernbohrungen, Schlitze) answer the services' requests: their checks say
+where a pipe, duct or facade terminal passes a wall or slab without one.
 """
 
 ELEC_NOTES = """\
@@ -139,15 +141,17 @@ against its outlets, each emitter's output, and the pipes from each generator an
 tree over what it supplies; a home run from a manifold to each radiator on it). Whether the
 emitters cover each room's Heizlast, and the generators the building's: uea calc heatload.
 Pipe sizes, valve settings and pump heads: uea calc hydronic (help calc).
+Pipes that change storey pass the slab through a hole: via= on their tank, generator or
+manifold names it; ask arch for one with a request.
 """
 
 PLUMB_NOTES = """\
 The pipes are derived, not written: cold water from the meter, through a riser to the other
-storeys; hot water from the nearest tank in heat.uea whose type is dhw; waste water from each
-fixture to its stack (to=, else the nearest on its storey) or the sewer connection, down the
-stack and under the floor to the sewer. Each network is the shortest tree over the rectilinear
-distances, a lower bound like the cables. uea get shows each fixture's way. Pipe sizes: uea calc
-water and uea calc drain (help calc).
+storeys (each riser and stack through a hole in the slab); hot water from the nearest tank in
+heat.uea whose type is dhw; waste water from each fixture to its stack (to=, else the nearest on
+its storey) or the sewer connection, down the stack and under the floor to the sewer. Each
+network is the shortest tree over the rectilinear distances, a lower bound like the cables. uea
+get shows each fixture's way. Pipe sizes: uea calc water and uea calc drain (help calc).
 """
 
 VENT_NOTES = """\
@@ -155,7 +159,17 @@ A central unit's terminals take its air: sup and ext in the rooms, oda and eha o
 wall. The ducts are derived like the pipes: from the unit, the shortest tree over its terminals
 of each kind of air. A decentral unit goes through an exterior wall; pair= joins a push-pull
 pair, the other side is derived. The flows the rooms need, and whether the system gives them:
-uea calc airflow; duct sizes and the fans' pressure: uea calc ducts (help calc).
+uea calc airflow; duct sizes and the fans' pressure: uea calc ducts (help calc). Ducts that
+change storey pass the slab through a hole, via= on the unit; units and terminals on the facade
+through a hole in the wall. Ask arch for them with a request.
+"""
+
+STRUCT_NOTES = """\
+No elements of its own yet: the load path is the architecture's. A slab rests on the
+load-bearing walls (lb) of the storey below; a load-bearing wall stands on those of the storey
+below its core overlaps. The checks say where the path breaks. Loads, their takedown and the
+line loads on the footings: uea calc loads (help calc). The design of the members and the
+signature are the Tragwerksplaner's.
 """
 
 CALC = """\
@@ -189,6 +203,10 @@ uea calc airflow n50=<1/h> insulation=high|low
                         measure is needed, each room's flow against the units in vent.uea
 uea calc ducts n50= insulation= vmax=<m/s>
                         duct sizes of the central units and each side's fan pressure (norm)
+uea calc loads [soil=<kN/m²>]
+                        the loads of the slabs and walls, their takedown to the foundation and
+                        the line loads on the footings (DIN EN 1991-1-1, norm); soil= the
+                        soil's design resistance gives each footing's width
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
@@ -227,8 +245,9 @@ IMPORT = """\
 uea import ifc <file> --by <who> [-m why] [--dry-run] [--building name]   an architect's IFC
 Mapped: storeys (levels), grids along x or y, walls (an axis through the core, a type from the
 layers; top= the roof they end under; curtain walls get windows over their face), doors, windows
-and niches (a position on their wall), one floor slab per storey (its finish is fb and a floor
-type) and its openings (voids; over= the stair below), stairs and roofs whose faces fit a UEA stair
+niches and holes (a position on their wall), one floor slab per storey (its finish is fb and a
+floor type) and its openings (voids; over= the stair below; round ones and rectangles up to
+0.25 m² are holes), stairs and roofs whose faces fit a UEA stair
 or roof, spaces (rooms; use from the names; a sep where two spaces meet with no wall). The rest is
 listed as not imported, with the reason. One building per import; a plan far from the origin or
 turned is moved and turned (noted). Errors the import causes in the model are listed, not
@@ -284,7 +303,10 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(PLUMB_NOTES.rstrip())
     if pack == "vent":
         lines.append(VENT_NOTES.rstrip())
-    lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
+    if pack == "struct":
+        lines.append(STRUCT_NOTES.rstrip())
+    if p.kinds:
+        lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
 
 

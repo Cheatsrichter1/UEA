@@ -200,9 +200,12 @@ def result_lines(res: Result, rep_owner: Report | None) -> list[str]:
     if res.follows:
         by: dict[str, list[str]] = {}
         for k in res.follows:
-            if k in m:
-                by.setdefault(type(m[k]).pack, []).append(k)
-        lines.append("follows: " + " · ".join(f"{ids(v)} ({p})" for p, v in by.items()))
+            # a derived pipe or duct (t1>hv2, sup:lg1>ld5) follows for the element at its end
+            el = k if k in m else k.rpartition(">")[2].partition(":")[0]
+            if el in m and el not in by.get(type(m[el]).pack, []):
+                by.setdefault(type(m[el]).pack, []).append(el)
+        if by:
+            lines.append("follows: " + " · ".join(f"{ids(v)} ({p})" for p, v in by.items()))
     return lines
 
 

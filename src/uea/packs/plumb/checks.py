@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from uea.core.issues import Issue
 from uea.derive import Derived
+from uea.packs.net import missing_holes
 from uea.packs.plumb.geometry import nets
 from uea.packs.plumb.kinds import San
 
@@ -16,6 +17,7 @@ CODES: dict[str, str] = {
     "W-PLUMB-003": "fixture whose waste water has nowhere to go",
     "W-PLUMB-004": "riser or stack that nothing runs through",
     "W-PLUMB-005": "a second meter or sewer connection; the first one serves",
+    "W-PLUMB-006": "pipe that passes a slab with no hole for it",
 }
 
 
@@ -57,4 +59,5 @@ def plumb_checks(d: Derived) -> Iterable[Issue]:
         first, *more = [el.id for el in m.of_kind(kind)] or [""]
         for k in more:
             add("W-PLUMB-005", k, f"a second {what}: {first} serves", f"- {k}", first)
+    out += missing_holes(p.crossings, "W-PLUMB-006", "plumb", via=False)
     return out

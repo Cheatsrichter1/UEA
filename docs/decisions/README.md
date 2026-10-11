@@ -42,6 +42,8 @@ One file per major decision: what was decided, what else was considered, and why
 | 0036 | [Heating and plumbing sheets, slice 6e](0036-heating-and-plumbing-sheets.md) | Accepted (slice 6e built) |
 | 0037 | [Heating pipes, the hydraulic balance and the Strangschema, slice 6f](0037-heating-pipes-and-strangschema.md) | Accepted (slice 6f built) |
 | 0038 | [Ventilation, phase 7](0038-ventilation.md) | Accepted (phase 7 built) |
+| 0039 | [Openings without a fill](0039-openings-without-a-fill.md) | Accepted (built) |
+| 0040 | [Structure, phase 8](0040-structure.md) | Proposed (slice 8a built) |
 
 Template:
 

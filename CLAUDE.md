@@ -19,7 +19,7 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
 | `tests/` | pytest; hand-computed expected values, the prototype, the CLI |
 | `docs/reference.md` | Every command, kind, field and issue code, generated from the code (`uv run python -m uea.reference`) |
-| `bench/` | The token task set; `bench/results.md` holds the last run. `bench/agent/`: an agent builds Haus Müller from a brief |
+| `bench/` | The token task set; `bench/results.md` holds the last run. `bench/agent/`: an agent builds Haus Müller's shell, or its services, from a brief |
 | `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |
 
 Each fact lives in one file; the others link to it. When a decision changes, add or update its decision record and fix the docs that depend on it.

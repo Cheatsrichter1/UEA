@@ -65,6 +65,7 @@ Phase 7 (`ROADMAP.md`) is ventilation: units, ducts, outlets. Its "done when" is
 
 - Haus Müller's `vent.uea` has its fan type (a placeholder) and loads with no errors and no ventilation warnings. The two pairs are vl1–vl2 (Schlafen, Kind 1) and vl3–vl4 (Kind 2, Wohnen/Essen). The feeds to the four units now reach them, so c18 feeds them and no circuit feeds nothing.
 - With synthetic tables, `uea calc airflow` finds that infiltration covers moisture protection, but the pairs give 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath have no extract. That is the designer's next step, as the WC and the bath were for the heating (`0034`): exhaust fans in the wet rooms, or a central unit.
+- Done the same day: Haus Müller now has a central unit lg1 (type KWL-250, a placeholder) in the HWR with eleven terminals, and c18 feeds it. With the synthetic tables every room gets its flow (164 m³/h each way of the unit's 250), and `uea calc ducts` at 3 m/s gives Ø80 to Ø160 and, once the ducts go up through their hole (`0039`), 24.5 Pa supply and 21.3 Pa extract of the unit's 150. Exhaust fans alone would not have done it: the supply rooms need outdoor air inlets, which the model does not have yet.
 - Tested by hand (`tests/test_vent.py`): placement, ducts and pairs; the checks; the totals, infiltration, the measure and the room flows without a system, with a pair and with a central unit; a unit too small; the duct sizes (Ø125 where Ø100 runs over 3 m/s), a duct's loss, the fan pressure against the unit; the sheets and tables; a feed to a fan; the command line; Haus Müller.
 - The help names `vent` among the topics (about 3 tokens more in the bench's reading of the help; the bench could not be rerun in this environment, whose network blocks tiktoken's download). The token task set is unchanged: its tasks do not touch ventilation.
 - The validation reports are `docs/validation/airflow.md` and `ducts.md`.
@@ -72,5 +73,5 @@ Phase 7 (`ROADMAP.md`) is ventilation: units, ducts, outlets. Its "done when" is
   - overflow openings and outdoor air inlets; several dwellings;
   - heat recovery in the Heizlast;
   - the losses of terminals, silencers and filters;
-  - ducts along shafts and installation zones; ventilation in the IFC export;
+  - ducts along shafts and installation zones (where they change storey is now a hole, `0039`); ventilation in the IFC export;
   - the standard's worked examples as a private test suite, and the review.

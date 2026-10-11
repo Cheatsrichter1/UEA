@@ -154,6 +154,7 @@ def wall_qty(g: ArchGeo, w: WallGeo) -> WallQty:
 
 class _Builder:
     def __init__(self, d: Derived, level: str | None) -> None:
+        self.d = d
         self.m = d.model
         self.g = d.arch
         order = self.g.level_order()
@@ -362,6 +363,69 @@ class _Builder:
             " Geschosses. Anschlag nach DIN, von dem Raum aus gesehen, in den die Tür öffnet.",
         ]
         return Table("Öffnungen", self.title("Öffnungen"), cols, rows, total, notes)
+
+    def holes(self) -> Table:
+        """The openings without a fill (decision 0039): Durchbrüche, Kernbohrungen, Schlitze."""
+        from uea.packs.net import hole_users
+
+        users = hole_users(self.d)
+        rows: list[list[Cell]] = []
+        for h in self.on_levels(self.g.holes.values()):
+            o = h.wall
+            if o is None:
+                x0, y0, x1, y1 = h.poly.bounds
+                art, host, lb = "Deckendurchbruch", h.host, True
+                w, ht, depth = x1 - x0, y1 - y0, None
+            else:
+                art = "Schlitz" if h.chase else "Wanddurchbruch"
+                host, lb = o.host, self.g.walls[o.host].lb
+                w, ht, depth = o.width, o.top - o.sill, o.depth if h.chase else None
+            if h.round and not h.chase:
+                art = "Kernbohrung " + ("Decke" if o is None else "Wand")
+            cx, cy = h.centre
+            rows.append(
+                [
+                    h.id,
+                    art,
+                    h.level,
+                    host,
+                    "ja" if lb else "nein",
+                    _q(w) if not h.round else None,
+                    _q(ht) if not h.round else None,
+                    _q(w) if h.round else None,
+                    _q(depth) if depth is not None else None,
+                    _q(h.z0),
+                    _q(cx),
+                    _q(cy),
+                    " ".join(users.get(h.id, [])) or None,
+                    self.m[h.id].label or None,
+                    STATUS_DE[h.status],
+                ]
+            )
+        cols = [
+            Col("Nr", 8),
+            Col("Art", 20),
+            Col("Geschoss", 10),
+            Col("Bauteil", 9),
+            Col("tragend", 9),
+            Col("Breite m", 10, M),
+            Col("Höhe m", 10, M),
+            Col("Ø m", 9, M),
+            Col("Tiefe m", 9, M),
+            Col("UK m", 10, M),
+            Col("x m", 9, M),
+            Col("y m", 9, M),
+            Col("für", 14),
+            Col("Bemerkung", 30),
+            Col("Status", 10),
+        ]
+        notes = [
+            "Öffnungen ohne Füllung aus dem UEA-Modell. Wand: Breite und Höhe in der Wand,"
+            " Decke: Ausdehnung in x und y. UK absolut (±0,00 = OKFF EG), x und y die Mitte.",
+            "Für: was durch die Aussparung läuft, aus den abgeleiteten Leitungen. Durchbrüche"
+            " und Schlitze in tragenden Bauteilen gibt der Tragwerksplaner frei.",
+        ]
+        return Table("Aussparungen", self.title("Aussparungen"), cols, rows, None, notes)
 
     def slabs(self) -> Table:
         rows: list[list[Cell]] = []
@@ -609,6 +673,7 @@ def tables(d: Derived, level: str | None = None) -> list[Table]:
         b.rooms(),
         b.walls(),
         b.openings(),
+        b.holes(),
         b.slabs(),
         b.roofs(),
         b.stairs(),

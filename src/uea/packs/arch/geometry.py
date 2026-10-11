@@ -25,7 +25,7 @@ from shapely.geometry.base import BaseGeometry
 from uea.core.model import Model
 from uea.core.registry import natural
 from uea.core.schema import Element
-from uea.core.values import Anchor, Layers, Span
+from uea.core.values import Anchor, Layers, Ref, Span
 from uea.derive import Derived, GeoError, Unresolved
 from uea.fmt import ar, ln
 from uea.geom import (
@@ -45,6 +45,7 @@ from uea.geom import (
 from uea.packs.arch.kinds import (
     Door,
     DoorType,
+    Hole,
     Niche,
     Roof,
     RoofType,
@@ -414,6 +415,34 @@ class VoidGeo:
 
 
 @dataclass
+class HoleGeo:
+    """An opening without a fill (decision 0039)."""
+
+    id: str
+    host: str
+    level: str
+    """The wall's storey, or the storey its slab carries."""
+    round: bool
+    poly: Polygon
+    """Plan outline: through the wall and its finishes (a chase: to its depth), or in the slab."""
+    z0: float
+    z1: float
+    """Absolute bottom and top."""
+    status: str
+    wall: OpeningGeo | None = None
+    """In a wall: where it lies along it, as an opening's position (sill and top above the FFL)."""
+
+    @property
+    def chase(self) -> bool:
+        return self.wall is not None and self.wall.face is not None
+
+    @property
+    def centre(self) -> tuple[float, float]:
+        c = self.poly.centroid
+        return (c.x, c.y)
+
+
+@dataclass
 class RoofGeo:
     id: str
     level: str
@@ -527,6 +556,7 @@ class ArchGeo:
     sections: dict[str, SectionGeo] = field(default_factory=dict[str, SectionGeo])
     slabs: dict[str, SlabGeo] = field(default_factory=dict[str, SlabGeo])
     voids: dict[str, VoidGeo] = field(default_factory=dict[str, VoidGeo])
+    holes: dict[str, HoleGeo] = field(default_factory=dict[str, HoleGeo])
     roofs: dict[str, RoofGeo] = field(default_factory=dict[str, RoofGeo])
     rooms: dict[str, RoomGeo] = field(default_factory=dict[str, RoomGeo])
     seeds: dict[str, tuple[float, float]] = field(default_factory=dict[str, tuple[float, float]])
@@ -860,29 +890,7 @@ class Resolver:
         assert isinstance(el, Door | Win | Niche)
         self.need(el.host.id, "wall")
         w = self.wall(el.host.id)
-        axis = w.along
-        given: Axis = "x" if el.x is not None else "y" if el.y is not None else "s"
-        if given != axis:
-            if axis == "s":
-                raise GeoError(
-                    f"{key} is in {w.id}, which runs at an angle: give s=, the distance from its"
-                    f" start a, not {given}=",
-                    f"~ {key} {given}= s={el.along.fmt()}",
-                )
-            raise GeoError(
-                f"{key} is in {w.id}, which runs along {axis}: give {axis}=, not {given}=",
-                f"~ {key} {given}= {axis}={el.along.fmt()}",
-            )
-        if axis == "s":
-            for ref in el.along.refs():
-                other = self.m.get(ref)
-                if isinstance(other, Door | Win | Niche) and other.host.id != w.id:
-                    raise GeoError(
-                        f"s={el.along.fmt()}: {ref} is in {other.host.id}, and s counts along"
-                        f" one wall ({w.id})",
-                        "anchor on an opening of the same wall, or use a number",
-                    )
-        lo, hi = self.interval(el.along, axis, el.size.w)
+        axis, lo, hi = self._along(key, el, el.along, el.size.w, w)
         lvl = self.level(w.level)
         face: Side | None = None
         depth = w.t
@@ -898,14 +906,7 @@ class Resolver:
                 )
         elif isinstance(el, Niche):
             sill = el.sill
-            assert el.host.face is not None
-            lo_face, hi_face = w.faces
-            if el.host.face not in (lo_face, hi_face):
-                where = "runs at an angle" if w.o == "d" else f"runs along {w.along}"
-                raise GeoError(
-                    f"host {el.host.fmt()}: {w.id} {where}; its faces are .{hi_face} and .{lo_face}"
-                )
-            face = "hi" if el.host.face == hi_face else "lo"
+            face = self._face(el.host, w)
             depth = el.d
         else:
             sill = el.sill if el.sill is not None else 0.0
@@ -922,6 +923,103 @@ class Resolver:
             depth,
             face,
             el.status,
+        )
+
+    def _face(self, host: Ref, w: WallGeo) -> Side:
+        assert host.face is not None
+        lo_face, hi_face = w.faces
+        if host.face not in (lo_face, hi_face):
+            where = "runs at an angle" if w.o == "d" else f"runs along {w.along}"
+            raise GeoError(
+                f"host {host.fmt()}: {w.id} {where}; its faces are .{hi_face} and .{lo_face}"
+            )
+        return "hi" if host.face == hi_face else "lo"
+
+    def _along(
+        self, key: str, el: Door | Win | Niche | Hole, along: Anchor, width: float, w: WallGeo
+    ) -> tuple[Axis, float, float]:
+        """Where an opening lies along its wall: the axis and its two edges."""
+        axis = w.along
+        given: Axis = "x" if el.x is not None else "y" if el.y is not None else "s"
+        if given != axis:
+            if axis == "s":
+                raise GeoError(
+                    f"{key} is in {w.id}, which runs at an angle: give s=, the distance from its"
+                    f" start a, not {given}=",
+                    f"~ {key} {given}= s={along.fmt()}",
+                )
+            raise GeoError(
+                f"{key} is in {w.id}, which runs along {axis}: give {axis}=, not {given}=",
+                f"~ {key} {given}= {axis}={along.fmt()}",
+            )
+        if axis == "s":
+            for ref in along.refs():
+                other = self.m.get(ref)
+                if isinstance(other, Door | Win | Niche) and other.host.id != w.id:
+                    raise GeoError(
+                        f"s={along.fmt()}: {ref} is in {other.host.id}, and s counts along"
+                        f" one wall ({w.id})",
+                        "anchor on an opening of the same wall, or use a number",
+                    )
+        lo, hi = self.interval(along, axis, width)
+        return axis, lo, hi
+
+    def hole(self, key: str) -> HoleGeo:
+        return self.d.resolve(key, self.g.holes, lambda: self._hole(key))
+
+    def _hole(self, key: str) -> HoleGeo:
+        el = self.need(key, "hole")
+        assert isinstance(el, Hole)
+        host = self.need(el.host.id, "wall", "slab")
+        w_, h_ = el.size.w, el.size.h
+        if host.kind == "slab":
+            if el.at is None:
+                raise GeoError(
+                    f"{key} is in the slab {host.id}: give its centre at=<x,y>, not x=, y= or s=",
+                    f"~ {key} at=<x>,<y>",
+                )
+            sl = self.g.slabs.get(host.id)
+            if sl is None:
+                raise Unresolved(host.id)
+            lv = self.level(sl.level)
+            cx, cy = self.point(el.at.x, "x"), self.point(el.at.y, "y")
+            poly = (
+                SPoint(cx, cy).buffer(w_ / 2, quad_segs=16)
+                if el.round
+                else rect(cx - w_ / 2, cx + w_ / 2, cy - h_ / 2, cy + h_ / 2)
+            )
+            return HoleGeo(key, host.id, sl.level, el.round, poly, sl.ceiling, lv.z, el.status)
+        along = el.along
+        if along is None:
+            raise GeoError(
+                f"{key} is in the wall {host.id}: give its edge along it with x=, y= or s=,"
+                " not at=",
+                f"~ {key} at= x=<anchor>",
+            )
+        w = self.wall(host.id)
+        axis, lo, hi = self._along(key, el, along, w_, w)
+        lv = self.level(w.level)
+        face = self._face(el.host, w) if el.d is not None else None
+        depth = el.d if el.d is not None else w.t
+        o = OpeningGeo(
+            key, "hole", w.id, w.level, axis, lo, hi, el.sill, el.sill + h_, depth, face, el.status
+        )
+        if face is None:
+            band = (w.lo - w.finish("lo"), w.hi + w.finish("hi"))
+        elif face == "hi":
+            band = (w.hi - depth, w.hi + w.finish("hi"))
+        else:
+            band = (w.lo - w.finish("lo"), w.lo + depth)
+        poly = Polygon(
+            [
+                w.plan_point(lo, band[0]),
+                w.plan_point(hi, band[0]),
+                w.plan_point(hi, band[1]),
+                w.plan_point(lo, band[1]),
+            ]
+        )
+        return HoleGeo(
+            key, w.id, w.level, el.round, poly, lv.z + el.sill, lv.z + el.sill + h_, el.status, o
         )
 
     def stair(self, key: str) -> StairGeo:
@@ -1057,6 +1155,9 @@ class Resolver:
         self._voids()
         self._domains()
         self._exterior()
+        for el in self.m.of_kind("hole"):  # after _exterior: the finishes need the inner side
+            with suppress(Unresolved):
+                self.hole(el.id)
         self._roofs()
         self._wall_tops()
         self._rooms()
@@ -1554,6 +1655,9 @@ def arch_signatures(d: Derived) -> dict[str, tuple[float | str, ...]]:
             out[w.id] += (q(w.org[0]), q(w.org[1]), q(w.udir[0]), q(w.udir[1]))
     for o in g.openings.values():
         out[o.id] = (q(o.lo), q(o.hi), q(o.sill), q(o.top))
+    for h in g.holes.values():
+        c = h.centre
+        out[h.id] = (q(c[0]), q(c[1]), q(h.z0), q(h.z1), round(h.poly.area, 4))
     for s in g.stairs.values():
         out[s.id] = (q(s.x0), q(s.x1), q(s.y0), q(s.y1), round(s.poly.area, 3))
     for p in g.seps.values():

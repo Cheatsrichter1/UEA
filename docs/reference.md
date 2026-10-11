@@ -133,7 +133,7 @@ A grid line: x= for a line along y, y= for a line along x.
 
 Types: `type … wall`, `type … slab`, `type … floor`, `type … roof`, `type … win`, `type … door`.
 
-Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `roof`, `stair`, `sep`, `room`, `section`.
+Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `hole`, `roof`, `stair`, `sep`, `room`, `section`.
 
 #### `type … wall`
 
@@ -298,6 +298,25 @@ An opening in a slab: over a stair (over=st1) or given by x= and y= spans.
 | y | `y=` | m | y span |
 | status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
 
+#### `hole`
+
+An opening without a fill (Durchbruch, Kernbohrung, Schlitz), the answer to a request: through a wall (x=, y= or s= its edge, sill= its bottom), a chase in a wall face (host w6.e, d= its depth), or through a slab (at= its centre, size along x and y). round: a core drilling, the size its diameter twice: 0.18x0.18.
+
+`hole <id> <host> <size>` · ids `ho1`, `ho2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall, wall face (a chase) or slab |
+| size | positional | m | width x height in a wall; x by y in a slab |
+| x | `x=` | m | edge position along a wall running along x |
+| y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
+| at | `at=` | m | centre in a slab |
+| sill | `sill=` | m | bottom above the FFL, in a wall |
+| d | `d=` | m | depth of a chase into its wall face |
+| round | flag `round` | | round (a core drilling) |
+| status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
+
 #### `roof`
 
 A roof over a storey's outline, or the rectangle x= y= (roofs of a storey are one roof: L, T). gable (Satteldach, ridge=x|y; halfhip=<run> hips the ends, Krüppelwalm), shed (Pultdach, up= the side it rises to), hip (Walmdach; a square gives a Zeltdach), mansard (pitch up to rise= above the eaves, then upper=; ridge=x|y gables the ends), flat (knee= is its underside). knee: underside of the rafters at the outer face of the eaves wall, above the storey's SSL (Kniestock). Derived: eaves height (top of the roof skin above the outer wall face) and ridge height.
@@ -382,6 +401,10 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 | x | `x=` | m | x of a cut across x (the cut plane runs along y) |
 | y | `y=` | m | y of a cut across y (the cut plane runs along x) |
 | look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
+
+### Structure (`struct.uea`)
+
+Kinds: .
 
 ### Luminaires (`light.uea`)
 
@@ -652,6 +675,7 @@ A heat generator (heat pump, boiler) on a storey, inside or outside: gen g1 EG a
 | at | `at=` | m | plan point x,y (required) |
 | z | `z=` | m | height above the FFL |
 | type | `type=` |  | generator type; default if left out |
+| via | `via=` |  | slab holes or voids its pipes change storey through |
 
 #### `tank`
 
@@ -665,6 +689,7 @@ A storage tank (or a heat pump's indoor unit with one) in a room: tank t1 r3 at=
 | at | `at=` | m | plan point x,y |
 | src | `src=` |  | generator that heats it |
 | type | `type=` |  | tank type; default if left out |
+| via | `via=` |  | slab holes or voids its pipes change storey through |
 
 #### `man`
 
@@ -681,6 +706,7 @@ A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man
 | s | `s=` | m | centre along a wall in any direction |
 | z | `z=` | m | height of its centre above the FFL |
 | type | `type=` |  | manifold type; default if left out |
+| via | `via=` |  | slab holes or voids its pipes change storey through |
 
 #### `ufh`
 
@@ -867,6 +893,7 @@ A central ventilation unit with heat recovery in a room: ahu lg1 r3 at=w4+0.5,w3
 | at | `at=` | m | plan point x,y |
 | z | `z=` | m | height of its duct connections above the FFL |
 | type | `type=` |  | unit type; default if left out |
+| via | `via=` |  | slab holes or voids its ducts change storey through |
 
 #### `fan`
 
@@ -944,14 +971,14 @@ E is an error, W a warning.
 | E-GEO-002 | depends on an element whose position cannot be resolved |
 | E-GEO-003 | positions refer to each other in a cycle |
 | W-ISSUE-001 | waiver that matches no issue |
-| E-ARCH-001 | opening outside its wall |
-| E-ARCH-002 | openings overlap in one wall |
-| E-ARCH-003 | opening higher than its wall |
+| E-ARCH-001 | opening or hole outside its wall |
+| E-ARCH-002 | openings or holes overlap in one wall |
+| E-ARCH-003 | opening or hole higher than its wall |
 | E-ARCH-004 | door opens into a room that is not next to it |
 | W-ARCH-005 | door handing incomplete (into= without hand= or the other way round) |
 | E-ARCH-006 | window sill below the FFL |
-| E-ARCH-007 | niche as deep as its wall or deeper |
-| E-ARCH-008 | new opening in a demolished wall |
+| E-ARCH-007 | niche or chase as deep as its wall or deeper |
+| E-ARCH-008 | new opening or hole in a demolished wall |
 | W-ARCH-010 | wall without a height yet (no storey or roof above) |
 | E-ARCH-011 | walls overlap |
 | E-ARCH-020 | room seed not in a free region |
@@ -960,7 +987,7 @@ E is an error, W a warning.
 | W-ARCH-023 | room floor build-up differs from the storey's fb |
 | E-ARCH-030 | slab without an outline |
 | W-ARCH-031 | two slabs on one storey |
-| W-ARCH-032 | void outside its slab |
+| W-ARCH-032 | void or hole outside its slab |
 | W-ARCH-033 | stair runs into a slab without a void |
 | W-ARCH-034 | stair outside the step rule 2h+a = 0.59-0.65 m (Schrittmaßregel) |
 | W-ARCH-035 | stair not inside a room |
@@ -971,6 +998,8 @@ E is an error, W a warning.
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 | W-ARCH-060 | section outside the building (it cuts no wall) |
+| W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
+| W-STRUCT-002 | slab with no load-bearing wall under it |
 | E-LIGHT-002 | luminaire on a wall without a usable face |
 | E-ELEC-001 | device outside its host wall |
 | E-ELEC-002 | device on a wall without a usable face |
@@ -990,18 +1019,22 @@ E is an error, W a warning.
 | W-HEAT-002 | manifold with more loops than outlets |
 | W-HEAT-003 | underfloor heating too far from its manifold for a loop |
 | W-HEAT-004 | generator, tank or manifold that supplies nothing (a tank that heats drinking water supplies the hot water) |
+| W-HEAT-005 | pipes that change storey through a slab with no hole for them |
 | E-PLUMB-002 | fixture on a wall without a usable face |
 | W-PLUMB-001 | fixture that takes water, and there is no meter |
 | W-PLUMB-002 | fixture that takes hot water, and no storage tank heats drinking water |
 | W-PLUMB-003 | fixture whose waste water has nowhere to go |
 | W-PLUMB-004 | riser or stack that nothing runs through |
 | W-PLUMB-005 | a second meter or sewer connection; the first one serves |
+| W-PLUMB-006 | pipe that passes a slab with no hole for it |
 | E-VENT-002 | unit or terminal on a wall without a usable face, or outdoor or exhaust air in a room |
 | W-VENT-001 | ventilation unit without a type, and none of its kind is marked default |
 | W-VENT-002 | push-pull unit without a matching pair |
 | W-VENT-003 | decentral unit, or outdoor or exhaust air terminal, not on an exterior wall |
 | W-VENT-004 | air terminal with no central unit |
 | W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
+| W-VENT-006 | decentral unit, or outdoor or exhaust air terminal, with no hole through its wall |
+| W-VENT-007 | ducts that change storey through a slab with no hole for them |
 
 ## Calculators
 
@@ -1014,11 +1047,12 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
-| `hydronic` | norm | 0.1.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
+| `hydronic` | norm | 0.1.1 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 | `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
-| `ducts` | norm | 0.1.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
+| `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
+| `loads` | norm | 0.1.0 | DIN EN 1991-1-1:2010-12 mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
 
 ### `cable` settings
 
@@ -1091,6 +1125,12 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
 | `insulation` | str | required | thermal insulation of the building (high / low) |
 | `vmax` | float | required | the highest air velocity in the ducts, m/s |
+
+### `loads` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `soil` | float |  | design resistance of the soil σ_R,d under strip footings, kN/m², from the geotechnical report |
 
 ### Norm tables
 
@@ -1346,6 +1386,50 @@ q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.
 | Column | Type | Meaning |
 |---|---|---|
 | `name` | text | which factor (one of komp, lage, dp, n) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `unit-weight`: Unit weights of building materials (DIN EN 1991-1-1, Anhang A, or the manufacturer)
+
+One row for each material the load-bearing walls, slabs, floors and partitions name.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | material, as the layers name it |
+| `gamma` | num > 0 | unit weight γ, kN/m³ |
+
+One row for each: material.
+
+#### `imposed-load`: Imposed loads on floors by room use (DIN EN 1991-1-1/NA, Tabelle 6.1DE)
+
+One row for each use the rooms of the project have.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use, as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `qk` | num ≥ 0 | imposed load q_k, kN/m² |
+
+One row for each: use.
+
+#### `partition-load`: Surcharge for light partitions (DIN EN 1991-1-1, 6.3.1.2(8), with NA)
+
+A partition heavier than the last row is a line load, which this calculator does not take.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | weight of the partition up to, kN/m |
+| `qk` | num > 0 | surcharge on the imposed load, kN/m² |
+
+One row for each: upto.
+
+#### `struct-factors`: Partial factors (DIN EN 1990/NA, Tabelle NA.A.1.2(B))
+
+γ_G for the permanent, γ_Q for the imposed actions.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which factor (one of gamma-g, gamma-q) |
 | `value` | num > 0 | its value |
 
 One row for each: name.

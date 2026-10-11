@@ -480,8 +480,8 @@ def test_haus_mueller_through_another_program(
     out = capsys.readouterr().out
     assert code == 0, out
     assert (
-        "3 levels · 10 types · 1 roofs · 17 walls · 3 slabs · 1 stairs · 1 voids · 9 doors"
-        " · 13 windows · 2 niches · 1 separators · 11 rooms"
+        "3 levels · 10 types · 1 roofs · 17 walls · 3 slabs · 1 stairs · 6 holes · 1 voids"
+        " · 9 doors · 13 windows · 2 niches · 1 separators · 11 rooms"
     ) in out
     assert "issues: 0 errors · 0 warnings" in out
     assert "not imported" not in out
@@ -506,6 +506,17 @@ def test_haus_mueller_through_another_program(
         "niche ni1 w5.n 0.6x0.75 x=4.64+ sill=0.3 d=0.11",
         "niche ni2 w12.n 0.6x0.75 x=9.225+ sill=0.3 d=0.11",
     ]
+
+    # the holes: the core drillings round again, each where it was to the few millimetres of the
+    # walls' axes (decision 0039)
+    old_h = sorted(d0.arch.holes.values(), key=lambda h: (h.wall is None, h.z0, h.centre))
+    new_h = sorted(d1.arch.holes.values(), key=lambda h: (h.wall is None, h.z0, h.centre))
+    for h0, h1 in zip(old_h, new_h, strict=True):
+        assert (h1.round, h1.wall is None) == (h0.round, h0.wall is None)
+        assert h1.centre == pytest.approx(h0.centre, abs=0.01)
+        assert (h1.z0, h1.poly.area) == (pytest.approx(h0.z0), pytest.approx(h0.poly.area))
+    lines_ = [h.line() for h in d1.model.of_kind("hole")]
+    assert "hole ho3 sl2 0.15x0.15 at=0.515,6.64 round" in lines_
     for n in ("ni1", "ni2"):
         o0, o1 = d0.arch.openings[n], d1.arch.openings[n]
         assert (o1.lo, o1.hi, o1.face) == (pytest.approx(o0.lo), pytest.approx(o0.hi), o0.face)

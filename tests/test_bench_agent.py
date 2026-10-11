@@ -3,8 +3,9 @@
 import subprocess
 from pathlib import Path
 
-from bench.agent import calls, compare, find_project, setup
+from bench.agent import REFERENCE, calcs, calls, compare, find_project, setup
 from bench.tasks import BATCH1, BATCH_DB, BATCH_EG, BATCH_OG
+from uea.derive import report
 
 
 def agent(run: Path, batches: list[str]) -> None:
@@ -46,3 +47,31 @@ def test_a_wrong_wall_shows_up(tmp_path: Path) -> None:
         "z0.0 v 4.125..4.24 along 5.115..8.125 t=0.145 lb=False",
     ]
     assert c.matching < c.expected
+
+
+def test_services_run(tmp_path: Path) -> None:
+    """The services run: the shell without niches and holes, the tables installed; the reference
+    solution matches every fact and meets every calculation, a missing hole shows up."""
+    run = tmp_path / "run"
+    prompt = setup(run, services=True)
+    assert "haus-mueller-services.md" in prompt and str(run / "haus") in prompt
+    arch = (run / "haus" / "arch.uea").read_text(encoding="utf-8")
+    assert "niche " not in arch and "hole " not in arch and "wall w1 EG" in arch
+    assert len(list((run / "data" / "tables").glob("*.json"))) == 10
+    empty = compare(find_project(run), full=True)
+    assert empty.matching == 0 and empty.expected == 116
+    for name in ("light", "elec", "heat", "plumb", "vent", "issues", "arch"):
+        lines = (REFERENCE / f"{name}.uea").read_text(encoding="utf-8").splitlines()
+        text = "\n".join(x for x in lines if not x.startswith("illum")) + "\n"
+        (run / "haus" / f"{name}.uea").write_text(text, encoding="utf-8")
+    c = compare(find_project(run), full=True)
+    assert c.errors == [] and c.matching == c.expected == 116
+    d, _ = report(find_project(run).load())
+    assert calcs(d, run / "data") == dict.fromkeys(
+        ("heatload", "hydronic", "airflow", "ducts"), "ok"
+    )
+    # the riser's hole left out: the fact of the hole is missing
+    arch = (run / "haus" / "arch.uea").read_text(encoding="utf-8")
+    (run / "haus" / "arch.uea").write_text(arch.replace("hole ho6", "# hole ho6"), encoding="utf-8")
+    c = compare(find_project(run), full=True)
+    assert c.missing["holes"] == ["slab for riser"] and "W-PLUMB-006 sr1" in c.warnings

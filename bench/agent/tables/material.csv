@@ -1,0 +1,19 @@
+# synthetic values for the agent test, not a standard's
+material,lambda
+putz-gips,0.5
+stb,2.5
+xps,0.04
+fliese,1
+ze,1.5
+eps-tsd,0.045
+eps,0.04
+osb,0.15
+parkett,0.2
+putz-kalkgips,0.6
+ks,1
+ziegel-t9,0.1
+putz-leicht,0.3
+ziegel,1
+lattung,0.15
+konterlattung,0.15
+sparren,0.15

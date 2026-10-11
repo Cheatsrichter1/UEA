@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `ducts` 0.1.0, kind `norm` |
+| Calculator | `ducts` 0.1.1, kind `norm` |
 | Method | Flows per DIN 1946-6:2019-12 (`airflow`); pressure loss by Darcy-Weisbach with Colebrook-White |
 | Code | `src/uea/packs/vent/ducts.py`; the ducts from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py` |
 | Tests | `tests/test_vent.py` |
@@ -17,6 +17,7 @@ For each section of each central unit's ducts: the flow, the diameter, the veloc
 ## Formulas as implemented
 
 - Terminal flows from `airflow`; a section carries the flows of the terminals beyond it.
+- Section lengths and bends from the derived ducts: rectilinear, lower bounds; a section that changes storey runs through the hole the unit names in `via=`, with the detour (`docs/decisions/0039-openings-without-a-fill.md`).
 - Diameter: the smallest with v = V̇ / (π d² / 4) ≤ v_max; the largest if none.
 - R = λ / d · ρv²/2, λ by Colebrook-White (λ = 64/Re below Re 2320), air at 20 °C: ρ = 1.204 kg/m³, ν = 15.11 · 10⁻⁶ m²/s.
 - Δp = R · l + Σζ · ρv²/2, Σζ = bends · ζ_bend (+ ζ_tee where the section does not start at the unit).
@@ -42,3 +43,4 @@ The box with a central unit in r1 (`tests/test_vent.py`), ducts of Ø80, 100, 12
 | Version | Change |
 |---|---|
 | 0.1.0 | First version |
+| 0.1.1 | Ducts that change storey run through the hole their network names (`via=`, decision 0039), with the detour; the report says so |

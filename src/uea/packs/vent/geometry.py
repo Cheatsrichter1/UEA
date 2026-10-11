@@ -16,7 +16,7 @@ from uea.derive import Derived, GeoError, Unresolved
 from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Net, finish, gap, grow, node_of
+from uea.packs.net import Crossing, Net, finish, gap, grow, node_of, routed, through
 from uea.packs.vent.kinds import ROLES, Ahu, AhuType, Air, DuctType, Fan, FanType
 
 PLACED = ("ahu", "fan", "air")
@@ -37,6 +37,10 @@ class VentGeo:
         default_factory=dict[str, dict[str, list[str]]]
     )
     """By room, then role: the terminals and decentral units in it."""
+    crossings: list[Crossing] = field(default_factory=list[Crossing])
+    """Where the ducts pass the slabs (decision 0039)."""
+    holes: dict[str, str | None] = field(default_factory=dict[str, str | None])
+    """Each unit and terminal on an exterior wall: the hole it goes through, if any."""
 
     def duct_from(self, end: str) -> tuple[str, float] | None:
         for (unit, _), net in self.ducts.items():
@@ -88,9 +92,33 @@ def derive_vent(d: Derived) -> None:
             net = Net(u, {u: node_of(v.at[u])})
             for k in ends:
                 net.nodes[k] = node_of(v.at[k])
-            grow(net, {u}, [u], ends, "duct")
+            unit = m[u]
+            assert isinstance(unit, Ahu)
+            via = unit.via.refs() if unit.via else ()
+            grow(net, {u}, [u], ends, "duct", routed(d, via))
             finish(net, set(ends))
+            v.crossings += through(d, net, via)
             v.ducts[(u, role)] = net
+    for kind in ("fan", "air"):
+        for el in m.of_kind(kind):
+            mt = v.at.get(el.id)
+            if mt is None or mt.wall is None or d.arch.walls[mt.wall].ext is None:
+                continue
+            if isinstance(el, Air) and el.role not in ("oda", "eha"):
+                continue
+            v.holes[el.id] = next(
+                (
+                    h.id
+                    for h in sorted(d.arch.holes.values(), key=lambda h: natural(h.id))
+                    if h.wall is not None
+                    and h.host == mt.wall
+                    and not h.chase
+                    and h.status != "demolish"
+                    and h.wall.lo - 1e-6 <= mt.s <= h.wall.hi + 1e-6
+                    and h.z0 - 1e-6 <= mt.z <= h.z1 + 1e-6
+                ),
+                None,
+            )
     for el in m.of_kind("air"):
         mt = v.at.get(el.id)
         if mt is not None and mt.room is not None and _role(el) in ("sup", "ext"):
