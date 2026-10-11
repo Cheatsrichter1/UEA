@@ -46,4 +46,14 @@ def describe(d: Derived, el: Element) -> list[str]:
     elif el.kind == "rad":
         w = h.output.get(el.id)
         out.append(tail + (f" | {w:.0f} W" if w is not None else ""))
+    pipes: list[str] = []
+    up = h.pipe_from(el.id)
+    if up is not None:
+        pipes.append(f"{up[1]:.1f} m from {up[0]}")
+    net = h.nets.get(el.id)
+    if net is not None:
+        ends = [k for k in net.nodes if k != el.id]
+        pipes.append(f"{net.total:.1f} m to {ids(ends)}")
+    if pipes:
+        out.append("pipes " + ", ".join(pipes) + " (flow and return each)")
     return out

@@ -3,11 +3,15 @@ the installation plan (`install.py`), and the elements of `heat.uea` or `plumb.u
 
 Heating: each underfloor heating fills its room in pale red, with its loops and output beside
 the room's name, and a dashed line to its manifold; manifolds, radiators, generators and tanks
-as symbols. Plumbing: the fixtures, the meter, risers, stacks and the sewer connection as
-symbols, and the derived pipes as right-angled lines, cold water green, hot water orange, waste
-water brown and dashed. The pipes are the derived shortest trees, not routes a planner chose.
+as symbols; the derived heating pipes (decision 0037) as right-angled lines, flow red, return
+blue and dashed, side by side, with a ring where a pipe rises to another storey.
+
+Plumbing: the fixtures, the meter, risers, stacks and the sewer connection as symbols, and the
+derived pipes as right-angled lines, cold water green, hot water orange, waste water brown and
+dashed. The pipes are the derived shortest trees, not routes a planner chose.
 """
 
+import math
 from dataclasses import replace
 from itertools import pairwise
 
@@ -33,6 +37,8 @@ H_MAN = "H-VERTEILER"
 H_RAD = "H-HEIZKOERPER"
 H_GEN = "H-ERZEUGER"
 H_LINK = "H-ANBINDUNG"
+H_FLOW = "H-VORLAUF"
+H_RETURN = "H-RUECKLAUF"
 H_LABEL = "H-BESCHRIFTUNG"
 H_LEGEND = "H-LEGENDE"
 S_FIX = "S-OBJEKT"
@@ -44,6 +50,7 @@ S_LABEL = "S-BESCHRIFTUNG"
 S_LEGEND = "S-LEGENDE"
 RED = "#c0392b"
 UFH_FILL = "#f8dcd8"
+BLUE = "#1f5fbf"
 COLD = "#2ca02c"
 HOT = "#ff7f0e"
 WASTE = "#8c564b"
@@ -53,6 +60,8 @@ TGA_LAYER_COLORS = {
     H_RAD: RED,
     H_GEN: RED,
     H_LINK: RED,
+    H_FLOW: RED,
+    H_RETURN: BLUE,
     H_LABEL: BLACK,
     H_LEGEND: BLACK,
     S_FIX: "#1f77b4",
@@ -84,6 +93,9 @@ HEAT_KEYS = {
     "gen": "Wärmeerzeuger",
     "tank": "Speicher",
     "link": "Anbindung Verteiler – Raum",
+    "flow": "Heizung Vorlauf",
+    "ret": "Heizung Rücklauf",
+    "rise": "Leitung in ein anderes Geschoss",
 }
 PLUMB_KEYS = {
     "san": "Sanitärobjekt",
@@ -148,10 +160,11 @@ class TgaPlan(InstallPlan):
         self.names()
         if self.pack == "heat":
             self.links()
+            self.heat_pipes()
             for mt in self.here:
                 self.heat_symbol(mt)
             keys = HEAT_KEYS
-            note = "Kreise und Leistung abgeleitet aus Typ und Fläche; keine Rohrführung"
+            note = "Kreise, Leistung und Leitungen abgeleitet; kürzester Baum, keine Trasse"
             nr = f"H-{self.g.level_order().index(self.level) + 1:02d}"
         else:
             self.pipes()
@@ -210,6 +223,15 @@ class TgaPlan(InstallPlan):
             q = nearest_points(rg.fin, p)[0]
             self.dw.add(Line(man.point, (q.x, q.y), pen, H_LINK))
 
+    def heat_pipes(self) -> None:
+        """Flow and return of each heating pipe, right-angled on the storey of its upper end
+        (toward the generator), with a ring where it rises or falls to its other end."""
+        flow = Pen(RED, self.sh.m(0.35))
+        ret = Pen(BLUE, self.sh.m(0.35), (self.sh.m(2.0), self.sh.m(1.0)))
+        for net in self.d.heat.nets.values():
+            for pen, layer, off in ((flow, H_FLOW, 0.35), (ret, H_RETURN, -0.35)):
+                self.net_lines(net, pen, layer, off, across=True)
+
     def heat_symbol(self, mt: Mounted) -> None:
         el = self.m[mt.id]
         ink = Ink(self.dw, self.sh, self.spot_of(mt), RED, H_MAN)
@@ -261,19 +283,34 @@ class TgaPlan(InstallPlan):
             nets.append((p.drain, WASTE, S_WASTE, -0.7, (2.0, 1.0)))
         for net, color, layer, off, dash in nets:
             pen = Pen(color, self.sh.m(0.35), tuple(self.sh.m(x) for x in dash))
-            o = self.sh.m(off)
-            for s in net.sections:
-                a, b = net.nodes[s.a], net.nodes[s.b]
-                if a.level != self.level or b.level != self.level:
+            self.net_lines(net, pen, layer, off)
+
+    def net_lines(self, net: Net, pen: Pen, layer: str, off: float, across: bool = False) -> None:
+        """Each section with both ends on this storey, first along x, then along y. With across,
+        a section to another storey is drawn on the storey of its end a, and both storeys get
+        a ring at its end b."""
+        o = self.sh.m(off)
+        for s in net.sections:
+            a, b = net.nodes[s.a], net.nodes[s.b]
+            if a.level != b.level and across:
+                if self.level in (a.level, b.level) and off > 0:
+                    r = self.sh.m(1.0)
+                    c = (b.point[0], b.point[1])
+                    ring = [(c[0] + r * dx, c[1] + r * dy) for dx, dy in _RING]
+                    for u, v in pairwise(ring):
+                        self.dw.add(Line(u, v, Pen(pen.color, self.sh.m(0.25)), layer))
+                if a.level != self.level:
                     continue
-                pts: list[Pt] = [
-                    (a.point[0] + o, a.point[1] + o),
-                    (b.point[0] + o, a.point[1] + o),
-                    (b.point[0] + o, b.point[1] + o),
-                ]
-                for u, v in pairwise(pts):
-                    if abs(u[0] - v[0]) + abs(u[1] - v[1]) > 1e-6:
-                        self.dw.add(Line(u, v, pen, layer))
+            elif a.level != self.level or b.level != self.level:
+                continue
+            pts: list[Pt] = [
+                (a.point[0] + o, a.point[1] + o),
+                (b.point[0] + o, a.point[1] + o),
+                (b.point[0] + o, b.point[1] + o),
+            ]
+            for u, v in pairwise(pts):
+                if abs(u[0] - v[0]) + abs(u[1] - v[1]) > 1e-6:
+                    self.dw.add(Line(u, v, pen, layer))
 
     def plumb_symbol(self, mt: Mounted) -> None:
         el = self.m[mt.id]
@@ -334,7 +371,23 @@ class TgaPlan(InstallPlan):
                 out.append(key)
             if key in ("cold", "hot", "waste") and self._has(key):
                 out.append(key)
+            if key in ("flow", "ret") and self._heat_pipes():
+                out.append(key)
+            if key == "rise" and any(
+                net.nodes[s.a].level != net.nodes[s.b].level
+                and self.level in (net.nodes[s.a].level, net.nodes[s.b].level)
+                for net in self.d.heat.nets.values()
+                for s in net.sections
+            ):
+                out.append(key)
         return out
+
+    def _heat_pipes(self) -> bool:
+        return any(
+            net.nodes[s.a].level == self.level
+            for net in self.d.heat.nets.values()
+            for s in net.sections
+        )
 
     def _has(self, key: str) -> bool:
         p = self.d.plumb
@@ -376,11 +429,20 @@ class TgaPlan(InstallPlan):
         elif key == "sewer":
             ink.color = WASTE
             ink.poly([(-1.4, -1.4), (1.4, -1.4), (1.4, 1.4), (-1.4, 1.4)], "#ffffff", 0.35)
+        elif key == "rise":
+            r = sh.m(1.0)
+            c = sh.pt(x, y)
+            ring = [(c[0] + r * dx, c[1] + r * dy) for dx, dy in _RING]
+            for u, v in pairwise(ring):
+                self.dw.add(Line(u, v, Pen(RED, sh.m(0.25)), layer))
         else:
-            color = {"cold": COLD, "hot": HOT, "waste": WASTE}[key]
-            dash = (sh.m(2.0), sh.m(1.0)) if key == "waste" else ()
+            color = {"cold": COLD, "hot": HOT, "waste": WASTE, "flow": RED, "ret": BLUE}[key]
+            dash = (sh.m(2.0), sh.m(1.0)) if key in ("waste", "ret") else ()
             pen = Pen(color, sh.m(0.35), dash)
             self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
+
+
+_RING = [(math.cos(k * math.pi / 8), math.sin(k * math.pi / 8)) for k in range(17)]
 
 
 def _room_level(d: Derived, room: str) -> str | None:

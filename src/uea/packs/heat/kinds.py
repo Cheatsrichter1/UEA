@@ -14,6 +14,7 @@ from pydantic import model_validator
 from uea.core.schema import Element, F
 from uea.core.values import Anchor, Point, Ref
 from uea.packs.mount import WallMounted
+from uea.packs.pipes import Bores
 
 # ---------- types ----------
 
@@ -33,18 +34,24 @@ class _HeatType(Element):
 class GenType(_HeatType):
     category: ClassVar[str | None] = "gen"
     doc: ClassVar[str] = (
-        "Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the design"
-        " outdoor temperature and flow temperature, from the manufacturer."
+        "Heat generator type: type WP-8 gen kw=8 source=air dp=120. kw: heat output at the"
+        " design outdoor temperature and flow temperature; dp: its loss on the heating side,"
+        " for uea calc hydronic; from the manufacturer."
     )
     kw: Annotated[float, F("heat output at the design point", unit="kW")]
     source: Annotated[
         Literal["air", "ground", "water", "gas", "oil", "wood", "district", "electric"] | None,
         F("heat source: air, ground, water (heat pumps), gas, oil, wood, district, electric"),
     ] = None
+    dp: Annotated[
+        float | None, F("its pressure loss on the heating side at the design flow", unit="hPa")
+    ] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
         self._positive("kw")
+        if self.dp is not None and self.dp < 0:
+            raise ValueError("dp must be 0 or more")
         return self
 
 
@@ -83,17 +90,24 @@ class ManType(_HeatType):
 class UfhType(_HeatType):
     category: ClassVar[str | None] = "ufh"
     doc: ClassVar[str] = (
-        "Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100."
-        " q: heat output per m² at the system's design temperatures and the floor covering,"
-        " from the manufacturer; max: the longest loop, connection lines included."
+        "Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100"
+        " pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the"
+        " floor covering, from the manufacturer; max: the longest loop, connection lines"
+        " included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic."
     )
     spacing: Annotated[float, F("pipe spacing", unit="m")]
     q: Annotated[float, F("heat output per floor area", unit="W/m²")]
     max: Annotated[float, F("longest loop, with its connection lines", unit="m")]
+    pipe: Annotated[Bores | None, F("the loop's pipe, outer diameter x wall", unit="mm")] = None
+    k: Annotated[float | None, F("roughness of the loop's pipe", unit="mm")] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        self._positive("spacing", "q", "max")
+        self._positive("spacing", "q", "max", "k")
+        if self.pipe is not None and (
+            len(self.pipe.items) != 1 or self.pipe.items[0].dn is not None
+        ):
+            raise ValueError("pipe: one size, outer diameter x wall in mm, e.g. 16x2")
         return self
 
 
@@ -110,6 +124,27 @@ class RadType(_HeatType):
     @model_validator(mode="after")
     def _check(self) -> Self:
         self._positive("w", "length", "height")
+        return self
+
+
+class HpipeType(_HeatType):
+    category: ClassVar[str | None] = "hpipe"
+    doc: ClassVar[str] = (
+        "Heating pipe system, for the pipes between generators, tanks, manifolds and radiators:"
+        " type CU hpipe sizes=15x1,18x1,22x1,28x1.5 k=0.0015 bend=0.5 tee=1.3 default. k:"
+        " roughness; bend, tee: loss coefficients ζ, from the manufacturer."
+    )
+    sizes: Annotated[Bores, F("sizes from small to large, outer diameter x wall", unit="mm")]
+    k: Annotated[float, F("roughness of the pipe wall", unit="mm")]
+    bend: Annotated[float, F("loss coefficient ζ of a bend")]
+    tee: Annotated[float, F("loss coefficient ζ of a tee")]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if any(b.dn is not None for b in self.sizes.items):
+            raise ValueError("a heating pipe has no DN: write outer diameter x wall")
+        if self.k <= 0 or self.bend < 0 or self.tee < 0:
+            raise ValueError("k must be more than 0, bend and tee 0 or more")
         return self
 
 
@@ -218,6 +253,7 @@ KINDS: tuple[type[Element], ...] = (
     ManType,
     UfhType,
     RadType,
+    HpipeType,
     Gen,
     Tank,
     Man,

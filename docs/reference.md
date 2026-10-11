@@ -556,13 +556,13 @@ A circuit feeding an element of another discipline (a heat pump, a fan): feed fd
 
 ### Heating (`heat.uea`)
 
-Types: `type … gen`, `type … tank`, `type … man`, `type … ufh`, `type … rad`.
+Types: `type … gen`, `type … tank`, `type … man`, `type … ufh`, `type … rad`, `type … hpipe`.
 
 Kinds: `gen`, `tank`, `man`, `ufh`, `rad`.
 
 #### `type … gen`
 
-Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the design outdoor temperature and flow temperature, from the manufacturer.
+Heat generator type: type WP-8 gen kw=8 source=air dp=120. kw: heat output at the design outdoor temperature and flow temperature; dp: its loss on the heating side, for uea calc hydronic; from the manufacturer.
 
 `type <name> gen`
 
@@ -570,6 +570,7 @@ Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the desig
 |---|---|---|---|
 | kw | `kw=` | kW | heat output at the design point (required) |
 | source | `source=` | `air` `ground` `water` `gas` `oil` `wood` `district` `electric` | heat source: air, ground, water (heat pumps), gas, oil, wood, district, electric |
+| dp | `dp=` | hPa | its pressure loss on the heating side at the design flow |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … tank`
@@ -599,7 +600,7 @@ Manifold type (Heizkreisverteiler): type HKV-10 man outlets=10 w=0.55.
 
 #### `type … ufh`
 
-Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included.
+Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
 
 `type <name> ufh`
 
@@ -608,6 +609,8 @@ Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 ma
 | spacing | `spacing=` | m | pipe spacing (required) |
 | q | `q=` | W/m² | heat output per floor area (required) |
 | max | `max=` | m | longest loop, with its connection lines (required) |
+| pipe | `pipe=` | mm | the loop's pipe, outer diameter x wall |
+| k | `k=` | mm | roughness of the loop's pipe |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … rad`
@@ -621,6 +624,20 @@ Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the 
 | w | `w=` | W | heat output at the design temperatures (required) |
 | length | `length=` | m | length |
 | height | `height=` | m | height |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … hpipe`
+
+Heating pipe system, for the pipes between generators, tanks, manifolds and radiators: type CU hpipe sizes=15x1,18x1,22x1,28x1.5 k=0.0015 bend=0.5 tee=1.3 default. k: roughness; bend, tee: loss coefficients ζ, from the manufacturer.
+
+`type <name> hpipe`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| sizes | `sizes=` | mm | sizes from small to large, outer diameter x wall (required) |
+| k | `k=` | mm | roughness of the pipe wall (required) |
+| bend | `bend=` |  | loss coefficient ζ of a bend (required) |
+| tee | `tee=` |  | loss coefficient ζ of a tee (required) |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `gen`
@@ -899,6 +916,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
+| `hydronic` | norm | 0.1.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 
@@ -932,6 +950,19 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+
+### `hydronic` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `tb` | float | required | thermal bridge surcharge ΔU_TB, W/(m²K), on the outer surfaces |
+| `n50` | float | required | air change rate at 50 Pa the building is to meet, 1/h |
+| `shielding` | str | required | shielding of the building (none / moderate / heavy) |
+| `groundwater` | str | deep | groundwater under the building (deep / shallow) |
+| `te` | float |  | θ_e in °C instead of the table outdoor |
+| `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+| `spread` | float | required | design spread between flow and return, K |
+| `vmax` | float | required | the highest velocity in the heating pipes, m/s |
 
 ### `water` settings
 

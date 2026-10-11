@@ -22,6 +22,7 @@ SECTION_DE = {
     "branch": "Anschlussleitung",
     "stack": "Fallleitung",
     "ground": "Grundleitung",
+    "home": "Anbindeleitung",
 }
 
 
@@ -191,6 +192,7 @@ class _Tga:
         nets += [(f"Trinkwasser warm ({k})", n) for k, n in p.hot.items()]
         if p.drain is not None:
             nets.append(("Schmutzwasser", p.drain))
+        nets += [(f"Heizung ab {k}", n) for k, n in self.d.heat.nets.items()]
         for name, net in nets:
             for s in net.sections:
                 level = net.nodes[s.b].level
@@ -213,8 +215,8 @@ class _Tga:
         total: list[Cell] = ["Summe", None, None, None, None, _sum(rows, 5), _sum(rows, 6), None]
         notes = [
             "Teilstrecken abgeleitet: je Netz der kürzeste Baum über die rechtwinkligen Abstände;"
-            " ein Bogen je Richtungswechsel. Nennweiten liefern uea calc water und uea calc drain"
-            " mit den Tabellen des Büros.",
+            " ein Bogen je Richtungswechsel. Heizung: Vor- und Rücklauf je mit dieser Länge."
+            " Nennweiten liefern uea calc water, drain und hydronic mit den Tabellen des Büros.",
         ]
         return Table("Rohrleitungen", self.title("Rohrleitungen"), cols, rows, total, notes)
 
@@ -227,6 +229,8 @@ class _Tga:
             rows.append([f"Trinkwasser warm ({k})", len(n.sections), _q(n.total)])
         if p.drain is not None:
             rows.append(["Schmutzwasser", len(p.drain.sections), _q(p.drain.total)])
+        for k, n in h.nets.items():
+            rows.append([f"Heizung Vor- und Rücklauf ab {k}", len(n.sections), _q(2 * n.total)])
         by_type: dict[str, list[float]] = {}
         for el in self.m.of_kind("ufh"):
             lp = h.loops.get(el.id)
