@@ -36,7 +36,7 @@ UPSTREAM: dict[str, frozenset[str]] = {
     "struct": frozenset({"project", "arch"}),
     "light": frozenset({"project", "arch"}),
     "heat": frozenset({"project", "arch"}),
-    "plumb": frozenset({"project", "arch"}),
+    "plumb": frozenset({"project", "arch", "heat"}),
     "vent": frozenset({"project", "arch"}),
     "elec": frozenset({"project", "arch", "light", "heat", "plumb", "vent"}),
     "issues": frozenset(DISCIPLINES),

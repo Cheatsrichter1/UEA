@@ -267,6 +267,19 @@ def mounted_lines(d: Derived, level: str) -> list[str]:
                     found[kind] = found.get(kind, 0) + 1
         if found:
             by_pack["heat"] = found
+    plumb = getattr(d, "plumb", None)
+    if plumb is not None:
+        found = {}
+        for kind in ("san", "meter", "riser", "stack", "sewer"):
+            n = sum(
+                1
+                for el in d.model.of_kind(kind)
+                if (mt := plumb.at.get(el.id)) and mt.level == level
+            )
+            if n:
+                found[kind] = n
+        if found:
+            by_pack["plumb"] = found
     parts: list[str] = []
     for pack, kinds in by_pack.items():
         items = [

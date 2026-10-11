@@ -2,7 +2,7 @@
 
 A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`ROADMAP.md`).
 
-Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too (the `illum` targets and the `feed` lines to the fans wait for the lighting design and for vent). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
+Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` (the `illum` targets and the `feed` lines to the fans wait for the lighting design and for vent). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
 ## The house
 
@@ -45,11 +45,11 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | `arch.uea` | 72 | 3,294 |
 | `light.uea` | 25 | 838 |
 | `elec.uea` | 89 | 3,031 |
-| `heat.uea` | 18 | 579 |
-| `plumb.uea` | 7 | 188 |
+| `heat.uea` | 18 | 586 |
+| `plumb.uea` | 14 | 612 |
 | `vent.uea` | 4 | 170 |
 | `issues.uea` | 7 | 593 |
-| **Total** | **230** | **8,901** |
+| **Total** | **237** | **9,332** |
 
 `session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, and a calculation that leads to a design change.
 
@@ -106,7 +106,7 @@ Everything resolves relative to something else. Make the HWR wider by moving w6,
 | light | `lum` l |
 | elec | `board` b, `rcd` fi, `circ` c, `sock` s, `conn` a, `switch` sw, `data` dt, `smoke` rm, `feed` fd |
 | heat | `gen` g, `tank` t, `man` hv, `ufh` uh, `rad` hk |
-| plumb | `san` sa |
+| plumb | `san` sa, `meter` wz, `riser` sr, `stack` fl, `sewer` kn |
 | vent | `fan` vl |
 | issues | `req` q, `waive` wv |
 
@@ -116,7 +116,7 @@ Everything resolves relative to something else. Make the HWR wider by moving w6,
 
 ### Derived, not stored
 
-Whether a wall is exterior, wall joins, room outlines (from the seed point), stair run and riser height (st1: 16 risers of 18.0 cm, tread 26 cm, 2h+a = 61.9 cm), Wechsel- and Kreuzschaltung (from how many switches control one luminaire), the number of FBH circuits per room, cable routes along the installation zones, and the second half of each fan pair.
+Whether a wall is exterior, wall joins, room outlines (from the seed point), stair run and riser height (st1: 16 risers of 18.0 cm, tread 26 cm, 2h+a = 61.9 cm), Wechsel- and Kreuzschaltung (from how many switches control one luminaire), the number of FBH circuits per room, cable routes along the installation zones, the plumbing pipes (cold, hot and waste water), and the second half of each fan pair.
 
 ### Switching
 
@@ -135,11 +135,12 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 9. Drawing the door swings in the electrical plan showed five doors hinged on the side of their light switch. The check became a validator rule. The warning belongs to Elektro, which placed the switches; it asked Architektur to turn the doors (q5), and Architektur did.
 10. The Lichtberechnung ran the loop the architecture intends: code calculated, variant A missed the target, the agent added four dimmed downlights, code calculated again. The downlights then needed a request to Architektur (q6), because the ceiling is concrete.
 11. The Heizungsschema derives 9 FBH loops for the EG manifold; UEA derives 8 with the placeholder type FBH-15 (`docs/decisions/0034-heating-elements.md`), 10 outlets each. Whether the manifold fits the 0,60 m niche that heat asked for in q1 needs manufacturer data; the type carries its width (`w=`). With the synthetic tables of the tests, `uea calc heatload` finds the WC and the bath short of underfloor heating: a towel radiator is the designer's next step.
+12. The plumbing needed four elements besides the fixtures: the meter, a riser, the stack that q3 asked for, and the sewer connection outside. UEA derives the pipes between them: 26 m cold, 21 m hot from the indoor unit, 21 m of waste pipe, all seven fixtures on the one stack. The cold tree runs past the washing machine to the riser, a shortest tree, not a planner's route; risers and `to=` are how an agent steers it.
 
 ## Not in the prototype
 
 - Structure: lintels, ring beams, load paths. It needs its own design session with a Tragwerksplaner.
-- Pipe and duct networks, Fallleitung, Grundleitungen, Hausanschluss. Cable routes are derived.
+- Duct networks and the heating pipes. Cable routes and the plumbing pipes are derived (`docs/decisions/0035-plumbing.md`).
 - Furniture and the kitchen layout; devices are placed directly.
 - Attic access, railings, Außenanlagen, Schnitte. Window sash divisions, Sockel, gutters.
 - Results: Wohnfläche per WoFlV, Heizlast, cable sizing and voltage drop. The lighting calculation is a `custom` prototype.

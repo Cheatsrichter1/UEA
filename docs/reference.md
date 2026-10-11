@@ -574,13 +574,14 @@ Heat generator type: type WP-8 gen kw=8 source=air. kw: heat output at the desig
 
 #### `type … tank`
 
-Storage tank type: type HM-200 tank vol=200 dhw (dhw: heats drinking water).
+Storage tank type: type HM-200 tank vol=200 dhw dp=150 (dhw: heats drinking water; dp: its pressure loss on the drinking-water side at the design flow, for uea calc water).
 
 `type <name> tank`
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
 | vol | `vol=` | l | volume (required) |
+| dp | `dp=` | hPa | drinking-water pressure loss at the design flow |
 | default | flag `default` | | used by elements of its kind without type= |
 | dhw | flag `dhw` | | heats drinking water |
 
@@ -693,6 +694,105 @@ A radiator (Heizkörper) on a wall face: rad hk1 w1 hv1 x=f1. z= its centre, 0.4
 | z | `z=` | m | height of its centre above the FFL |
 | type | `type=` |  | type; default if left out |
 
+### Plumbing (`plumb.uea`)
+
+Types: `type … pipe`, `type … drain`.
+
+Kinds: `san`, `meter`, `riser`, `stack`, `sewer`.
+
+#### `type … pipe`
+
+Drinking-water pipe system: type MV pipe sizes=16x2,20x2.25,26x3 k=0.007 bend=1.4 tee=1.7. k: roughness; bend, tee: loss coefficients ζ of a bend and of a tee (the branch), from the manufacturer.
+
+`type <name> pipe`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| sizes | `sizes=` | mm | sizes from small to large, outer diameter x wall (required) |
+| k | `k=` | mm | roughness of the pipe wall (required) |
+| bend | `bend=` |  | loss coefficient ζ of a bend (required) |
+| tee | `tee=` |  | loss coefficient ζ of a tee (required) |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … drain`
+
+Drain pipe system: type HT drain sizes=50:50x1.8,70:75x1.9,100:110x2.7 (DN, then outer diameter x wall). The stack's type serves its branches too, the sewer's the pipes under the building.
+
+`type <name> drain`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| sizes | `sizes=` | mm | sizes from small to large, DN:outer diameter x wall (required) |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `san`
+
+A sanitary fixture on a wall face (san sa1 w4 sink y=f2.c) or in a room (san sa7 r9 shower at=w15-0.45,w10-0.45). Fixtures: basin, sink, wc, urinal, bidet, shower, bath, wm (washing machine), dw (dishwasher), tap (outside tap), floor (floor drain). z= its outlet; to= the stack or sewer its waste runs to, else the nearest on its storey.
+
+`san <id> <host> <fixture>` · ids `sa1`, `sa2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall face, or room |
+| fixture | positional | `basin` `sink` `wc` `urinal` `bidet` `shower` `bath` `wm` `dw` `tap` `floor` | what it is |
+| at | `at=` | m | point in the room, x,y |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction |
+| z | `z=` | m | height of its water outlet above the FFL |
+| water | `water=` | `cold` `both` `none` | cold, both (cold and hot) or none; by fixture if left out |
+| to | `to=` |  | stack or sewer its waste water runs to |
+
+#### `meter`
+
+Where the drinking water enters, with its meter (Wasserzähler): meter wz1 r3 at=w4+0.3,w3-0.3 p=4 dp=450. p: the lowest supply pressure the water supplier states; dp: the loss of the meter, filter and the other apparatus at the design flow.
+
+`meter <id> <host>` · ids `wz1`, `wz2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| at | `at=` | m | plan point x,y; the middle of the room if left out |
+| z | `z=` | m | height above the FFL |
+| p | `p=` | bar | lowest supply pressure |
+| dp | `dp=` | hPa | pressure loss of the meter and apparatus |
+| type | `type=` |  | pipe system; the default pipe type if left out |
+
+#### `riser`
+
+A riser (Steigleitung) for cold and hot water, from a room up through the storeys above: riser sr1 r3 at=w4+0.2,w3-1. Fixtures on other storeys than the meter get their water through it.
+
+`riser <id> <host>` · ids `sr1`, `sr2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room on its lowest storey |
+| at | `at=` | m | plan point x,y; the middle of the room if left out |
+
+#### `stack`
+
+A stack (Fallleitung) with its vent through the roof, from a room up through the storeys above: stack fl1 r3 at=w4+0.15,w3-1.6. Its foot runs to the sewer.
+
+`stack <id> <host>` · ids `fl1`, `fl2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room on its lowest storey |
+| at | `at=` | m | plan point x,y; the middle of the room if left out |
+| type | `type=` |  | drain pipe system; the default drain type if left out |
+
+#### `sewer`
+
+Where the waste water leaves the building for the public sewer (an inspection chamber or the wall it passes): sewer kn1 EG at=W-2,N-2. The pipes to it run under the storey's floor.
+
+`sewer <id> <level>` · ids `kn1`, `kn2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey whose floor the pipes run under |
+| at | `at=` | m | plan point x,y (required) |
+| type | `type=` |  | drain pipe system; the default drain type if left out |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -780,7 +880,13 @@ E is an error, W a warning.
 | W-HEAT-001 | heating element without a type, and none of its kind is marked default |
 | W-HEAT-002 | manifold with more loops than outlets |
 | W-HEAT-003 | underfloor heating too far from its manifold for a loop |
-| W-HEAT-004 | generator, tank or manifold that supplies nothing |
+| W-HEAT-004 | generator, tank or manifold that supplies nothing (a tank that heats drinking water supplies the hot water) |
+| E-PLUMB-002 | fixture on a wall without a usable face |
+| W-PLUMB-001 | fixture that takes water, and there is no meter |
+| W-PLUMB-002 | fixture that takes hot water, and no storage tank heats drinking water |
+| W-PLUMB-003 | fixture whose waste water has nowhere to go |
+| W-PLUMB-004 | riser or stack that nothing runs through |
+| W-PLUMB-005 | a second meter or sewer connection; the first one serves |
 
 ## Calculators
 
@@ -793,6 +899,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
+| `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
+| `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 
 ### `cable` settings
 
@@ -824,6 +932,19 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+
+### `water` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `building` | str | residential | building use, a row of the table peak-flow |
+
+### `drain` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `slope` | float | required | slope of the pipes under the building, % |
+| `building` | str | residential | building use, a row of the table drain-k |
 
 ### Norm tables
 
@@ -953,6 +1074,94 @@ fg1: annual variation of the outdoor temperature for the ground; gw-deep, gw-sha
 | Column | Type | Meaning |
 |---|---|---|
 | `name` | text | which factor (one of fg1, gw-deep, gw-shallow, rho-cp) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `fixture-flow`: Design flow and minimum flow pressure by fixture (DIN 1988-300)
+
+One row for each fixture the project has.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `fixture` | text | fixture, as UEA names it (one of basin, sink, wc, urinal, bidet, shower, bath, wm, dw, tap, floor) |
+| `vr-cold` | num ≥ 0 | design flow V̇_R of cold water, l/s |
+| `vr-hot` | num ≥ 0 | design flow V̇_R of hot water, l/s |
+| `pmin` | num ≥ 0 | minimum flow pressure p_min,Fl, hPa |
+
+One row for each: fixture.
+
+#### `peak-flow`: Peak flow constants by building use (DIN 1988-300)
+
+V̇_S = a · (ΣV̇_R)^b − c.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `building` | text | building use, as building= of the calculator names it |
+| `a` | num > 0 | constant a |
+| `b` | num > 0 | constant b |
+| `c` | num ≥ 0 | constant c |
+
+One row for each: building.
+
+#### `water-factors`: Limits of the drinking-water sizing (DIN 1988-300)
+
+vmax: the highest flow velocity in the pipes, m/s.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which value (one of vmax) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `fixture-drain`: Discharge unit and branch size by fixture (DIN 1986-100)
+
+One row for each fixture the project has.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `fixture` | text | fixture, as UEA names it (one of basin, sink, wc, urinal, bidet, shower, bath, wm, dw, tap, floor) |
+| `du` | num > 0 | discharge unit DU, l/s |
+| `dn` | num > 0 | DN of its single branch |
+
+One row for each: fixture.
+
+#### `drain-k`: Frequency factor K by building use (DIN 1986-100)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `building` | text | building use, as building= of the calculator names it |
+| `k` | num > 0 | frequency factor K |
+
+One row for each: building.
+
+#### `drain-branch`: Unvented collecting branches (DIN 1986-100)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `dn` | num > 0 | DN |
+| `qmax` | num > 0 | the highest Q_ww it may carry, l/s |
+| `lmax` | num > 0 | the longest it may be, m |
+
+One row for each: dn.
+
+#### `drain-stack`: Stacks with main vent (DIN 1986-100)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `dn` | num > 0 | DN |
+| `qmax` | num > 0 | the highest Q_ww it may carry, l/s |
+
+One row for each: dn.
+
+#### `drain-factors`: Values of the drainage sizing (DIN 1986-100)
+
+single-lmax: the longest unvented branch to one fixture, m; kb: the roughness of the pipes under the building, mm; fill: the highest filling h/d they may run at.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which value (one of single-lmax, kb, fill) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
