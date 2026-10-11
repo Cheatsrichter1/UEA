@@ -2,7 +2,7 @@
 
 A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`ROADMAP.md`).
 
-Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` (the `illum` targets and the `feed` lines to the fans wait for the lighting design and for vent). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
+Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent` (the `illum` targets wait for the lighting design). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
 ## The house
 
@@ -45,11 +45,11 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | `arch.uea` | 72 | 3,294 |
 | `light.uea` | 25 | 838 |
 | `elec.uea` | 89 | 3,031 |
-| `heat.uea` | 18 | 586 |
+| `heat.uea` | 19 | 700 |
 | `plumb.uea` | 14 | 612 |
-| `vent.uea` | 4 | 170 |
+| `vent.uea` | 5 | 247 |
 | `issues.uea` | 7 | 593 |
-| **Total** | **237** | **9,332** |
+| **Total** | **239** | **9,523** |
 
 `session.md` shows how an agent builds this through the CLI: batches, placeholders, a request, an upstream change that breaks the electrical design, a revert, and a calculation that leads to a design change.
 
@@ -137,6 +137,7 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 11. The Heizungsschema derives 9 FBH loops for the EG manifold; UEA derives 8 with the placeholder type FBH-15 (`docs/decisions/0034-heating-elements.md`), 10 outlets each. Whether the manifold fits the 0,60 m niche that heat asked for in q1 needs manufacturer data; the type carries its width (`w=`). With the synthetic tables of the tests, `uea calc heatload` finds the WC and the bath short of underfloor heating: a towel radiator is the designer's next step.
 12. The plumbing needed four elements besides the fixtures: the meter, a riser, the stack that q3 asked for, and the sewer connection outside. UEA derives the pipes between them: 26 m cold, 21 m hot from the indoor unit, 21 m of waste pipe, all seven fixtures on the one stack. The cold tree runs past the washing machine to the riser, a shortest tree, not a planner's route; risers and `to=` are how an agent steers it.
 13. The heating pipes needed three values from the manufacturer: the copper pipe system (`hpipe`), the loop pipe of the underfloor type and the heat pump's loss. UEA derives 3.9 m from the heat pump to the indoor unit and 12.7 m on to both manifolds. With synthetic tables, `uea calc hydronic` makes the bath's loop the index circuit at hv2 and gives every other loop its valve setting.
+14. The ventilation needed one type for the decentral units. UEA derives the second half of each pair and runs c18's cable to all four units. With synthetic tables, `uea calc airflow` finds that infiltration alone covers moisture protection, but the two pairs give 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath have no extract: exhaust fans in the wet rooms, or a central unit, is the next step.
 
 ## Not in the prototype
 

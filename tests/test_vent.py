@@ -238,6 +238,8 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 0 and "lg1 supply" in out, out
     code, out = sh("get", "lg1")
     assert "sup ld1" in out and "oda ld3" in out
+    code, out = sh("show", "EG")
+    assert "vent 1 ahu 4 air" in out, out
     code, out = sh("export", "pdf", "vent")
     assert code == 0 and "out/vent-EG.pdf A3 1:50" in out, out
     code, out = sh("export", "pdf", "ducts")

@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** phase 1 in progress. The core and the architecture pack work: an agent can build, check and calculate the shell of an Einfamilienhaus and export it as IFC. Electrical, the other building services and structural are still designs. See `ROADMAP.md`.
+**Status:** the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is still a design, and an agent has not yet run the whole house end to end. See `ROADMAP.md`.
 
 ## Why
 
@@ -66,7 +66,7 @@ What a complete build costs an agent, from the brief to the exports: with conven
 | **A large project such as a hospital, UEA** | **5–100 million** | €0.50–10 | €5–100 | €50–1,000 |
 
 - **What is counted:** everything the agent spends on the build, the whole conversation: the commands it writes, what it reads back, corrections, checks and calculations, its own thinking.
-- **What the numbers are:** the conventional ranges are our estimates. The UEA ranges are a tenth of them, a planning figure. No medium or large project has been built with UEA, and heating, plumbing, ventilation and structural are not built yet (`ROADMAP.md`, phases 6–8), so not even a complete house has been measured.
+- **What the numbers are:** the conventional ranges are our estimates. The UEA ranges are a tenth of them, a planning figure. No medium or large project has been built with UEA, and structural is not built yet (`ROADMAP.md`, phase 8), so not even a complete house has been measured.
 - **What has been measured:** one agent run built only the shell and roof of the house, for 107,000–113,000 tokens (`bench/agent/results.md`, 2026-10-07). That is above the house range for UEA. It was the first run, before the help was fixed from what the agents had to guess, and a rerun is open (`ROADMAP.md`); the house range assumes that a complete house can be done for less than that first run. Treat it as a target, not a result.
 - **Why UEA is expected to cost less, and to grow about in line with the project:** an element is one line, and its connections are ids (a socket names its wall and its circuit), not geometry or relationship objects. An agent reads only the part it asks for (`uea show`, `uea get`, `uea find`). The cost follows the number of elements and the number of changes.
 - **Why IFC and Revit grow faster:** every element also carries relationships: its type or family, materials, property sets, spatial containment and connections to other parts. The number of those grows faster than the number of elements, so the files, and what an agent must read to work on them, grow faster than the project. The table keeps UEA at a flat tenth at every size, which is the cautious reading; if the conventional cost grows faster, as we expect, the gap is wider. That has not been measured, and the benchmark in `ROADMAP.md` (phase 5) is meant to do it.
