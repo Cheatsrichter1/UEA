@@ -46,8 +46,11 @@ def _plans(ctx: "Ctx", scope: str | None, out_path: str | None) -> list[str] | s
 
 def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str:
     """What to draw for humans: (kind, id) of floor plans, sections, elevations and the
-    electrical sheets."""
+    electrical, heating and plumbing sheets."""
     from uea.export.elevation import SIDES
+    from uea.export.paper import Stand
+    from uea.export.schema import Schema
+    from uea.export.tga import tga_levels
 
     d, _ = ctx.derived()
     levels = d.arch.level_order()
@@ -56,15 +59,34 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     installs = [("install", lv) for lv in levels if lv in wired]
     boards = sorted({c.board for c in d.elec.circuits.values() if c.board}, key=natural)
     electrical = [*installs, *(("board", b) for b in boards)]
+    heated = tga_levels(d, "heat")
+    schema = Schema(d, Stand())
+    has_schema = bool(schema.rows or schema.gens or schema.tanks or schema.fixtures)
+    heating = [*(("heat", lv) for lv in heated), *([("schema", "heat")] if has_schema else [])]
+    plumbing = [("plumb", lv) for lv in tga_levels(d, "plumb")]
     if scope is None or scope == "all":
         return [
             *(("plan", lv) for lv in levels),
             *(("section", k) for k in sections),
             *(("elevation", side) for side in SIDES),
             *electrical,
+            *heating,
+            *plumbing,
         ]
     if scope == "elec":
         return electrical or "nothing electrical to draw yet"
+    if scope in ("heat", "plumb"):
+        found = heating if scope == "heat" else plumbing
+        return found or f"nothing of {scope} to draw yet"
+    if scope in ("heat:schema", "schema"):
+        return [("schema", "heat")] if has_schema else "no heating and no water to draw yet"
+    if scope.startswith(("heat:", "plumb:")):
+        pack, _, rest = scope.partition(":")
+        on = heated if pack == "heat" else [lv for _, lv in plumbing]
+        if rest not in levels:
+            extra = " or schema" if pack == "heat" else ""
+            return f"unknown level {rest!r}{extra}. Levels: {' '.join(levels)}"
+        return [(pack, rest)] if rest in on else f"nothing of {pack} on {rest}"
     if scope.startswith("elec:") or scope in boards:
         rest = scope.removeprefix("elec:")
         if rest in levels:
@@ -83,6 +105,10 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         return f"section {scope} has an error: uea check"
     known = f"Levels: {' '.join(levels)}. Sections: {' '.join(sections) or 'none'}."
     more = f" Electrical: elec, elec:<level>, {' '.join(boards)}." if boards else ""
+    if heating:
+        more += " Heating: heat, heat:<level>, heat:schema."
+    if plumbing:
+        more += " Plumbing: plumb, plumb:<level>."
     return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
 
 
@@ -96,11 +122,15 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     from uea.export.install import ELEC_LAYER_COLORS, sheet_install
     from uea.export.paper import LAYER_COLORS, Stand
     from uea.export.pdf import to_pdf
+    from uea.export.schema import H_SCHEMA, sheet_schema
     from uea.export.section import sheet_section
     from uea.export.sheet import sheet_plan
+    from uea.export.tga import TGA_LAYER_COLORS, sheet_tga
 
     targets = _sheet_targets(ctx, scope)
     if isinstance(targets, str):
+        if scope is not None and (ctx.project.out / f"{scope}.json").exists():
+            return _report(ctx, scope, fmt, out_path)
         return targets
     d, _ = ctx.derived()
     entries = ctx.project.history.entries()
@@ -117,14 +147,19 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_install(d, key, stand)
         elif kind == "board":
             dw = sheet_board(d, key, stand)
+        elif kind in ("heat", "plumb"):
+            dw = sheet_tga(d, key, kind, stand)
+        elif kind == "schema":
+            dw = sheet_schema(d, stand)
         else:
             dw = sheet_elevation(d, key, stand)
         if dw is None or dw.sheet is None:
             why = "the cut meets no wall" if kind == "section" else "no walls"
             lines.append(f"{key}: {why}, nothing to draw")
             continue
-        name = {"install": "elec", "board": "board"}.get(kind, kind)
-        path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{name}-{key}.{fmt}"
+        name = {"install": "elec", "board": "board", "schema": "heat"}.get(kind, kind)
+        stem = f"{name}-schema" if kind == "schema" else f"{name}-{key}"
+        path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{stem}.{fmt}"
         if fmt == "svg":
             path.write_text(to_svg(dw), encoding="utf-8")
         elif fmt == "png":
@@ -132,10 +167,28 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
         elif fmt == "pdf":
             to_pdf(dw, path)
         else:
-            to_dxf(dw, path, {**LAYER_COLORS, **ELEC_LAYER_COLORS})
-        scale = "o. M." if kind == "board" else f"1:{dw.sheet.scale}"
+            colors = {**LAYER_COLORS, **ELEC_LAYER_COLORS, **TGA_LAYER_COLORS, H_SCHEMA: "#000000"}
+            to_dxf(dw, path, colors)
+        scale = "o. M." if kind in ("board", "schema") else f"1:{dw.sheet.scale}"
         lines.append(f"{_rel(ctx, path)} {dw.sheet.size} {scale}")
     return lines
+
+
+def _report(ctx: "Ctx", stem: str, fmt: str, out_path: str | None) -> list[str] | str:
+    """The report of a calculation result as a PDF to sign (decision 0036)."""
+    from uea.export.report import export_report
+
+    if fmt != "pdf":
+        return f"{stem} is a calculation result: export it as pdf"
+    d, _ = ctx.derived()
+    proj = d.model.of_kind("project")
+    title = (proj[0].label or proj[0].id) if proj else "UEA"
+    path = Path(out_path) if out_path else None
+    res = export_report(ctx.project.out, stem, ctx.project.hashes(), title, path)
+    if isinstance(res, str):
+        return res
+    target, pages = res
+    return [f"{_rel(ctx, target)} A4 {pages} page{'s' if pages != 1 else ''}"]
 
 
 def _rel(ctx: "Ctx", path: Path) -> Path:

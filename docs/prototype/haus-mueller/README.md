@@ -34,7 +34,7 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | [Ansichten](exports/ansichten.png) | North, east, south and west elevations, with heights from the roof geometry (ridge +8.10, eaves +6.12) |
 | [Elektro EG](exports/elektro-EG.png), [OG](exports/elektro-OG.png) | Installationspläne with simplified DIN EN 60617 symbols, circuits and switching lines. Aus-, Serien-, Wechsel- and Kreuzschaltung are derived from how many switches control each luminaire |
 | [Verteilungsplan](exports/verteilung-b1.png) | Single-line diagram of b1 and its Belegung (6 rows of 12 TE). The phase assignment is derived |
-| [Heizungsschema](exports/heizungsschema.png) | Heat pump, indoor unit, manifolds with FBH loops per room, drinking-water fixtures |
+| [Heizungsschema](exports/heizungsschema.png) | Heat pump, indoor unit, manifolds with FBH loops per room, drinking-water fixtures. UEA now draws it itself: `uea export pdf heat:schema` (`docs/decisions/0036-heating-and-plumbing-sheets.md`) |
 | [Lichtberechnung r2](exports/lichtberechnung-r2.md) | A `custom` calculation, not norm-compliant: point-by-point direct light plus an indirect estimate, two variants against the targets in `light.uea` |
 
 ## Files

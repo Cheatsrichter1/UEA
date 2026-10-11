@@ -186,8 +186,14 @@ uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a flo
                                     facades (north|east|south|west), with dimensions and height
                                     marks; all if none is given. Electrical: elec (all),
                                     elec:<level> (installation plan, 1:50), a board id (its
-                                    single-line diagram with phases and the field in rows)
-uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs, quantities
+                                    single-line diagram with phases and the field in rows).
+                                    Heating: heat (all), heat:<level>, heat:schema (the
+                                    Heizungs- und Trinkwasserschema). Plumbing: plumb,
+                                    plumb:<level> (fixtures and the derived pipes)
+uea export pdf <result>             a calculation report to sign: out/<result>.md on A4 (e.g.
+                                    heatload); refused if the model changed since uea calc
+uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
+                                    quantities, electrical, emitters, manifolds, fixtures, pipes
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows

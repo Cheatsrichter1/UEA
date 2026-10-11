@@ -253,8 +253,9 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | Plan image | Pillow (MIT-CMU), and SVG | Built. Cheap pictures for agents to check their own layouts, from a neutral 2D drawing |
 | DXF | ezdxf (MIT) | Built for the floor plan sheet. From the same 2D drawing; mm, German layers per element (`0022-plans-and-tables.md`) |
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
-| PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation and the electrical sheets |
-| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); sockets and circuits come with the electrical pack |
+| PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation, the electrical, heating and plumbing sheets and the Heizungsschema (`0036-heating-and-plumbing-sheets.md`) |
+| PDF reports | reportlab (BSD) | Built. A calculation result's report on A4 with an empty signature block, refused when the model has changed since (`0036`) |
+| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`) |
 | BCF 2.1 | Python's standard library (zip, XML) | Built. The requests to a discipline as topics for the programs of people outside UEA (`0032-bcf-requests.md`) |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
