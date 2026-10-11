@@ -59,3 +59,28 @@ class Bores(Value):
                 raise ValueError(f"sizes: list them from small to large ({part} after the last)")
             items.append(b)
         return cls(tuple(items))
+
+
+@dataclass(frozen=True, slots=True)
+class Diameters(Value):
+    """The inner diameters of a round duct system, small to large: `80,100,125,160` (mm)."""
+
+    items: tuple[float, ...]
+
+    def fmt(self) -> str:
+        return ",".join(fmt_num(x) for x in self.items)
+
+    @classmethod
+    def parse(cls, s: str) -> Self:
+        items: list[float] = []
+        for part in s.split(","):
+            try:
+                x = float(part)
+            except ValueError:
+                raise ValueError(
+                    f"size {part!r}: write the inner diameter in mm, e.g. 125"
+                ) from None
+            if x <= 0 or (items and x <= items[-1]):
+                raise ValueError("sizes: diameters larger than 0, from small to large")
+            items.append(x)
+        return cls(tuple(items))

@@ -11,7 +11,8 @@ Prandtl-Colebrook with the hydraulic radius R_h of the wetted part,
     v = −2 lg(2.51 ν / (4R_h √(2g · 4R_h · J)) + k_b / (3.71 · 4R_h)) · √(2g · 4R_h · J)
 
 Water: density and kinematic viscosity at 10 °C (cold), 60 °C (hot) and 40 °C (heating, the
-middle of the usual flow and return temperatures), and its specific heat; physical constants.
+middle of the usual flow and return temperatures), and its specific heat; air at 20 °C for the
+ducts (decision 0038); physical constants.
 """
 
 import math
@@ -19,11 +20,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 G = 9.81
-Temp = Literal["cold", "hot", "heating"]
-RHO: dict[Temp, float] = {"cold": 999.7, "hot": 983.2, "heating": 992.2}
-"""Density of water, kg/m³, at 10 °C, 60 °C and 40 °C."""
-NU: dict[Temp, float] = {"cold": 1.306e-6, "hot": 0.474e-6, "heating": 0.658e-6}
-"""Kinematic viscosity of water, m²/s, at 10 °C, 60 °C and 40 °C."""
+Temp = Literal["cold", "hot", "heating", "air"]
+RHO: dict[Temp, float] = {"cold": 999.7, "hot": 983.2, "heating": 992.2, "air": 1.204}
+"""Density of water, kg/m³, at 10 °C, 60 °C and 40 °C; of air at 20 °C."""
+NU: dict[Temp, float] = {"cold": 1.306e-6, "hot": 0.474e-6, "heating": 0.658e-6, "air": 15.11e-6}
+"""Kinematic viscosity of water, m²/s, at 10 °C, 60 °C and 40 °C; of air at 20 °C."""
 CP = 4.179
 """Specific heat of water at 40 °C, kJ/(kg·K)."""
 LAMINAR = 2320.0
