@@ -131,6 +131,6 @@ Buildings first: architecture, electrical, plumbing, heating, ventilation, light
 
 ## Licence
 
-Apache-2.0.
+Apache-2.0. The report font in `src/uea/export/fonts/` is DejaVu Sans under its own free licence, which lies beside it.
 
 A human signs. UEA does not certify anything or replace a licensed engineer.

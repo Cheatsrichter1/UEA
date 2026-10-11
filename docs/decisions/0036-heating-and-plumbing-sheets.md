@@ -43,13 +43,14 @@ Slices 6a to 6d built the Heizlast, the heating elements and the plumbing (`0033
 - The report ends with an empty block for name, place, date and signature.
 - It works for every calculator, `wofl` to `drain`, and is how the Heizlast report reaches the person who signs.
 - It refuses a result when the model files have changed since the calculation (the record's file hashes), and names the command that computes it again.
-- It needs a font with Greek letters (DejaVu Sans, Liberation Sans, Noto Sans or Arial, where systems keep them). Without one it spells the letters out in Helvetica.
+- It is set in DejaVu Sans, a free font that ships with UEA (`src/uea/export/fonts/`, cut down to Latin, Greek and signs by `tools/fonts/subset.py`, 270 kB with its bold), so Φ and θ print the same on every machine.
 
 ## Alternatives
 
 - **Plumbing and heating on one plan.** At 1:50 the pipes of the bath, the loops' labels and the manifolds crowd each other. Two plans follow the trades that read them.
 - **Pipe sizes on the plan.** They depend on the office's tables, so a sheet would change from machine to machine (`0033`). The calculation report carries them.
 - **The report rendered from the record (JSON) with its own layout per calculator.** The Markdown is what the calculator already writes for humans; one renderer serves all.
+- **The font the system has** (DejaVu, Liberation, Noto or Arial, else the Greek letters spelled out in Helvetica). The report would differ from machine to machine, and "Phi" in a signed report reads badly. The user chose a bundled free font (2026-10-11).
 - **Signing the stale result with a warning.** A signature on numbers that no longer match the model is the error to prevent; computing again is one command.
 - **A plumbing riser diagram (Strangschema).** The foot of the Heizungsschema shows the drinking water by fixture. A Strangschema with storeys and sizes can follow.
 

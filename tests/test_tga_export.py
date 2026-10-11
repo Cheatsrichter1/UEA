@@ -11,7 +11,7 @@ from tests.test_heat import HEAT
 from tests.test_plumb import HOUSE as HOUSE2
 from tests.test_plumb import PLUMB, plumb, tables
 from uea.export.drawing import Drawing, Line, Text
-from uea.export.report import rerun, stale
+from uea.export.report import Styles, rerun, stale, write_report
 from uea.export.schema import sheet_schema
 from uea.export.tables_tga import tga_tables
 from uea.export.tga import S_COLD, S_HOT, sheet_tga
@@ -115,6 +115,15 @@ def test_report_records() -> None:
     }
     assert rerun(record) == "uea calc heatload EG tb=0.05"
     assert stale(record, {"a.uea": "y"}) and not stale(record, {"a.uea": "x"})
+
+
+def test_report_font(tmp_path: Path) -> None:
+    # the bundled DejaVu Sans sets the Greek letters on every machine, never spelled out
+    md = "# Heizlast\n\nΦ_HL = 1.200 W bei θ_e = −12 °C\n\n| Raum | Φ W |\n|---|---:|\n| r1 | 9 |"
+    pdf = tmp_path / "r.pdf"
+    assert write_report(md, {"calculator": "heatload", "state": {"batch": 1}}, "Box", pdf) == 1
+    assert b"/BaseFont /AAAAAA+DejaVuSans" in pdf.read_bytes()
+    assert Styles().inline("Φ_HL θ_e Σζ") == "Φ_HL θ_e Σζ"
 
 
 def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:

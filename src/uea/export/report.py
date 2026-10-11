@@ -3,9 +3,8 @@ result of `uea calc heatload` (out/heatload.md with its record) on A4 pages with
 numbers and an empty signature block. It refuses a result the model has changed since.
 
 The report is the Markdown the calculator wrote: headings, paragraphs, lists and tables, with
-**bold** and `code`. It needs a font with Greek letters (Φ, θ): DejaVu Sans, Liberation Sans,
-Noto Sans or Arial, found where systems keep them; without one the Greek letters are spelled out
-in Helvetica.
+**bold** and `code`. It is set in DejaVu Sans, a free font that ships with UEA, so Φ and θ
+print the same on every machine.
 """
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false, reportAttributeAccessIssue=false
 
@@ -33,52 +32,16 @@ from reportlab.platypus import (
 
 from uea import __version__
 
-FONTS = (
-    ("DejaVuSans.ttf", "DejaVuSans-Bold.ttf"),
-    ("LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf"),
-    ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf"),
-    ("arial.ttf", "arialbd.ttf"),
-    ("Arial.ttf", "Arial Bold.ttf"),
-)
-FOLDERS = (
-    "/usr/share/fonts",
-    "/usr/local/share/fonts",
-    str(Path.home() / ".fonts"),
-    str(Path.home() / ".local/share/fonts"),
-    "/Library/Fonts",
-    "/System/Library/Fonts/Supplemental",
-    "C:/Windows/Fonts",
-)
-GREEK = {
-    "Φ": "Phi",
-    "θ": "theta",
-    "ρ": "rho",
-    "Σ": "Sum ",
-    "λ": "lambda",
-    "ζ": "zeta",
-    "ε": "eps",
-    "Δ": "Delta ",
-    "√": "sqrt",
-    "≤": "<=",
-    "≥": ">=",
-    "→": "->",
-    "\u0307": "",
-}
+FONTS = Path(__file__).parent / "fonts"
+"""DejaVu Sans, cut down to Latin, Greek and signs (`tools/fonts/subset.py`, licence beside it)."""
 
 
 def _font() -> tuple[str, str]:
-    """A regular and a bold font with Greek letters, registered; else Helvetica."""
-    if "UEA-Report" in pdfmetrics.getRegisteredFontNames():
-        return "UEA-Report", "UEA-Report-Bold"
-    for regular, bold in FONTS:
-        for folder in FOLDERS:
-            hits = list(Path(folder).rglob(regular)) if Path(folder).is_dir() else []
-            if hits:
-                strong = list(hits[0].parent.glob(bold))
-                pdfmetrics.registerFont(TTFont("UEA-Report", str(hits[0])))
-                pdfmetrics.registerFont(TTFont("UEA-Report-Bold", str((strong or hits)[0])))
-                return "UEA-Report", "UEA-Report-Bold"
-    return "Helvetica", "Helvetica-Bold"
+    """The bundled regular and bold font, registered once."""
+    if "UEA-Report" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont("UEA-Report", str(FONTS / "DejaVuSans.ttf")))
+        pdfmetrics.registerFont(TTFont("UEA-Report-Bold", str(FONTS / "DejaVuSans-Bold.ttf")))
+    return "UEA-Report", "UEA-Report-Bold"
 
 
 class Styles:
@@ -96,9 +59,6 @@ class Styles:
 
     def inline(self, text: str) -> str:
         """Markdown bold and code as the markup of a paragraph."""
-        if self.font == "Helvetica":
-            for k, v in GREEK.items():
-                text = text.replace(k, v)
         t = escape(text)
         t = re.sub(r"\*\*(.+?)\*\*", rf'<font name="{self.bold}">\1</font>', t)
         t = re.sub(r"`(.+?)`", r"\1", t)
