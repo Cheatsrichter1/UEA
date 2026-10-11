@@ -66,8 +66,8 @@ Slices 6a to 6d built the Heizlast, the heating elements and the plumbing (`0033
   - on the command line: the sheets and the report, refused as a picture and once the model changed.
 - The export help names the new scopes; the bench's reading and the token task set are unchanged.
 - Open:
-  - heating pipe routes and sizing, and the hydraulic balance;
-  - a plumbing Strangschema;
+  - heating pipe routes and sizing, and the hydraulic balance (built in `0037`);
+  - a plumbing Strangschema (built in `0037`);
   - the sizes on the sheets once a result is fresh;
   - the plumbing and heating in the IFC export;
   - the manifold against its niche's width.
