@@ -1,0 +1,10 @@
+# synthetic values for the agent test, not a standard's
+use,heated,ti,nmin
+living,yes,20,0.5
+bedroom,yes,18,0.5
+kitchen,yes,20,0.5
+utility,yes,16,0.5
+wc,yes,20,0.5
+hall,yes,18,0.5
+bath,yes,22,0.5
+attic,no,0,0

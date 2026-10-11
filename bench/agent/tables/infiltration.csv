@@ -1,0 +1,5 @@
+# synthetic values for the agent test, not a standard's
+openings,shielding,e
+0,moderate,0
+1,moderate,0.02
+2+,moderate,0.03

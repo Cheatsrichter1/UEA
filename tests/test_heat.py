@@ -161,8 +161,10 @@ def test_haus_mueller_heating() -> None:
     h = d.heat
     assert h.supplies["t1"] == ["hv1", "hv2"]
     assert sum(h.loops[k].n for k in h.supplies["hv1"]) == 8
-    assert sum(h.loops[k].n for k in h.supplies["hv2"]) == 7
+    assert sum(h.loops[k].n for k in h.supplies["hv2"] if k in h.loops) == 7
     assert len(h.emitters) == 10
+    # the towel radiator in the bath, on hv2 with its own pipe
+    assert h.emitters["r9"] == ["hk1", "uh9"] and h.output["hk1"] == 300
     # the heat pump and the indoor unit are fed, so only the ventilation's circuit feeds nothing
     assert found(rep, "W-ELEC-022") == ["c18"]
 

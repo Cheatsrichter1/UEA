@@ -1,0 +1,10 @@
+# synthetic values for the agent test, not a standard's
+use,role,extract,fr
+living,supply,0,3
+bedroom,supply,0,2
+kitchen,extract,40,0
+bath,extract,40,0
+wc,extract,20,0
+utility,extract,20,0
+hall,overflow,0,0
+attic,none,0,0
