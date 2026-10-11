@@ -179,6 +179,41 @@ def test_ducts(tmp_path: Path) -> None:
         run(DUCTS, d, None, **SETTINGS, vmax=3)
 
 
+def test_sheets_and_tables() -> None:
+    from uea.export.drawing import Line, Text
+    from uea.export.tables_tga import tga_tables
+    from uea.export.tga import L_EHA, L_ODA, L_SUP, L_UNIT, sheet_tga
+
+    d, _ = box(CENTRAL + PAIR)
+    dw = sheet_tga(d, "EG", "vent")
+    assert dw is not None
+    texts = [it.text for it in dw.items if isinstance(it, Text)]
+    assert {"lg1", "ld1", "ld3", "vl1", "vl2", "ZU", "AB", "AU", "FO", "L-01"} <= set(texts)
+
+    def on(layer: str) -> list[Line]:
+        return [it for it in dw.items if isinstance(it, Line) and it.layer == layer]
+
+    # each duct x then y: lg1 to ld1 and lg1 to ld3 (0.7 along x, 1 along y)
+    assert len(on(L_SUP)) == 2 and len(on(L_ODA)) == 2 and len(on(L_EHA)) == 2
+    # the dashed line of the pair, the only line on the units' layer
+    assert len(on(L_UNIT)) == 1
+    got = {t.name: t for t in tga_tables(d)}
+    units = got["Lüftungsgeräte"].rows
+    assert [(r[0], r[4], r[7]) for r in units] == [
+        ("lg1", "Zentralgerät", "ld1 ld2 ld3 ld4"),
+        ("vl1", "Pendellüfter", "vl2"),
+        ("vl2", "Pendellüfter", "vl1"),
+    ]
+    assert [(r[0], r[4], r[5]) for r in got["Luftdurchlässe"].rows][2] == (
+        "ld3",
+        "Außenluft",
+        "w4.e",
+    )
+    q = {r[0]: r[2] for r in got["Luftmengen"].rows}
+    assert q["Außenluft ab lg1"] == pytest.approx(2.3)
+    assert len(got["Luftleitungen"].rows) == 4
+
+
 def test_a_feed_reaches_the_fan() -> None:
     d, rep = box(PAIR + BOARD + "circ c3 fi1 NYM-J3x1.5 B10\nfeed fd1 vl1 c3 w=20\n")
     assert "c3" not in found(rep, "W-ELEC-022")
@@ -203,6 +238,10 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 0 and "lg1 supply" in out, out
     code, out = sh("get", "lg1")
     assert "sup ld1" in out and "oda ld3" in out
+    code, out = sh("export", "pdf", "vent")
+    assert code == 0 and "out/vent-EG.pdf A3 1:50" in out, out
+    code, out = sh("export", "pdf", "ducts")
+    assert code == 0 and "ducts.pdf A4" in out, out
 
 
 def test_haus_mueller_ventilation() -> None:

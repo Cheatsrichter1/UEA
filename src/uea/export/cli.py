@@ -66,6 +66,7 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     plumbing = [("plumb", lv) for lv in tga_levels(d, "plumb")]
     if plumbing:
         plumbing.append(("strang", "plumb"))
+    venting = [("vent", lv) for lv in tga_levels(d, "vent")]
     if scope is None or scope == "all":
         return [
             *(("plan", lv) for lv in levels),
@@ -74,21 +75,26 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
             *electrical,
             *heating,
             *plumbing,
+            *venting,
         ]
     if scope == "elec":
         return electrical or "nothing electrical to draw yet"
-    if scope in ("heat", "plumb"):
-        found = heating if scope == "heat" else plumbing
+    if scope in ("heat", "plumb", "vent"):
+        found = {"heat": heating, "plumb": plumbing, "vent": venting}[scope]
         return found or f"nothing of {scope} to draw yet"
     if scope in ("heat:schema", "schema"):
         return [("schema", "heat")] if has_schema else "no heating and no water to draw yet"
     if scope == "plumb:schema":
         return [("strang", "plumb")] if plumbing else "no plumbing to draw yet"
-    if scope.startswith(("heat:", "plumb:")):
+    if scope.startswith(("heat:", "plumb:", "vent:")):
         pack, _, rest = scope.partition(":")
-        on = heated if pack == "heat" else [lv for k, lv in plumbing if k == "plumb"]
+        on = {
+            "heat": heated,
+            "plumb": [lv for k, lv in plumbing if k == "plumb"],
+            "vent": [lv for _, lv in venting],
+        }[pack]
         if rest not in levels:
-            extra = " or schema"
+            extra = "" if pack == "vent" else " or schema"
             return f"unknown level {rest!r}{extra}. Levels: {' '.join(levels)}"
         return [(pack, rest)] if rest in on else f"nothing of {pack} on {rest}"
     if scope.startswith("elec:") or scope in boards:
@@ -113,6 +119,8 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         more += " Heating: heat, heat:<level>, heat:schema."
     if plumbing:
         more += " Plumbing: plumb, plumb:<level>, plumb:schema."
+    if venting:
+        more += " Ventilation: vent, vent:<level>."
     return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
 
 
@@ -152,7 +160,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_install(d, key, stand)
         elif kind == "board":
             dw = sheet_board(d, key, stand)
-        elif kind in ("heat", "plumb"):
+        elif kind in ("heat", "plumb", "vent"):
             dw = sheet_tga(d, key, kind, stand)
         elif kind == "schema":
             dw = sheet_schema(d, stand)

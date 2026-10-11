@@ -8,7 +8,11 @@ blue and dashed, side by side, with a ring where a pipe rises to another storey.
 
 Plumbing: the fixtures, the meter, risers, stacks and the sewer connection as symbols, and the
 derived pipes as right-angled lines, cold water green, hot water orange, waste water brown and
-dashed. The pipes are the derived shortest trees, not routes a planner chose.
+dashed.
+
+Ventilation (decision 0038): the central units, the decentral units with a dashed line to their
+pair, the air terminals, and the derived ducts side by side: outdoor air green, supply blue,
+extract yellow, exhaust brown. The pipes are the derived shortest trees, not routes a planner chose.
 """
 
 import math
@@ -48,12 +52,24 @@ S_HOT = "S-TRINKWASSER-WARM"
 S_WASTE = "S-ABWASSER"
 S_LABEL = "S-BESCHRIFTUNG"
 S_LEGEND = "S-LEGENDE"
+L_UNIT = "L-GERAET"
+L_TERMINAL = "L-DURCHLASS"
+L_ODA = "L-AUSSENLUFT"
+L_SUP = "L-ZULUFT"
+L_ETA = "L-ABLUFT"
+L_EHA = "L-FORTLUFT"
+L_LABEL = "L-BESCHRIFTUNG"
+L_LEGEND = "L-LEGENDE"
 RED = "#c0392b"
 UFH_FILL = "#f8dcd8"
 BLUE = "#1f5fbf"
 COLD = "#2ca02c"
 HOT = "#ff7f0e"
 WASTE = "#8c564b"
+AIR = {"oda": "#2ca02c", "sup": "#1f77b4", "ext": "#d4a017", "eha": "#8c564b"}
+AIR_LAYER = {"oda": L_ODA, "sup": L_SUP, "ext": L_ETA, "eha": L_EHA}
+AIR_OFF = {"oda": 1.05, "sup": 0.35, "ext": -0.35, "eha": -1.05}
+AIR_MARK = {"oda": "AU", "sup": "ZU", "ext": "AB", "eha": "FO"}
 TGA_LAYER_COLORS = {
     H_UFH: RED,
     H_MAN: RED,
@@ -71,6 +87,14 @@ TGA_LAYER_COLORS = {
     S_WASTE: WASTE,
     S_LABEL: BLACK,
     S_LEGEND: BLACK,
+    L_UNIT: "#1f77b4",
+    L_TERMINAL: "#1f77b4",
+    L_ODA: AIR["oda"],
+    L_SUP: AIR["sup"],
+    L_ETA: AIR["ext"],
+    L_EHA: AIR["eha"],
+    L_LABEL: BLACK,
+    L_LEGEND: BLACK,
 }
 FIXTURE_DE = {
     "basin": ("WT", "Waschtisch"),
@@ -108,6 +132,16 @@ PLUMB_KEYS = {
     "hot": "Trinkwasser warm (PWH)",
     "waste": "Schmutzwasser",
 }
+VENT_KEYS = {
+    "ahu": "Lüftungsgerät mit Wärmerückgewinnung",
+    "fan": "Dezentrales Lüftungsgerät (Paar gestrichelt)",
+    "air": "Luftdurchlass (ZU, AB, AU, FO)",
+    "oda": "Außenluft",
+    "sup": "Zuluft",
+    "ext": "Abluft",
+    "eha": "Fortluft",
+    "rise": "Leitung in ein anderes Geschoss",
+}
 STRIP = 72.0
 """Width of the legend left of the title block, in mm."""
 
@@ -118,10 +152,10 @@ class TgaPlan(InstallPlan):
     def __init__(self, d: Derived, level: str, stand: Stand, pack: str) -> None:
         super().__init__(d, level, stand)
         self.pack = pack
-        name = "Heizung" if pack == "heat" else "Sanitär"
+        name = {"heat": "Heizung", "plumb": "Sanitär", "vent": "Lüftung"}[pack]
         self.heading = f"{name} {self.level_name}"
         self.dw.title = f"{self.project}: {self.heading}"
-        at = d.heat.at if pack == "heat" else d.plumb.at
+        at = {"heat": d.heat.at, "plumb": d.plumb.at, "vent": d.vent.at}[pack]
         here = [mt for mt in at.values() if mt.level == level]
         if pack == "plumb":
             # risers and stacks pass through the storeys above their own
@@ -166,13 +200,21 @@ class TgaPlan(InstallPlan):
             keys = HEAT_KEYS
             note = "Kreise, Leistung und Leitungen abgeleitet; kürzester Baum, keine Trasse"
             nr = f"H-{self.g.level_order().index(self.level) + 1:02d}"
-        else:
+        elif self.pack == "plumb":
             self.pipes()
             for mt in self.here:
                 self.plumb_symbol(mt)
             keys = PLUMB_KEYS
             note = "Leitungen abgeleitet: kürzester rechtwinkliger Baum, keine Trasse"
             nr = f"S-{self.g.level_order().index(self.level) + 1:02d}"
+        else:
+            self.ducts()
+            self.pair_lines()
+            for mt in self.here:
+                self.vent_symbol(mt)
+            keys = VENT_KEYS
+            note = "Luftleitungen abgeleitet: kürzester rechtwinkliger Baum, keine Trasse"
+            nr = f"L-{self.g.level_order().index(self.level) + 1:02d}"
         self.legend(keys)
         self.caption(bbox, need)
         self.title_block(self.heading, note, nr)
@@ -346,11 +388,55 @@ class TgaPlan(InstallPlan):
         ink.layer, ink.color = S_LABEL, BLACK
         ink.text(0.0, reach + 1.9, mt.id, 1.5)
 
+    # ---------- ventilation ----------
+
+    def ducts(self) -> None:
+        for (_, role), net in self.d.vent.ducts.items():
+            pen = Pen(AIR[role], self.sh.m(0.5))
+            self.net_lines(net, pen, AIR_LAYER[role], AIR_OFF[role], across=True)
+
+    def pair_lines(self) -> None:
+        """A dashed line between the two units of a push-pull pair on this storey."""
+        v = self.d.vent
+        pen = Pen(AIR["sup"], self.sh.m(0.18), (self.sh.m(1.5), self.sh.m(1.0)))
+        for a, b in v.pairs.items():
+            if natural(a) < natural(b) and v.at[a].level == v.at[b].level == self.level:
+                self.dw.add(Line(v.at[a].point, v.at[b].point, pen, L_UNIT))
+
+    def vent_symbol(self, mt: Mounted) -> None:
+        el = self.m[mt.id]
+        ink = Ink(self.dw, self.sh, self.spot_of(mt), AIR["sup"], L_UNIT)
+        reach = 2.0
+        label = mt.id
+        if mt.kind == "ahu":
+            ink.poly([(-3.0, -2.2), (3.0, -2.2), (3.0, 2.2), (-3.0, 2.2)], "#ffffff", 0.35)
+            ink.text(0.0, -0.6, "LG", 1.6, True)
+            reach = 2.2
+        elif mt.kind == "fan":
+            ink.circle(0.0, 1.6, 1.6, "#ffffff", 0.35)
+            ink.text(0.0, 1.0, "DZ", 1.1, True)
+            mode = getattr(el, "mode")  # noqa: B009
+            label = f"{mt.id} {'Abluft' if mode == 'ext' else ''}".strip()
+            reach = 3.2
+        else:
+            role = getattr(el, "role")  # noqa: B009
+            ink.layer, ink.color = L_TERMINAL, AIR[role]
+            if mt.wall:
+                ink.poly([(-1.6, 0.0), (1.6, 0.0), (1.6, 2.4), (-1.6, 2.4)], "#ffffff", 0.35)
+                ink.text(0.0, 0.7, AIR_MARK[role], 1.1, True)
+                reach = 2.4
+            else:
+                ink.circle(0.0, 0.0, 1.5, "#ffffff", 0.35)
+                ink.text(0.0, -0.45, AIR_MARK[role], 1.1, True)
+                reach = 1.5
+        ink.layer, ink.color = L_LABEL, BLACK
+        ink.text(0.0, reach + 1.9, label, 1.5)
+
     # ---------- the legend ----------
 
     def legend(self, keys: dict[str, str]) -> None:
         sh = self.sh
-        layer = H_LEGEND if self.pack == "heat" else S_LEGEND
+        layer = {"heat": H_LEGEND, "plumb": S_LEGEND, "vent": L_LEGEND}[self.pack]
         _, y0, x1, _ = frame(sh.paper)
         top = y0 + BLOCK_H
         bx = x1 - BLOCK_W - STRIP
@@ -373,14 +459,24 @@ class TgaPlan(InstallPlan):
                 out.append(key)
             if key in ("flow", "ret") and self._heat_pipes():
                 out.append(key)
+            if key in AIR and any(
+                role == key and any(net.nodes[s.a].level == self.level for s in net.sections)
+                for (_, role), net in self.d.vent.ducts.items()
+            ):
+                out.append(key)
             if key == "rise" and any(
                 net.nodes[s.a].level != net.nodes[s.b].level
                 and self.level in (net.nodes[s.a].level, net.nodes[s.b].level)
-                for net in self.d.heat.nets.values()
+                for net in self._nets()
                 for s in net.sections
             ):
                 out.append(key)
         return out
+
+    def _nets(self) -> list[Net]:
+        if self.pack == "heat":
+            return list(self.d.heat.nets.values())
+        return list(self.d.vent.ducts.values()) if self.pack == "vent" else []
 
     def _heat_pipes(self) -> bool:
         return any(
@@ -433,8 +529,21 @@ class TgaPlan(InstallPlan):
             r = sh.m(1.0)
             c = sh.pt(x, y)
             ring = [(c[0] + r * dx, c[1] + r * dy) for dx, dy in _RING]
+            color = AIR["sup"] if self.pack == "vent" else RED
             for u, v in pairwise(ring):
-                self.dw.add(Line(u, v, Pen(RED, sh.m(0.25)), layer))
+                self.dw.add(Line(u, v, Pen(color, sh.m(0.25)), layer))
+        elif key == "ahu":
+            ink.color = AIR["sup"]
+            ink.poly([(-2.4, -1.4), (2.4, -1.4), (2.4, 1.4), (-2.4, 1.4)], "#ffffff", 0.35)
+        elif key == "fan":
+            ink.color = AIR["sup"]
+            ink.circle(0.0, 0.0, 1.4, "#ffffff", 0.35)
+        elif key == "air":
+            ink.color = AIR["sup"]
+            ink.circle(0.0, 0.0, 1.2, "#ffffff", 0.35)
+        elif key in AIR:
+            pen = Pen(AIR[key], sh.m(0.5))
+            self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
         else:
             color = {"cold": COLD, "hot": HOT, "waste": WASTE, "flow": RED, "ret": BLUE}[key]
             dash = (sh.m(2.0), sh.m(1.0)) if key in ("waste", "ret") else ()
@@ -457,11 +566,14 @@ def tga_levels(d: Derived, pack: str) -> list[str]:
         for el in d.model.of_kind("ufh"):
             if isinstance(el, Ufh) and (lv := _room_level(d, el.room.id)) is not None:
                 found.add(lv)
+    elif pack == "vent":
+        found = {mt.level for mt in d.vent.at.values()}
     else:
         found = {mt.level for mt in d.plumb.at.values()}
     return [lv for lv in d.arch.level_order() if lv in found]
 
 
 def sheet_tga(d: Derived, level: str, pack: str, stand: Stand | None = None) -> Drawing | None:
-    """The heating or plumbing plan of a storey; none if nothing of the pack is on it."""
+    """The heating, plumbing or ventilation plan of a storey; none if nothing of the pack is on
+    it."""
     return TgaPlan(d, level, stand or Stand(), pack).draw()
