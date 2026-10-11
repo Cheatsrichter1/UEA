@@ -25,9 +25,11 @@ from uea.calc.data import Col, Spec, Table
 from uea.core.model import Model
 from uea.core.registry import natural
 from uea.derive import Derived
-from uea.packs.plumb.geometry import Net, Section, plumb_type
-from uea.packs.plumb.hydraulics import gravity
-from uea.packs.plumb.kinds import FIXTURES, Bore, DrainType, San
+from uea.packs.hydraulics import gravity
+from uea.packs.net import Net, Section
+from uea.packs.pipes import Bore
+from uea.packs.plumb.geometry import plumb_type
+from uea.packs.plumb.kinds import FIXTURES, DrainType, San
 
 VERSION = "0.1.0"
 NORM = "DIN 1986-100:2016-12 mit DIN EN 12056-2"

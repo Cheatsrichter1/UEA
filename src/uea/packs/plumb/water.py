@@ -28,9 +28,11 @@ from uea.calc.data import Col, Spec
 from uea.core.registry import natural
 from uea.derive import Derived
 from uea.packs.heat.kinds import TankType
-from uea.packs.plumb.geometry import Section, plumb_type
-from uea.packs.plumb.hydraulics import Temp, full, geodetic
-from uea.packs.plumb.kinds import FIXTURES, Bore, Meter, PipeType, San
+from uea.packs.hydraulics import Temp, full, geodetic
+from uea.packs.net import Section
+from uea.packs.pipes import Bore
+from uea.packs.plumb.geometry import plumb_type
+from uea.packs.plumb.kinds import FIXTURES, Meter, PipeType, San
 
 VERSION = "0.1.0"
 NORM = "DIN 1988-300:2012-05"

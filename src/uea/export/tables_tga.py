@@ -9,7 +9,7 @@ from uea.export.tables import USE_DE, Cell, Col, Table
 from uea.export.tga import FIXTURE_DE
 from uea.packs.heat.geometry import heat_type, man_type
 from uea.packs.heat.kinds import RadType, Ufh, UfhType
-from uea.packs.plumb.geometry import Net
+from uea.packs.net import Net
 from uea.packs.plumb.kinds import San
 
 M1 = "0.0"

@@ -24,7 +24,8 @@ from uea.export.symbols import Ink, Spot
 from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import GenType, RadType, Ufh
 from uea.packs.mount import Mounted
-from uea.packs.plumb.geometry import Net, nets
+from uea.packs.net import Net
+from uea.packs.plumb.geometry import nets
 from uea.packs.plumb.kinds import San
 
 H_UFH = "H-FUSSBODENHEIZUNG"
