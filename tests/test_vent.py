@@ -254,9 +254,12 @@ def test_haus_mueller_ventilation() -> None:
                 out.append(line)
     d, rep = derive_text("\n".join(out) + "\n")
     assert [i for i in rep.issues if i.code.startswith(("E-", "W-VENT"))] == []
-    # two push-pull pairs, the second half of each derived
-    assert d.vent.pairs == {"vl1": "vl2", "vl2": "vl1", "vl3": "vl4", "vl4": "vl3"}
-    assert [d.vent.at[k].room for k in ("vl1", "vl2", "vl3", "vl4")] == ["r6", "r7", "r8", "r2"]
-    # the circuit of the units now feeds them
+    # a central unit in the HWR, its four kinds of air, a terminal in every room with a flow
+    assert d.vent.unit_of["ld1"] == "lg1" and d.vent.pairs == {}
+    assert sorted(r for r in {d.vent.at[f"ld{i}"].room for i in range(3, 12)}) == sorted(
+        ["r1", "r2", "r3", "r4", "r6", "r7", "r8", "r9"]
+    )
+    assert sorted(role for _, role in d.vent.ducts) == ["eha", "ext", "oda", "sup"]
+    # the circuit of the unit now feeds it
     assert "c18" not in found(rep, "W-ELEC-022")
-    assert len(d.elec.routes["c18"].runs) == 4
+    assert len(d.elec.routes["c18"].runs) == 1

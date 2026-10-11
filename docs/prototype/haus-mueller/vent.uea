@@ -1,5 +1,14 @@
-type DZ-160 fan "Dezentrales Lüftungsgerät mit WRG" flow=30 hr=0.8 default
-fan vl1 w11 y=w12-0.5 z=2.2 type=DZ-160 pair=vl2
-fan vl2 w8 x=w13+0.4 z=2.2 type=DZ-160
-fan vl3 w9 y=w12-0.5 z=2.2 type=DZ-160 pair=vl4
-fan vl4 w2 y=f4+0.5 z=2.2 type=DZ-160
+type KWL-250 ahu "Zentrales Lüftungsgerät mit WRG" flow=250 dp=150 hr=0.85 default
+type WR-160 duct "Wickelfalzrohr" sizes=80,100,125,160 k=0.15 bend=0.3 tee=0.6 default
+ahu lg1 r3 at=w6-0.4,w5+0.5 type=KWL-250 "KWL im HWR"
+air ld1 w4 oda y=N-0.7 z=2.4
+air ld2 w3 eha x=W+2.15 z=2.4
+air ld3 r2 sup at=w2-1.5,w1+1.5
+air ld4 r2 sup at=w4+5,w1+1.5
+air ld5 r6 sup at=w13-1,w12-1
+air ld6 r7 sup at=w14-1,w12-1
+air ld7 r8 sup at=w9-1,w12-1
+air ld8 r1 ext at=w4+1.5,w5-0.6
+air ld9 r3 ext at=w4+1,w3-0.6
+air ld10 r4 ext at=w6+0.7,w3-0.6
+air ld11 r9 ext at=w11+1.4,w10-0.8

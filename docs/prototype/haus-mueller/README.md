@@ -6,7 +6,7 @@ Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec
 
 ## The house
 
-Two full storeys and a cold Spitzboden under a 25° Satteldach. Masonry, 36,5 cm Ziegel outside, 10,49 × 8,49 m in Oktameter. Heated by an air-to-water heat pump with Fußbodenheizung, ventilated by two pairs of decentral units.
+Two full storeys and a cold Spitzboden under a 25° Satteldach. Masonry, 36,5 cm Ziegel outside, 10,49 × 8,49 m in Oktameter. Heated by an air-to-water heat pump with Fußbodenheizung, ventilated by a central unit with heat recovery in the HWR (until 2026-10-11 by two pairs of decentral units, which fell short).
 
 | Room | Finished m² | | Room | Finished m² |
 |---|---|---|---|---|
@@ -137,12 +137,12 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 11. The Heizungsschema derives 9 FBH loops for the EG manifold; UEA derives 8 with the placeholder type FBH-15 (`docs/decisions/0034-heating-elements.md`), 10 outlets each. Whether the manifold fits the 0,60 m niche that heat asked for in q1 needs manufacturer data; the type carries its width (`w=`). With the synthetic tables of the tests, `uea calc heatload` finds the WC and the bath short of underfloor heating: a towel radiator is the designer's next step.
 12. The plumbing needed four elements besides the fixtures: the meter, a riser, the stack that q3 asked for, and the sewer connection outside. UEA derives the pipes between them: 26 m cold, 21 m hot from the indoor unit, 21 m of waste pipe, all seven fixtures on the one stack. The cold tree runs past the washing machine to the riser, a shortest tree, not a planner's route; risers and `to=` are how an agent steers it.
 13. The heating pipes needed three values from the manufacturer: the copper pipe system (`hpipe`), the loop pipe of the underfloor type and the heat pump's loss. UEA derives 3.9 m from the heat pump to the indoor unit and 12.7 m on to both manifolds. With synthetic tables, `uea calc hydronic` makes the bath's loop the index circuit at hv2 and gives every other loop its valve setting.
-14. The ventilation needed one type for the decentral units. UEA derives the second half of each pair and runs c18's cable to all four units. With synthetic tables, `uea calc airflow` finds that infiltration alone covers moisture protection, but the two pairs give 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath have no extract: exhaust fans in the wet rooms, or a central unit, is the next step.
+14. The ventilation first had two pairs of decentral units. With synthetic tables, `uea calc airflow` found that infiltration alone covers moisture protection, but the two pairs gave 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath had no extract. Following the calculator, the design changed to a central unit (KWL) in the HWR: supply in Wohnen/Essen and the three bedrooms, extract in Küche, HWR, WC and Bad, outdoor and exhaust air on two facades. Every room now gets its flow at the nominal level, and `uea calc ducts` sizes the ducts from Ø80 to Ø160 at 28 Pa of the unit's 150. The core drillings (q4) moved to the HWR's walls, and the ducts to the OG need a slab penetration (q7).
 
 ## Not in the prototype
 
 - Structure: lintels, ring beams, load paths. It needs its own design session with a Tragwerksplaner.
-- Duct networks. Cable routes, the plumbing and the heating pipes are derived (`docs/decisions/0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`).
+- Routes along shafts. Cable routes, the plumbing, the heating pipes and the ducts are derived as shortest trees (`docs/decisions/0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`, `0038-ventilation.md`).
 - Furniture and the kitchen layout; devices are placed directly.
 - Attic access, railings, Außenanlagen, Schnitte. Window sash divisions, Sockel, gutters.
 - Results: Wohnfläche per WoFlV, Heizlast, cable sizing and voltage drop. The lighting calculation is a `custom` prototype.

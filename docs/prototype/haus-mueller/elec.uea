@@ -22,7 +22,7 @@ circ c14 fi4 NYM-J3x2.5 B16 "Bad"
 circ c15 fi3 NYM-J3x2.5 B16 "Flur OG"
 circ c16 fi3 NYM-J3x1.5 B10 "Licht OG"
 circ c17 fi3 NYM-J3x2.5 B16 "Außen"
-circ c18 fi2 NYM-J3x1.5 B10 "Lüftungsgeräte"
+circ c18 fi2 NYM-J3x1.5 B10 "Lüftungsgerät"
 circ c19 fi5 NYM-J3x2.5 B16 "Wärmepumpe innen"
 sock s1 w4 c3 y=w1+0.3 z=1.15 n=2
 sock s2 w4 c4 y=w1+0.9 z=2.1 "Dunstabzug"
@@ -83,7 +83,4 @@ smoke rm4 r8
 smoke rm5 r10
 feed fd1 g1 c7
 feed fd2 t1 c19
-feed fd3 vl1 c18
-feed fd4 vl2 c18
-feed fd5 vl3 c18
-feed fd6 vl4 c18
+feed fd3 lg1 c18

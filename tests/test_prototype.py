@@ -38,7 +38,7 @@ def test_clean_model(prototype: Project) -> None:
     _, rep = report(prototype.load())
     # the elec pack is not built yet, so the Elektro waiver matches nothing
     assert [(i.code, i.el) for i in rep.issues] == [("W-ISSUE-001", "wv1")]
-    assert [r.id for r in rep.requests] == ["q3", "q4", "q6"]
+    assert [r.id for r in rep.requests] == ["q3", "q4", "q6", "q7"]
 
 
 def test_roof_heights(prototype: Project) -> None:
@@ -69,7 +69,7 @@ def test_wohnflaeche(prototype: Project) -> None:
 
 def test_files_parse_and_stay_canonical(prototype: Project) -> None:
     m = prototype.load()
-    assert len(m) == 87
+    assert len(m) == 88
     for pack in ("project", "arch", "issues"):
         again = prototype.parse({f"{pack}.uea": m.pack_text(pack)})
         assert again.pack_text(pack) == m.pack_text(pack)
