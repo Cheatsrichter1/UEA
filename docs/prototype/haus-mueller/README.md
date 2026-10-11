@@ -136,11 +136,12 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 10. The Lichtberechnung ran the loop the architecture intends: code calculated, variant A missed the target, the agent added four dimmed downlights, code calculated again. The downlights then needed a request to Architektur (q6), because the ceiling is concrete.
 11. The Heizungsschema derives 9 FBH loops for the EG manifold; UEA derives 8 with the placeholder type FBH-15 (`docs/decisions/0034-heating-elements.md`), 10 outlets each. Whether the manifold fits the 0,60 m niche that heat asked for in q1 needs manufacturer data; the type carries its width (`w=`). With the synthetic tables of the tests, `uea calc heatload` finds the WC and the bath short of underfloor heating: a towel radiator is the designer's next step.
 12. The plumbing needed four elements besides the fixtures: the meter, a riser, the stack that q3 asked for, and the sewer connection outside. UEA derives the pipes between them: 26 m cold, 21 m hot from the indoor unit, 21 m of waste pipe, all seven fixtures on the one stack. The cold tree runs past the washing machine to the riser, a shortest tree, not a planner's route; risers and `to=` are how an agent steers it.
+13. The heating pipes needed three values from the manufacturer: the copper pipe system (`hpipe`), the loop pipe of the underfloor type and the heat pump's loss. UEA derives 3.9 m from the heat pump to the indoor unit and 12.7 m on to both manifolds. With synthetic tables, `uea calc hydronic` makes the bath's loop the index circuit at hv2 and gives every other loop its valve setting.
 
 ## Not in the prototype
 
 - Structure: lintels, ring beams, load paths. It needs its own design session with a Tragwerksplaner.
-- Duct networks and the heating pipes. Cable routes and the plumbing pipes are derived (`docs/decisions/0035-plumbing.md`).
+- Duct networks. Cable routes, the plumbing and the heating pipes are derived (`docs/decisions/0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`).
 - Furniture and the kitchen layout; devices are placed directly.
 - Attic access, railings, Außenanlagen, Schnitte. Window sash divisions, Sockel, gutters.
 - Results: Wohnfläche per WoFlV, Heizlast, cable sizing and voltage drop. The lighting calculation is a `custom` prototype.
