@@ -2,7 +2,8 @@
 
 The load-bearing walls and the slabs are the architect's (`lb`). A beam (Unterzug) carries a
 slab and the walls on it where no wall is under them; a load is a point or line load the rooms'
-uses do not cover (a buffer tank, a heavy partition the agent writes as a load). Sections and
+uses do not cover (a buffer tank, a heavy partition the agent writes as a load); the rafters
+give the timber of a gable roof. Sections and
 materials are rows of the office's tables, not types in the model: their values are catalogue
 and norm data.
 """
@@ -65,4 +66,39 @@ class Load(Element):
         return self
 
 
-KINDS: tuple[type[Element], ...] = (Beam, Load)
+class Rafter(Element):
+    kind: ClassVar[str] = "rafter"
+    pack: ClassVar[str] = "struct"
+    prefix: ClassVar[str | None] = "sp"
+    positional: ClassVar[tuple[str, ...]] = ("roof", "material")
+    doc: ClassVar[str] = (
+        "The rafters of a gable roof (Sparren of a Sparren- or Kehlbalkendach): rafter sp1 rf1"
+        " C24 b=0.08 h=0.2 e=0.8. b, h: the section; e: the spacing. collar= the height of a"
+        " collar beam (Kehlbalken) above the rafters' feet, cb= ch= its section if not the"
+        " rafter's. material: a strength class of the office's timber table."
+    )
+    roof: Annotated[Ref, F("the roof", targets=("roof",))]
+    material: Annotated[str, F("strength class, a row of the office's timber table: C24")]
+    b: Annotated[float, F("width of a rafter", unit="m")]
+    h: Annotated[float, F("depth of a rafter", unit="m")]
+    e: Annotated[float, F("spacing of the rafters", unit="m")]
+    collar: Annotated[
+        float | None, F("height of the collar beam's axis above the rafters' feet", unit="m")
+    ] = None
+    cb: Annotated[float | None, F("width of the collar beam", unit="m")] = None
+    ch: Annotated[float | None, F("depth of the collar beam", unit="m")] = None
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if not TYPE_NAME_RE.match(self.material):
+            raise ValueError(f"material {self.material!r}: a strength class like C24 or GL24h")
+        for n in ("b", "h", "e", "collar", "cb", "ch"):
+            v = getattr(self, n)
+            if v is not None and v <= 0:
+                raise ValueError(f"{n} must be more than 0")
+        if (self.cb is not None or self.ch is not None) and self.collar is None:
+            raise ValueError("cb= and ch= are the collar beam's: give collar= too")
+        return self
+
+
+KINDS: tuple[type[Element], ...] = (Beam, Load, Rafter)

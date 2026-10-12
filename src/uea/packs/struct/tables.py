@@ -221,6 +221,7 @@ TIMBER = Spec(
     (
         Col("material", "text", "the strength class, as a rafter names it: C24, GL24h, ..."),
         Col("fmk", "num", "bending strength f_m,k, N/mm²"),
+        Col("ft0k", "num", "tension strength along the grain f_t,0,k, N/mm²"),
         Col("fc0k", "num", "compression strength along the grain f_c,0,k, N/mm²"),
         Col("fvk", "num", "shear strength f_v,k, N/mm²"),
         Col("e0mean", "num", "mean modulus of elasticity E_0,mean, N/mm²"),

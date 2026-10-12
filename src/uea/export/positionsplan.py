@@ -149,6 +149,18 @@ class PosPlan(InstallPlan):
                 self.dw.add(Line(a, b, pen, T_EAVES))
             c = rg.foot.centroid
             self.label(c.x, c.y - self.sh.m(6.0), f"{p.no} Dach {p.id}", 0.0, 2.6)
+            below = 10.0
+            for r in self.pos:
+                el = self.d.model.get(r.id)
+                if r.kind != "rafter" or el is None or getattr(el, "roof").id != p.id:  # noqa: B009
+                    continue
+                b, h, e = (getattr(el, k) for k in ("b", "h", "e"))
+                size = f"{b * 100:g}/{h * 100:g}, e = {e:g}".replace(".", ",")
+                txt = f"{r.no} Sparren {r.id} {size}"
+                if getattr(el, "collar", None) is not None:
+                    txt += " mit Kehlbalken"
+                self.label(c.x, c.y - self.sh.m(below), txt, 0.0, 2.0)
+                below += 4.0
 
     def slab(self) -> None:
         for p in self.pos:

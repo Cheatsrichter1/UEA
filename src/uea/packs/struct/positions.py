@@ -2,11 +2,11 @@
 proves, numbered as the Positionsplan shows them. Derived from the model alone, so the plan and
 the calculation always agree.
 
-Groups by storey from the top: group k holds the roofs on the k-th storey from the top, the
-slab above it and the beams under that slab, its load-bearing walls and the lintels over their
-openings; the last group holds the strip footings under the lowest storey's walls. Each
-position is drawn on the floor plan of the storey it is in (a slab and its beams on the plan of
-the storey below it).
+Groups by storey from the top: group k holds the roofs on the k-th storey from the top with
+their rafters, the slab above it and the beams under that slab, its load-bearing walls and the
+lintels over their openings; the last group holds the strip footings under the lowest storey's
+walls. Each position is drawn on the floor plan of the storey it is in (a slab and its beams on
+the plan of the storey below it).
 """
 
 from dataclasses import dataclass
@@ -18,6 +18,7 @@ from uea.packs.struct.model import beams_of, bearing, lowest
 
 TITLE = {
     "roof": "Dach",
+    "rafter": "Sparren",
     "slab": "Decke",
     "beam": "Unterzug",
     "wall": "Wand",
@@ -51,6 +52,13 @@ def lintel_openings(g: ArchGeo, wall: str) -> list[OpeningGeo]:
     return sorted(out, key=lambda o: (o.lo, natural(o.id)))
 
 
+def rafters_of(d: Derived, roof: str) -> list[str]:
+    return sorted(
+        (el.id for el in d.model.of_kind("rafter") if getattr(el, "roof").id == roof),  # noqa: B009
+        key=natural,
+    )
+
+
 def positions(d: Derived) -> list[Pos]:
     g = d.arch
     sg = getattr(d, "struct", None)
@@ -59,7 +67,9 @@ def positions(d: Derived) -> list[Pos]:
     out: list[Pos] = []
     for k, lv in enumerate(reversed(order), start=1):
         items: list[tuple[str, str]] = []
-        items += [("roof", r.id) for r in sorted(g.roofs_on(lv), key=lambda r: natural(r.id))]
+        for r in sorted(g.roofs_on(lv), key=lambda r: natural(r.id)):
+            items.append(("roof", r.id))
+            items += [("rafter", k) for k in rafters_of(d, r.id)]
         above = g.levels[lv].above
         if above is not None:
             sl = g.slab_on(above)

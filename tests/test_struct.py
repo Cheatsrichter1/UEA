@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import BOX, PROTOTYPE, Shell, derive_text
+from tests.conftest import BOX, PROTOTYPE, Shell, derive_text, model_from
 from tests.test_calc_elec import install, run
 from tests.test_elec import found
 from uea.calc import Env
@@ -27,6 +27,7 @@ from uea.packs.struct.tables import (
     MASONRY,
     MASONRY_END,
     SECTION,
+    TIMBER,
 )
 
 HOUSE = BOX + (
@@ -87,6 +88,12 @@ def near(v: float) -> object:
     return pytest.approx(v, abs=2e-3)
 
 
+TIMBER_T = (
+    "material,fmk,ft0k,fc0k,fvk,e0mean,e005,kmod,gamma,kcr,betac\n"
+    "C24,24,14,21,4,11000,7400,0.9,1.3,0.67,0.2\n"
+)
+
+
 @pytest.fixture
 def tables(tmp_path: Path) -> None:
     for spec, text in (
@@ -104,6 +111,7 @@ def tables(tmp_path: Path) -> None:
         (LINTEL, LINTEL_T),
         (SECTION, SECTION_T),
         (BEAM_MATERIAL, STEEL_T),
+        (TIMBER, TIMBER_T),
     ):
         install(spec.id, spec, text, tmp_path)
 
@@ -495,3 +503,72 @@ def test_wall_hole(tables: None) -> None:
     ] == [("lintel", "ho1")]
     assert any(" ho1 lintel 0.30 m in w2" in x for x in o.lines)
     assert o.data["holes"] == ["ho1", "ho2"]
+
+
+# ---------- 8e: rafters ----------
+
+
+def test_rafter_frames() -> None:
+    from uea.packs.struct.design import _rafter_bars  # pyright: ignore[reportPrivateUsage]
+    from uea.packs.struct.frame import plane_frame
+    from uea.packs.struct.kinds import Rafter
+
+    # a couple roof 8 m wide at 35°: a three-hinged frame. Under q along the slope, w = q / cos α
+    # on plan: M = w (L/2)² / 8 in each rafter, H = w L² / (8 f), N at the foot H cos α + V sin α
+    span, rise = 8.0, 4.0 * math.tan(math.radians(35))
+    nodes = {"TL": (0.0, 0.0), "FL": (0.0, 0.0), "R": (4.0, rise), "FR": (8.0, 0.0)}
+    nodes["TR"] = (8.0, 0.0)
+    el = model_from("rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n")["sp1"]
+    assert isinstance(el, Rafter)
+    fr = _rafter_bars(dict(nodes), el, rise / 4, ["w1", "w2"], span, 1.1e7)
+    assert not isinstance(fr, str) and set(fr.nodes) == {"FL", "R", "FR"}
+    a = math.atan(rise / 4)
+    w = 2.0 / math.cos(a)
+    eff, rx = plane_frame(
+        fr.nodes, fr.bars, ["FL", "FR"], {"g": [(n, 0.0, -2.0) for n in fr.sides]}, {"c": {"g": 1}}
+    )
+    h = w * span**2 / (8 * rise)
+    assert eff["c"]["Rl"].moment == pytest.approx(w * 4.0**2 / 8, rel=1e-6)
+    assert rx["c"]["FL"] == (pytest.approx(h, rel=1e-6), pytest.approx(w * 4.0, rel=1e-6))
+    assert eff["c"]["Rl"].compression == pytest.approx(
+        h * math.cos(a) + w * 4.0 * math.sin(a), rel=1e-6
+    )
+    # a collar at half the rise: the rafter is nearly a beam over two spans of L/4 on plan,
+    # w (L/4)² / 8 over the collar; the collar in compression
+    el = model_from(f"rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8 collar={rise / 2}\n")["sp1"]
+    assert isinstance(el, Rafter)
+    fr = _rafter_bars(dict(nodes), el, rise / 4, ["w1", "w2"], span, 1.1e7)
+    assert not isinstance(fr, str)
+    eff, _ = plane_frame(
+        fr.nodes, fr.bars, ["FL", "FR"], {"g": [(n, 0.0, -2.0) for n in fr.sides]}, {"c": {"g": 1}}
+    )
+    two = w * 2.0**2 / 8
+    assert 0.9 * two < eff["c"]["Fl"].moment <= two
+    assert eff["c"]["K"].compression > 0 and eff["c"]["K"].moment == pytest.approx(0, abs=1e-6)
+    with pytest.raises(ValueError, match="give collar= too"):
+        model_from("rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8 cb=0.06\n")
+
+
+def test_rafters(tables: None) -> None:
+    from uea.packs.struct.design import buckling
+
+    text = HOUSE + ROOF + "rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n"
+    text += "rafter sp2 rf1 C24 b=0.08 h=0.2 e=0.8 collar=1.5\n"
+    d, _ = derive_text(text)
+    o = run(STRUCT, d, None, sk=0.85, qp=0.5)
+    pos = {p["id"]: k for k, p in o.data["positions"].items()}
+    assert (pos["rf1"], pos["sp1"], pos["sp2"]) == ("1.01", "1.02", "1.03")
+    sp1 = next(x for x in o.lines if " sp1 rafters" in x)
+    assert sp1.startswith("1.02 sp1 rafters C24 8/20 e 0.8: η ") and sp1.endswith(" ok")
+    assert "Sparren sp1" in o.report and "Horizontalschub am Fußpunkt" in o.report
+    # k_c: λ_rel = λ / π · √(f_c,0,k / E_0,05), k = 0.5 (1 + β_c (λ_rel − 0.3) + λ_rel²)
+    rel = 100 / math.pi * math.sqrt(21 / 7400)
+    k = 0.5 * (1 + 0.2 * (rel - 0.3) + rel**2)
+    assert buckling(100, 21, 7400, 0.2) == pytest.approx(1 / (k + math.sqrt(k * k - rel * rel)))
+    assert buckling(10, 21, 7400, 0.2) == 1.0
+    # a hip roof: its rafters are not proved
+    d, _ = derive_text(
+        HOUSE + ROOF.replace("gable ridge=x", "hip") + "rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n"
+    )
+    o = run(STRUCT, d, None, sk=0.85, qp=0.5)
+    assert any("sp1 rafters: only the rafters of a gable roof" in x for x in o.lines)

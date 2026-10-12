@@ -35,18 +35,21 @@ from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
 from uea.export.tables import wall_profile
-from uea.packs.arch.geometry import ArchGeo, OpeningGeo, WallGeo
+from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, WallGeo
 from uea.packs.struct.actions import Factors
-from uea.packs.struct.frame import Case, beam, solver_version
+from uea.packs.struct.frame import Bar, Case, Push, beam, plane_frame, solver_version
+from uea.packs.struct.kinds import Rafter
 from uea.packs.struct.loads import (
     NORM as LOADS_NORM,
 )
 from uea.packs.struct.loads import (
     PARAMS,
     Result,
+    RoofLoad,
     SlabLoad,
     calculate,
     footing_line,
+    interp,
     report_body,
     uplift,
 )
@@ -69,6 +72,7 @@ from uea.packs.struct.tables import (
     PSI,
     SECTION,
     SNOW,
+    TIMBER,
     UNIT_WEIGHT,
     WIND,
 )
@@ -211,6 +215,146 @@ class Design:
         if rl.flat:
             parts.append("flat on " + ", ".join(rl.flat))
         return Proof(p, ok, None, f"{p.no} {p.id} roof: " + "; ".join(parts), md)
+
+    # ---------- rafters ----------
+
+    def rafter(self, p: Pos) -> Proof:
+        el = self.d.model[p.id]
+        assert isinstance(el, Rafter)
+        rg = self.g.roofs.get(el.roof.id)
+        roof = self.d.model.get(el.roof.id)
+        ridge = getattr(roof, "ridge", None)
+        if rg is None or getattr(roof, "shape", "") != "gable" or ridge is None:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} {p.id} rafters: only the rafters of a gable roof are proved NOT OK",
+                ["Nur Sparren eines Satteldachs werden nachgewiesen: nicht nachgewiesen."],
+            )
+        rl = next(r for r in self.res.roofs if r.id == rg.id)
+        tim = self.env.table(TIMBER).find(material=el.material)
+        if tim is None:
+            raise ValueError(f"timber has no row for {el.material} ({el.id}): add it to the table")
+        fr = rafter_frame(self.g, rg, rl, el, ridge, float(tim["e0mean"]) * 1000)
+        if isinstance(fr, str):
+            return Proof(p, False, None, f"{p.no} {p.id} rafters: {fr} NOT OK", [fr])
+        f = self.f
+        sk, qp = self.res.sk or 0.0, self.res.qp or 0.0
+        pitch = rg.pitch
+        mu = interp(self.env.table(SNOW), "mu1", pitch, el.id)
+        cp = interp(self.env.table(WIND), "pressure", pitch, el.id)
+        cs = min(0.0, interp(self.env.table(WIND), "suction", pitch, el.id))
+        a = math.radians(pitch)
+        sa, ca = math.sin(a), math.cos(a)
+        g_m = rl.g_surface * el.e
+        s_m = mu * sk * el.e * ca
+        cases: dict[str, list[Push]] = {"g": [], "s": [], "w": []}
+        for name, side in fr.sides.items():
+            cases["g"].append((name, 0.0, -g_m))
+            cases["s"].append((name, 0.0, -s_m))
+            c = cp if side == "l" else cs
+            nx = -sa if side == "l" else sa
+            cases["w"].append((name, -c * qp * el.e * nx, -c * qp * el.e * ca))
+        gg, gq = f.value("gamma-g"), f.value("gamma-q")
+        combos = {
+            "ULS-g": {"g": gg},
+            "ULS-s": {"g": gg, "s": gq, "w": gq * f.psi("w")},
+            "ULS-w": {"g": gg, "w": gq, "s": gq * f.psi("s")},
+            "SLS": {"g": 1.0, "s": 1.0, "w": 1.0},
+        }
+        eff, rx = plane_frame(fr.nodes, fr.bars, ["FL", "FR"], cases, combos)
+        kmod, gm = float(tim["kmod"]), float(tim["gamma"])
+
+        def fd(col: str) -> float:
+            return kmod * float(tim[col]) / gm * 1000
+
+        e005 = float(tim["e005"])
+        rows: list[list[str]] = []
+        etas: list[float] = []
+        n_def = f.limit("deflection")
+        for group, names in fr.groups.items():
+            bw, bh = fr.section[group]
+            area, wsec = bw * bh, bw * bh * bh / 6
+            length = max(_bar_length(fr, n) for n in names)
+            i_r = min(bw, bh) / math.sqrt(12) if group == "collar" else bh / math.sqrt(12)
+            kc = buckling(length / i_r, float(tim["fc0k"]), e005, float(tim["betac"]))
+            uls = [eff[k][n] for k in combos if k != "SLS" for n in names]
+            m_ed = max(x.moment for x in uls)
+            n_c = max(x.compression for x in uls)
+            n_t = max(x.tension for x in uls)
+            v_ed = max(x.shear for x in uls)
+            eta_n = (n_c / area) / (kc * fd("fc0k")) + (m_ed / wsec) / fd("fmk")
+            eta_t = (n_t / area) / fd("ft0k") + (m_ed / wsec) / fd("fmk")
+            eta_v = 1.5 * v_ed / (float(tim["kcr"]) * area) / fd("fvk")
+            w = max(eff["SLS"][n].deflection for n in names)
+            eta_w = w / (length / n_def) if group != "overhang" else w / (2 * length / n_def)
+            eta = max(eta_n, eta_t, eta_v, eta_w)
+            etas.append(eta)
+            rows.append(
+                [
+                    GROUP_DE[group],
+                    f"{de(bw * 100, 0)}/{de(bh * 100, 0)}",
+                    de(length, 2),
+                    de(m_ed, 2),
+                    de(n_c, 1),
+                    de(n_t, 1),
+                    de(kc, 3),
+                    de(max(eta_n, eta_t), 2),
+                    de(eta_v, 2),
+                    de(w * 1000, 1),
+                    de(eta, 2),
+                ]
+            )
+        eta = max(etas)
+        ok = eta <= 1 + 1e-9
+        h_foot = max(abs(rx[k]["FL"][0]) for k in combos if k != "SLS")
+        kind = "Kehlbalkendach" if el.collar is not None else "Sparrendach"
+        line = (
+            f"{p.no} {p.id} rafters {el.material} {el.b * 100:g}/{el.h * 100:g} e {el.e:g}"
+            + (f", collar at {el.collar:g}" if el.collar is not None else "")
+            + f": η {eta:.2f}, thrust {h_foot / el.e:.1f} kN/m at the feet"
+            f" {'ok' if ok else 'NOT OK'}"
+        )
+        md = [
+            f"{kind}, Neigung {de(pitch, 1)}°, Sparren {el.material} b/h = {de(el.b * 100, 0)}/"
+            f"{de(el.h * 100, 0)} cm im Abstand e = {de(el.e, 2)} m; Auflager auf"
+            f" {', '.join(fr.walls)} im Abstand {de(fr.span, 2)} m"
+            + (f", Kehlbalken {de(el.collar, 2)} m über den Fußpunkten" if el.collar else "")
+            + f". Ebenes Stabwerk mit {solver_version()}, Firstgelenk, Fußpunkte gelenkig und"
+            " horizontal gehalten.",
+            f"Lasten je Sparren: g = {de(rl.g_surface, 2)} kN/m² · e entlang der Dachfläche,"
+            f" s = μ1 · s_k · e = {de(mu, 2)} · {de(sk, 2)} · e im Grundriss, w = c_pe · q_p · e"
+            f" senkrecht zur Dachfläche (Luv {de(cp, 2)}, Lee {de(cs, 2)}); Kombinationen mit"
+            " Schnee oder Wind als Leiteinwirkung.",
+            "",
+            md_table(
+                [
+                    "Stab",
+                    "b/h cm",
+                    "l m",
+                    "M_Ed kNm",
+                    "N_c,Ed kN",
+                    "N_t,Ed kN",
+                    "k_c",
+                    "η σ",
+                    "η τ",
+                    "w mm",
+                    "η",
+                ],
+                rows,
+                right=(2, 3, 4, 5, 6, 7, 8, 9, 10),
+            ),
+            "",
+            f"f_d = k_mod · f_k / γ_M mit k_mod = {de(kmod, 2)}, γ_M = {de(gm, 2)}. Biegung mit"
+            " Druck σ_c/(k_c · f_c,0,d) + σ_m/f_m,d ≤ 1, mit Zug σ_t/f_t,0,d + σ_m/f_m,d ≤ 1"
+            " (DIN EN 1995-1-1, 6.2.3, 6.2.4, 6.3.2), Schub 1,5 · V/(k_cr · b · h) ≤ f_v,d,"
+            f" Durchbiegung unter den charakteristischen Lasten ≤ l/{n_def:g} (Überstand"
+            f" 2l/{n_def:g}).",
+            f"Horizontalschub am Fußpunkt H = {de(h_foot, 1)} kN je Sparren,"
+            f" {de(h_foot / el.e, 1)} kN/m entlang der Traufe: von der Decke aufzunehmen.",
+        ]
+        return Proof(p, ok, eta, line, md)
 
     # ---------- slab ----------
 
@@ -559,6 +703,134 @@ class Design:
         return Proof(p, True, None, line, md)
 
 
+GROUP_DE = {
+    "foot": "Sparren Fuß – Kehlbalken",
+    "top": "Sparren Kehlbalken – First",
+    "rafter": "Sparren Fuß – First",
+    "overhang": "Sparren Überstand",
+    "collar": "Kehlbalken",
+}
+
+
+@dataclass
+class RafterFrame:
+    nodes: dict[str, tuple[float, float]]
+    bars: list[Bar]
+    sides: dict[str, str]
+    """The roof plane of each rafter bar: l (windward) or r."""
+    groups: dict[str, list[str]]
+    section: dict[str, tuple[float, float]]
+    walls: list[str]
+    span: float
+
+
+def rafter_frame(
+    g: ArchGeo, rg: RoofGeo, rl: RoofLoad, el: Rafter, ridge: str, e: float
+) -> RafterFrame | str:
+    """A pair of rafters across a gable roof as a plane frame: from the eaves' tip over the
+    bearing on the eaves wall to the ridge (a hinge), and the collar beam between them."""
+    lo_edge, hi_edge = ("s", "n") if ridge == "x" else ("w", "e")
+    edges = {e.edge: e for e in rl.edges}
+    if lo_edge not in edges or hi_edge not in edges or not edges[lo_edge].to:
+        return "the roof does not rest on walls under both eaves"
+    if not edges[hi_edge].to:
+        return "the roof does not rest on walls under both eaves"
+
+    def axis(edge: str) -> float:
+        to = edges[edge].to
+        return sum(g.walls[k].mid * f for k, f in to.items())
+
+    c_l, c_r = axis(lo_edge), axis(hi_edge)
+    ox0, oy0, ox1, oy1 = rg.over.bounds
+    if ridge == "x":
+        along = (rg.x0 + rg.x1) / 2
+        o_lo, o_hi, c_ridge = oy0, oy1, (rg.y0 + rg.y1) / 2
+
+        def z(c: float) -> float:
+            return rg.underside(along, c)
+    else:
+        along = (rg.y0 + rg.y1) / 2
+        o_lo, o_hi, c_ridge = ox0, ox1, (rg.x0 + rg.x1) / 2
+
+        def z(c: float) -> float:
+            return rg.underside(c, along)
+
+    z0 = z(c_l)
+    nodes = {
+        "TL": (o_lo - c_l, z(o_lo) - z0),
+        "FL": (0.0, 0.0),
+        "R": (c_ridge - c_l, z(c_ridge) - z0),
+        "FR": (c_r - c_l, z(c_r) - z0),
+        "TR": (o_hi - c_l, z(o_hi) - z0),
+    }
+    walls = [*edges[lo_edge].to, *edges[hi_edge].to]
+    return _rafter_bars(nodes, el, rg.slope, walls, c_r - c_l, e)
+
+
+def _rafter_bars(
+    nodes: dict[str, tuple[float, float]],
+    el: Rafter,
+    slope: float,
+    walls: list[str],
+    span: float,
+    e: float,
+) -> RafterFrame | str:
+    """The bars of the frame; e: the timber's E_0,mean, kN/m²."""
+    a, ih = el.b * el.h, el.b * el.h**3 / 12
+    sides: dict[str, str] = {}
+    groups: dict[str, list[str]] = {"overhang": []}
+    bars: list[Bar] = []
+    for side, tip, foot in (("l", "TL", "FL"), ("r", "TR", "FR")):
+        if abs(nodes[tip][0] - nodes[foot][0]) > 1e-6:
+            name = f"O{side}"
+            bars.append(Bar(name, tip, foot, a, ih, e))
+            sides[name] = side
+            groups["overhang"].append(name)
+    if not groups["overhang"]:
+        del groups["overhang"]
+    if el.collar is None:
+        bars += [Bar("Rl", "FL", "R", a, ih, e, hinge_j=True), Bar("Rr", "FR", "R", a, ih, e)]
+        sides.update({"Rl": "l", "Rr": "r"})
+        groups["rafter"] = ["Rl", "Rr"]
+        section = dict.fromkeys(groups, (el.b, el.h))
+    else:
+        if el.collar >= nodes["R"][1] - 0.1:
+            return f"the collar at {el.collar:g} m is not below the ridge"
+        u = el.collar / slope
+        nodes["KL"] = (u, el.collar)
+        nodes["KR"] = (nodes["FR"][0] - u, nodes["FR"][1] + el.collar)
+        cb, ch = el.cb or el.b, el.ch or el.h
+        bars += [
+            Bar("Fl", "FL", "KL", a, ih, e),
+            Bar("Tl", "KL", "R", a, ih, e, hinge_j=True),
+            Bar("Fr", "FR", "KR", a, ih, e),
+            Bar("Tr", "KR", "R", a, ih, e),
+            Bar("K", "KL", "KR", cb * ch, cb * ch**3 / 12, e, hinge_i=True, hinge_j=True),
+        ]
+        sides.update({"Fl": "l", "Tl": "l", "Fr": "r", "Tr": "r"})
+        groups.update({"foot": ["Fl", "Fr"], "top": ["Tl", "Tr"], "collar": ["K"]})
+        section = dict.fromkeys(groups, (el.b, el.h))
+        section["collar"] = (cb, ch)
+    used = {k for b in bars for k in (b.i, b.j)}
+    nodes = {k: v for k, v in nodes.items() if k in used}
+    return RafterFrame(nodes, bars, sides, groups, section, walls, span)
+
+
+def _bar_length(fr: RafterFrame, name: str) -> float:
+    b = next(x for x in fr.bars if x.name == name)
+    (xi, yi), (xj, yj) = fr.nodes[b.i], fr.nodes[b.j]
+    return math.hypot(xj - xi, yj - yi)
+
+
+def buckling(lam: float, fc0k: float, e005: float, beta_c: float) -> float:
+    """k_c of a member in compression with slenderness λ = l / i, DIN EN 1995-1-1, 6.3.2."""
+    rel = lam / math.pi * math.sqrt(fc0k / e005)
+    if rel <= 0.3:
+        return 1.0
+    k = 0.5 * (1 + beta_c * (rel - 0.3) + rel * rel)
+    return 1 / (k + math.sqrt(k * k - rel * rel))
+
+
 def _combos(f: Factors, cases: dict[str, Case]) -> dict[str, dict[str, float]]:
     """The design combinations: γ_G·G with each variable action leading."""
     var = [k for k in ("q", "s", "w") if k in cases]
@@ -873,5 +1145,6 @@ STRUCT = Calculator(
         LINTEL,
         SECTION,
         BEAM_MATERIAL,
+        TIMBER,
     ),
 )

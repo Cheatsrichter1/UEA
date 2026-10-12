@@ -405,7 +405,7 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 
 ### Structure (`struct.uea`)
 
-Kinds: `beam`, `load`.
+Kinds: `beam`, `load`, `rafter`.
 
 #### `beam`
 
@@ -434,6 +434,23 @@ A load on the slab of a storey: load lo1 OG g=3 at=w4+0.5,w5+0.5 "Pufferspeicher
 | at | `at=` |  | a point load: where it stands |
 | a | `a=` |  | a line load: the start of its line |
 | b | `b=` |  | a line load: the end of its line |
+
+#### `rafter`
+
+The rafters of a gable roof (Sparren of a Sparren- or Kehlbalkendach): rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8. b, h: the section; e: the spacing. collar= the height of a collar beam (Kehlbalken) above the rafters' feet, cb= ch= its section if not the rafter's. material: a strength class of the office's timber table.
+
+`rafter <id> <roof> <material>` · ids `sp1`, `sp2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| roof | positional |  | the roof |
+| material | positional |  | strength class, a row of the office's timber table: C24 |
+| b | `b=` | m | width of a rafter (required) |
+| h | `h=` | m | depth of a rafter (required) |
+| e | `e=` | m | spacing of the rafters (required) |
+| collar | `collar=` | m | height of the collar beam's axis above the rafters' feet |
+| cb | `cb=` | m | width of the collar beam |
+| ch | `ch=` | m | depth of the collar beam |
 
 ### Luminaires (`light.uea`)
 
@@ -1579,11 +1596,11 @@ One row for each: upto.
 
 #### `struct-factors`: Partial factors and design settings (DIN EN 1990/NA, Tabelle NA.A.1.2(B); DIN EN 1996-1-1/NA, 2.4.3, 3.7.1; DIN EN 1996-3/NA, 4.2.2.3; DIN EN 1992-1-1/NA, 2.4.2.4, 3.1.6, 3.2)
 
-gamma-g, gamma-q: γ_G and γ_Q; gamma-g-inf: γ_G of a favourable permanent action (the uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the distance of the reinforcement's axis from the face of a slab, m. Each calculation needs the rows it uses.
+gamma-g, gamma-q: γ_G and γ_Q; gamma-g-inf: γ_G of a favourable permanent action (the uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the distance of the reinforcement's axis from the face of a slab, m; crdc: C_Rd,c and vmin: the factor of v_min = vmin · k^1.5 · √f_ck of a slab without shear reinforcement; rho-min-ft and rho-min: a_s,min = max(rho-min-ft · f_ctm / f_yk, rho-min) · b · d. Each calculation needs the rows it uses.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `name` | text | which value (one of gamma-g, gamma-q, gamma-g-inf, gamma-m, zeta, rho2, gamma-c, alpha-cc, gamma-s, fyk, d1) |
+| `name` | text | which value (one of gamma-g, gamma-q, gamma-g-inf, gamma-m, zeta, rho2, gamma-c, alpha-cc, gamma-s, fyk, d1, crdc, vmin, rho-min-ft, rho-min) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
@@ -1639,11 +1656,11 @@ One row for each: name.
 
 #### `struct-limits`: Limits of the methods (DIN EN 1996-3/NA, 4.2.1.1; DIN EN 1992-1-1/NA, 5.4(NA.5); DIN EN 1990/NA, A.1.4 with the office's choice of deflection limit)
 
-building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and clear-height (m): the conditions of the simplified method for masonry; xi: the largest x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam.
+building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and clear-height (m): the conditions of the simplified method for masonry; xi: the largest x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam or a rafter; ld and ld-span: the slenderness of a slab, l/d ≤ ld and ≤ ld-span / l (l in m).
 
 | Column | Type | Meaning |
 |---|---|---|
-| `name` | text | which limit (one of building-height, span, qk, clear-height, xi, deflection) |
+| `name` | text | which limit (one of building-height, span, qk, clear-height, xi, deflection, ld, ld-span) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
@@ -1707,6 +1724,26 @@ f_d = k_mod · f_k / γ_M for bending and shear.
 | `e` | num > 0 | modulus of elasticity, N/mm² |
 | `gamma` | num > 0 | partial factor γ_M |
 | `kmod` | num > 0 | k_mod for the load duration of the design (1 for steel) |
+
+One row for each: material.
+
+#### `timber`: Strength classes of solid and glued laminated timber (DIN EN 338, DIN EN 14080; DIN EN 1995-1-1 with NA (k_mod, γ_M, k_cr, β_c))
+
+One row for each strength class the rafters and collar beams use.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the strength class, as a rafter names it: C24, GL24h, ... |
+| `fmk` | num > 0 | bending strength f_m,k, N/mm² |
+| `ft0k` | num > 0 | tension strength along the grain f_t,0,k, N/mm² |
+| `fc0k` | num > 0 | compression strength along the grain f_c,0,k, N/mm² |
+| `fvk` | num > 0 | shear strength f_v,k, N/mm² |
+| `e0mean` | num > 0 | mean modulus of elasticity E_0,mean, N/mm² |
+| `e005` | num > 0 | 5 % modulus of elasticity E_0,05, N/mm² |
+| `kmod` | num > 0 | k_mod for the roof's load duration and service class |
+| `gamma` | num > 0 | γ_M |
+| `kcr` | num > 0 | k_cr for the shear of cracked members |
+| `betac` | num > 0 | β_c, the straightness factor for buckling |
 
 One row for each: material.
 
