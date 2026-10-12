@@ -21,6 +21,7 @@ from uea.packs.struct.plate import analyse
 from uea.packs.struct.positions import positions
 from uea.packs.struct.tables import (
     BEAM_MATERIAL,
+    COLUMN_SECTION,
     CONCRETE,
     LIMITS,
     LINTEL,
@@ -71,6 +72,7 @@ LINTEL_T = (
     "FS-365,0.365,2.5,25\nSB-365,0.365,2.5,90\nFS-240,0.24,1.25,30\nSB-240,0.24,1.25,90\n"
 )
 SECTION_T = "name,material,w,i,av,g\nS-160,steel-x,300,2400,18,0.42\n"
+COLUMN_T = "name,material,a,imin,alpha,g\nC-140,steel-x,40,500,0.49,0.3\n"
 STEEL_T = "material,fk,fvk,e,gamma,kmod\nsteel-x,230,130,200000,1.1,1\n"
 ROOF = (
     "type DA roof layers=ziegel:0.05,*sparren:0.2\n"
@@ -112,6 +114,7 @@ def tables(tmp_path: Path) -> None:
         (SECTION, SECTION_T),
         (BEAM_MATERIAL, STEEL_T),
         (TIMBER, TIMBER_T),
+        (COLUMN_SECTION, COLUMN_T),
     ):
         install(spec.id, spec, text, tmp_path)
 
@@ -572,3 +575,55 @@ def test_rafters(tables: None) -> None:
     )
     o = run(STRUCT, d, None, sk=0.85, qp=0.5)
     assert any("sp1 rafters: only the rafters of a gable roof" in x for x in o.lines)
+
+
+# ---------- 8e: columns ----------
+
+COLUMN = "beam bm1 OG S-160 a=W,S+4 b=E,S+4\ncolumn co1 EG C-140 at=W+5,S+4\n"
+
+
+def test_columns(tables: None) -> None:
+    from uea.packs.struct.design import buckling_chi
+
+    d, rep = derive_text(HOUSE + COLUMN)
+    assert [i.code for i in rep.issues if i.code.startswith("W-STRUCT")] == []
+    # the beam rests on w4, the column and w2
+    from uea.packs.struct.model import beam_bearings
+
+    on = beam_bearings(d.arch, d.struct.beams["bm1"], d.struct)
+    assert [k for k, _ in on] == ["w4", "co1", "w2"]
+    o = run(LOADS, d, None, soil=200)
+    assert o.ok, o.lines
+    col = o.data["columns"]["co1"]
+    reaction = o.data["beams"]["bm1"]["co1"]
+    # from the EG's SSL -0.15 to sl2's underside 2.9 - 0.15 - 0.2 = 2.55: 2.70 m of 0.3 kN/m
+    assert col["height"] == pytest.approx(2.7) and col["own"] == pytest.approx(0.81)
+    assert col["G"] == pytest.approx(reaction["G"] + 0.81, abs=2e-3)
+    assert col["Q"] == pytest.approx(reaction["Q"], abs=2e-3)
+    assert col["to"] == "Einzelfundament"
+    o = run(STRUCT, d, None, soil=200)
+    pos = {(p["kind"], p["id"]): k for k, p in o.data["positions"].items()}
+    # sl2, bm1, w1..w4, then the column; the pad after the four strip footings
+    assert pos[("column", "co1")] == "2.07" and pos[("pad", "co1")] == "3.05"
+    # i = √(500 / 40) cm, λ = 2.7 / i; λ̄ = λ / π · √(230 / 200000); χ by α = 0.49
+    lam = 2.7 / math.sqrt(500e-8 / 40e-4)
+    rel = lam / math.pi * math.sqrt(230 / 200000)
+    phi = 0.5 * (1 + 0.49 * (rel - 0.2) + rel**2)
+    chi = 1 / (phi + math.sqrt(phi**2 - rel**2))
+    assert buckling_chi(lam, 230, 200000, 0.49) == (pytest.approx(chi), pytest.approx(rel))
+    n_rd = chi * 40e-4 * 230 / 1.1 * 1000
+    n_ed = 1.3 * col["G"] + 1.4 * col["Q"]
+    line = next(x for x in o.lines if " co1 column" in x)
+    assert f"N_Ed {n_ed:.1f}/N_b,Rd {n_rd:.1f} kN" in line and line.endswith(" ok")
+    pad = next(x for x in o.lines if " co1 pad" in x)
+    assert f"a ≥ {math.sqrt(n_ed / 200):.2f} m" in pad
+
+
+def test_column_checks() -> None:
+    _, rep = derive_text(HOUSE + "column co1 EG C-140 at=W+5,S+4\n")
+    assert found(rep, "W-STRUCT-005") == ["co1"]
+    # a beam from w4 that ends on a column: two supports
+    _, rep = derive_text(
+        HOUSE + "beam bm1 OG S-160 a=W,S+4 b=W+5,S+4\ncolumn co1 EG C-140 at=W+5,S+4\n"
+    )
+    assert found(rep, "W-STRUCT-003") == [] and found(rep, "W-STRUCT-005") == []

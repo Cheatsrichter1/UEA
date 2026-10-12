@@ -2,8 +2,8 @@
 
 The load-bearing walls and the slabs are the architect's (`lb`). A beam (Unterzug) carries a
 slab and the walls on it where no wall is under them; a load is a point or line load the rooms'
-uses do not cover (a buffer tank, a heavy partition the agent writes as a load); the rafters
-give the timber of a gable roof. Sections and
+uses do not cover (a buffer tank, a heavy partition the agent writes as a load); a column
+carries a beam where no wall is under it; the rafters give the timber of a gable roof. Sections and
 materials are rows of the office's tables, not types in the model: their values are catalogue
 and norm data.
 """
@@ -66,6 +66,28 @@ class Load(Element):
         return self
 
 
+class Column(Element):
+    kind: ClassVar[str] = "column"
+    pack: ClassVar[str] = "struct"
+    prefix: ClassVar[str | None] = "co"
+    positional: ClassVar[tuple[str, ...]] = ("level", "section")
+    doc: ClassVar[str] = (
+        "A column (Stütze) in a storey, under a beam of the slab above it: column co1 EG"
+        " HEB-140 at=w6,w1+3. It stands on the storey's floor: on the lowest storey on its own"
+        " pad footing, else as a point load on that slab. section: a row of the office's"
+        " column-section table."
+    )
+    level: Annotated[Ref, F("storey it stands in", targets=("level",))]
+    section: Annotated[str, F("section, a name in the office's column-section table")]
+    at: Annotated[Point, F("its axis, a point x,y")]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if not TYPE_NAME_RE.match(self.section):
+            raise ValueError(f"section {self.section!r}: a name like HEB-140")
+        return self
+
+
 class Rafter(Element):
     kind: ClassVar[str] = "rafter"
     pack: ClassVar[str] = "struct"
@@ -101,4 +123,4 @@ class Rafter(Element):
         return self
 
 
-KINDS: tuple[type[Element], ...] = (Beam, Load, Rafter)
+KINDS: tuple[type[Element], ...] = (Beam, Load, Column, Rafter)

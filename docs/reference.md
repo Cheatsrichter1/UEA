@@ -405,7 +405,7 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 
 ### Structure (`struct.uea`)
 
-Kinds: `beam`, `load`, `rafter`.
+Kinds: `beam`, `load`, `column`, `rafter`.
 
 #### `beam`
 
@@ -434,6 +434,18 @@ A load on the slab of a storey: load lo1 OG g=3 at=w4+0.5,w5+0.5 "Pufferspeicher
 | at | `at=` |  | a point load: where it stands |
 | a | `a=` |  | a line load: the start of its line |
 | b | `b=` |  | a line load: the end of its line |
+
+#### `column`
+
+A column (Stütze) in a storey, under a beam of the slab above it: column co1 EG HEB-140 at=w6,w1+3. It stands on the storey's floor: on the lowest storey on its own pad footing, else as a point load on that slab. section: a row of the office's column-section table.
+
+`column <id> <level> <section>` · ids `co1`, `co2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey it stands in |
+| section | positional |  | section, a name in the office's column-section table |
+| at | `at=` |  | its axis, a point x,y (required) |
 
 #### `rafter`
 
@@ -1103,8 +1115,9 @@ E is an error, W a warning.
 | W-ARCH-060 | section outside the building (it cuts no wall) |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
-| W-STRUCT-003 | beam that rests on fewer than two load-bearing walls |
+| W-STRUCT-003 | beam that rests on fewer than two load-bearing walls or columns |
 | W-STRUCT-004 | hole in a slab over the wall that carries the slab |
+| W-STRUCT-005 | column that carries no beam |
 | E-LIGHT-002 | luminaire on a wall without a usable face |
 | E-ELEC-001 | device outside its host wall |
 | E-ELEC-002 | device on a wall without a usable face |
@@ -1650,6 +1663,21 @@ One row for each section the beams name.
 | `w` | num > 0 | section modulus W_y, cm³ |
 | `i` | num > 0 | second moment of area I_y, cm⁴ |
 | `av` | num > 0 | shear area A_v, cm² |
+| `g` | num > 0 | weight, kN/m |
+
+One row for each: name.
+
+#### `column-section`: Sections of columns (the manufacturer's tables or DIN EN 10365 (steel); DIN EN 1993-1-1, 6.3.1 (buckling curves))
+
+One row for each section the columns use.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | the section, as the column names it |
+| `material` | text | a material of the beam-material table |
+| `a` | num > 0 | area A, cm² |
+| `imin` | num > 0 | the smaller second moment of area, cm⁴ |
+| `alpha` | num > 0 | imperfection factor α of its buckling curve about that axis |
 | `g` | num > 0 | weight, kN/m |
 
 One row for each: name.

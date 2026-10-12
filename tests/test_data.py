@@ -158,6 +158,7 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
         "snow-shape",
         "wind-roof",
         "beam-section",
+        "column-section",
         "struct-limits",
         "masonry",
         "masonry-end",

@@ -4,17 +4,18 @@ Load-bearing is the wall's lb flag. A slab rests on the load-bearing walls of th
 it that its outline covers, and on the beams under it (`beam`, struct.uea). A wall stands on the
 load-bearing walls of the storey below whose cores its own core overlaps, and on the beams of its
 storey that run inside its core. A beam rests on the load-bearing walls of the storey below that
-it crosses.
+it crosses and on the columns of that storey on its axis.
 """
 
 from dataclasses import dataclass
 
 from shapely.geometry import LineString
+from shapely.geometry import Point as SPoint
 from shapely.geometry.base import BaseGeometry
 
 from uea.core.registry import natural
 from uea.packs.arch.geometry import ArchGeo, SlabGeo, WallGeo
-from uea.packs.struct.geometry import BeamGeo, StructGeo
+from uea.packs.struct.geometry import BeamGeo, ColumnGeo, StructGeo
 
 TOUCH = 1e-3
 """A slab rests on a wall whose core comes this close to its outline (m)."""
@@ -106,9 +107,10 @@ def on_beam(g: ArchGeo, w: WallGeo, b: BeamGeo) -> tuple[float, float]:
     return (min(pts), max(pts))
 
 
-def beam_bearings(g: ArchGeo, b: BeamGeo) -> list[tuple[str, float]]:
-    """The load-bearing walls of the storey below the beam's that it rests on, each with the
-    point along the beam where it bears (the middle of its bearing), from a to b."""
+def beam_bearings(g: ArchGeo, b: BeamGeo, sg: StructGeo | None = None) -> list[tuple[str, float]]:
+    """What the beam rests on, each with the point along the beam where it bears, from a to b:
+    the load-bearing walls of the storey below the beam's that it crosses (the middle of the
+    bearing), and the columns of that storey on its axis."""
     below = g.levels[b.level].below
     if below is None:
         return []
@@ -119,7 +121,26 @@ def beam_bearings(g: ArchGeo, b: BeamGeo) -> list[tuple[str, float]]:
             continue
         pts = [b.s_of(x, y) for x, y in _coords(seg)]
         out.append((w.id, (min(pts) + max(pts)) / 2))
+    for c in columns_of(sg, below):
+        if b.line.distance(SPoint(c.at)) <= MIN_BEARING:
+            out.append((c.id, b.s_of(*c.at)))
     return sorted(out, key=lambda x: x[1])
+
+
+def columns_of(sg: StructGeo | None, level: str) -> list[ColumnGeo]:
+    if sg is None:
+        return []
+    return sorted((c for c in sg.columns.values() if c.level == level), key=lambda c: natural(c.id))
+
+
+def column_height(g: ArchGeo, c: ColumnGeo) -> float:
+    """From the storey's SSL to the underside of the slab above."""
+    lv = g.levels[c.level]
+    above = lv.above
+    sl = g.slab_on(above) if above is not None else None
+    if sl is None:
+        raise ValueError(f"{c.id}: there is no slab above {c.level}")
+    return sl.underside - (lv.z - lv.fb)
 
 
 def _coords(geom: BaseGeometry) -> list[tuple[float, float]]:

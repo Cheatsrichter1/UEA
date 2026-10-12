@@ -18,7 +18,12 @@ A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved
              office's table; the conditions of the simplified method from the office's limits
     lintel   q_d of the wall's load at its top per metre and of the masonry over the opening
              (no arching), against the manufacturer's table
-    footing  b ≥ n_d / σ_R,d (loads)
+    rafter   a pair of rafters of a gable roof, with its collar beam, as a plane frame on the
+             solver: bending with compression or tension (k_c), shear and deflection
+             (DIN EN 1995-1-1, 6.2.3, 6.2.4, 6.3.2)
+    column   N_Ed ≤ N_b,Rd = χ·A·f_k/γ_M, χ by the section's buckling curve (DIN EN 1993-1-1,
+             6.3.1.2), pinned at both ends
+    footing  b ≥ n_d / σ_R,d (loads); a column's pad a ≥ √(N_d / σ_R,d)
 """
 
 import math
@@ -61,6 +66,7 @@ from uea.packs.struct.plate import MESH, Moments, solve
 from uea.packs.struct.positions import Pos, positions
 from uea.packs.struct.tables import (
     BEAM_MATERIAL,
+    COLUMN_SECTION,
     CONCRETE,
     FACTORS,
     IMPOSED,
@@ -683,6 +689,62 @@ class Design:
         ]
         return Proof(p, ok, eta, line, md)
 
+    # ---------- column ----------
+
+    def column(self, p: Pos) -> Proof:
+        cl = self.res.columns[p.id]
+        if p.id in self.res.unsupported:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} {p.id} column: stands on nothing NOT OK",
+                ["Steht auf keinem Auflager: nicht nachgewiesen."],
+            )
+        sec = self.env.table(COLUMN_SECTION).find(name=cl.section)
+        assert sec is not None
+        mat = self.env.table(BEAM_MATERIAL).find(material=str(sec["material"]))
+        if mat is None:
+            raise ValueError(f"beam-material has no row for {sec['material']} ({cl.id})")
+        area = float(sec["a"]) * 1e-4
+        radius = math.sqrt(float(sec["imin"]) * 1e-8 / area)
+        fk, e = float(mat["fk"]), float(mat["e"])
+        chi, rel = buckling_chi(cl.height / radius, fk, e, float(sec["alpha"]))
+        n_rd = chi * area * float(mat["kmod"]) * fk / float(mat["gamma"]) * 1000
+        n_ed = self.f.design(cl.base)
+        eta = n_ed / n_rd
+        ok = eta <= 1 + 1e-9
+        line = (
+            f"{p.no} {p.id} column {cl.section} {cl.height:.2f} m: N_Ed {n_ed:.1f}/N_b,Rd"
+            f" {n_rd:.1f} kN, χ {chi:.3f}, η {eta:.2f} {'ok' if ok else 'NOT OK'}"
+        )
+        md = [
+            f"Querschnitt {cl.section} ({sec['material']}), A = {de(area * 1e4, 1)} cm², i ="
+            f" {de(radius * 100, 2)} cm, Knicklänge = Stützenlänge {de(cl.height, 2)} m (beidseits"
+            f" gelenkig); λ̄ = {de(rel, 3)}, α = {de(float(sec['alpha']), 2)}, χ = {de(chi, 3)}"
+            " (DIN EN 1993-1-1, 6.3.1.2).",
+            f"N_Ed = {de(n_ed, 1)} kN (aus G {de(cl.base.g, 1)}, Q {de(cl.base.q, 1)}, S"
+            f" {de(cl.base.s, 1)}, W {de(cl.base.w, 1)} kN) ≤ N_b,Rd = χ · A · f_k / γ_M ="
+            f" {de(n_rd, 1)} kN, η = {de(eta, 2)}. Steht auf {cl.to}.",
+        ]
+        return Proof(p, ok, eta, line, md)
+
+    def pad(self, p: Pos) -> Proof:
+        cl = self.res.columns[p.id]
+        nd = self.f.design(cl.base)
+        soil = self.res.soil
+        a = math.sqrt(nd / soil) if soil else None
+        line = f"{p.no} {p.id} pad: N_d {nd:.1f} kN" + (f", a ≥ {a:.2f} m" if a else "")
+        md = [
+            f"Unter {p.id}: N_d = {de(nd, 1)} kN"
+            + (
+                f"; mit σ_R,d = {de(soil, 0)} kN/m²: a ≥ √(N_d/σ_R,d) = {de(a, 2)} m (quadratisch)."
+                if soil and a
+                else "; die Größe folgt aus dem Bodengutachten (σ_R,d nicht angegeben)."
+            )
+        ]
+        return Proof(p, True, None, line, md)
+
     # ---------- footing ----------
 
     def footing(self, p: Pos) -> Proof:
@@ -820,6 +882,14 @@ def _bar_length(fr: RafterFrame, name: str) -> float:
     b = next(x for x in fr.bars if x.name == name)
     (xi, yi), (xj, yj) = fr.nodes[b.i], fr.nodes[b.j]
     return math.hypot(xj - xi, yj - yi)
+
+
+def buckling_chi(lam: float, fk: float, e: float, alpha: float) -> tuple[float, float]:
+    """χ and λ̄ of a member in compression with slenderness λ = l / i and the imperfection
+    factor α of its buckling curve, DIN EN 1993-1-1, 6.3.1.2."""
+    rel = lam / math.pi * math.sqrt(fk / e)
+    phi = 0.5 * (1 + alpha * (rel - 0.2) + rel * rel)
+    return min(1.0, 1 / (phi + math.sqrt(phi * phi - rel * rel))), rel
 
 
 def buckling(lam: float, fc0k: float, e005: float, beta_c: float) -> float:
@@ -1146,5 +1216,6 @@ STRUCT = Calculator(
         SECTION,
         BEAM_MATERIAL,
         TIMBER,
+        COLUMN_SECTION,
     ),
 )

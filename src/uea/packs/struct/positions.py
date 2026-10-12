@@ -4,9 +4,9 @@ the calculation always agree.
 
 Groups by storey from the top: group k holds the roofs on the k-th storey from the top with
 their rafters, the slab above it and the beams under that slab, its load-bearing walls and the
-lintels over their openings; the last group holds the strip footings under the lowest storey's
-walls. Each position is drawn on the floor plan of the storey it is in (a slab and its beams on
-the plan of the storey below it).
+lintels over their openings, and its columns; the last group holds the strip footings under
+the lowest storey's walls and the pad footings under its columns. Each position is drawn on the
+floor plan of the storey it is in (a slab and its beams on the plan of the storey below it).
 """
 
 from dataclasses import dataclass
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from uea.core.registry import natural
 from uea.derive import Derived
 from uea.packs.arch.geometry import ArchGeo, OpeningGeo
-from uea.packs.struct.model import beams_of, bearing, lowest
+from uea.packs.struct.model import beams_of, bearing, columns_of, lowest
 
 TITLE = {
     "roof": "Dach",
@@ -24,6 +24,8 @@ TITLE = {
     "wall": "Wand",
     "lintel": "Sturz",
     "footing": "Streifenfundament",
+    "column": "Stütze",
+    "pad": "Einzelfundament",
 }
 
 
@@ -80,11 +82,11 @@ def positions(d: Derived) -> list[Pos]:
         items += [("wall", w.id) for w in walls]
         for w in walls:
             items += [("lintel", o.id) for o in lintel_openings(g, w.id)]
+        items += [("column", c.id) for c in columns_of(sg, lv)]
         out += [Pos(f"{k}.{j:02d}", kind, key, lv) for j, (kind, key) in enumerate(items, 1)]
     if first is not None:
         k = len(order) + 1
-        out += [
-            Pos(f"{k}.{j:02d}", "footing", w.id, first)
-            for j, w in enumerate(bearing(g, first), start=1)
-        ]
+        last: list[tuple[str, str]] = [("footing", w.id) for w in bearing(g, first)]
+        last += [("pad", c.id) for c in columns_of(sg, first)]
+        out += [Pos(f"{k}.{j:02d}", kind, key, first) for j, (kind, key) in enumerate(last, 1)]
     return out
