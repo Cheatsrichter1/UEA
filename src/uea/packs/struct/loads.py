@@ -64,7 +64,7 @@ from uea.packs.struct.tables import (
 
 __all__ = ["FACTORS", "IMPOSED", "LOADS", "PARTITION", "PSI", "SNOW", "UNIT_WEIGHT", "WIND"]
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 NORM = (
     "DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA;"
     " DIN EN 1990:2010-12 mit NA"

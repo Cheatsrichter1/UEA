@@ -1173,8 +1173,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `recirc` | norm | 0.1.0 | DIN 1988-300:2012-05, Kurzverfahren der Zirkulation | Zirkulation |
 | `airflow` | norm | 0.2.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
 | `ducts` | norm | 0.2.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
-| `loads` | norm | 0.2.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
-| `struct` | norm | 0.1.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
+| `loads` | norm | 0.3.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
+| `struct` | norm | 0.2.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
 
 ### `cable` settings
 
@@ -1772,6 +1772,30 @@ One row for each strength class the rafters and collar beams use.
 | `gamma` | num > 0 | γ_M |
 | `kcr` | num > 0 | k_cr for the shear of cracked members |
 | `betac` | num > 0 | β_c, the straightness factor for buckling |
+
+One row for each: material.
+
+#### `wind-wall`: External pressure coefficients of the walls (DIN EN 1991-1-4, 7.2.2 and Tabelle 7.1, with NA)
+
+For the horizontal wind on the building (bracing): rows by h/d, the first that covers it.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | h/d up to |
+| `d` | num ≥ 0 | c_pe,10 of zone D, the wall the wind blows on |
+| `e` | num | c_pe,10 of zone E, the wall on the lee side, negative |
+
+One row for each: upto.
+
+#### `masonry-shear`: Shear strength of masonry (DIN EN 1996-1-1, 3.6.2, with NA)
+
+For the bracing walls: f_vk = min(f_vk0 + 0.4 · σ_d, f_vlt).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the core material of a wall, as its build-up names it |
+| `fvk0` | num > 0 | initial shear strength f_vk0, N/mm² |
+| `fvlt` | num > 0 | the limit of f_vk, N/mm² |
 
 One row for each: material.
 

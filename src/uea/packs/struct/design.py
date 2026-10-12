@@ -23,6 +23,8 @@ A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved
              (DIN EN 1995-1-1, 6.2.3, 6.2.4, 6.3.2)
     column   N_Ed ≤ N_b,Rd = χ·A·f_k/γ_M, χ by the section's buckling curve (DIN EN 1993-1-1,
              6.3.1.2), pinned at both ends
+    bracing  the wind on the facades per storey, shared by the masonry piers along it
+             (bracing.py)
     footing  b ≥ n_d / σ_R,d (loads); a column's pad a ≥ √(N_d / σ_R,d)
 """
 
@@ -42,6 +44,7 @@ from uea.derive import Derived
 from uea.export.tables import wall_profile
 from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, WallGeo
 from uea.packs.struct.actions import Factors
+from uea.packs.struct.bracing import bracing
 from uea.packs.struct.frame import Bar, Case, Push, beam, plane_frame, solver_version
 from uea.packs.struct.kinds import Rafter
 from uea.packs.struct.loads import (
@@ -74,6 +77,7 @@ from uea.packs.struct.tables import (
     LINTEL,
     MASONRY,
     MASONRY_END,
+    MASONRY_SHEAR,
     PARTITION,
     PSI,
     SECTION,
@@ -81,9 +85,10 @@ from uea.packs.struct.tables import (
     TIMBER,
     UNIT_WEIGHT,
     WIND,
+    WIND_WALL,
 )
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NORM = (
     "DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01"
     " mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge);"
@@ -745,6 +750,97 @@ class Design:
         ]
         return Proof(p, True, None, line, md)
 
+    # ---------- bracing ----------
+
+    def bracing(self, p: Pos) -> Proof:
+        if self.res.qp is None:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} bracing {p.id}: needs the wind pressure qp= NOT OK",
+                ["Ohne Böengeschwindigkeitsdruck q_p nicht nachgewiesen."],
+            )
+        dirs = bracing(self.d, self.res, self.env, p.id)
+        parts: list[str] = []
+        md: list[str] = []
+        ok = True
+        eta = 0.0
+        roofed = bool(self.g.roofs_on(p.id))
+        for dr in dirs:
+            piers = dr.piers
+            if not piers and roofed:
+                parts.append(f"wind in {dr.axis}: through the roof's bracing to the storey below")
+                md.append(
+                    f"Wind in {dr.axis}-Richtung: keine Wand in dieser Richtung; die Last geht über"
+                    " die Aussteifung der Dachfläche (Windrispen) in die Decke darunter und ist"
+                    " in den Geschossen darunter enthalten. Die Windrispen sind nicht nachgewiesen."
+                )
+                continue
+            if not piers:
+                ok = False
+                parts.append(f"wind in {dr.axis}: no wall along it NOT OK")
+                md.append(f"Wind in {dr.axis}-Richtung: keine tragende Wand in dieser Richtung.")
+                continue
+            worst = max(piers, key=lambda x: (not x.ok, x.eta))
+            ok = ok and all(x.ok for x in piers)
+            eta = max([eta, *(x.eta for x in piers if x.ok)])
+            bad = [f"{x.wall} ({x.why})" for x in piers if not x.ok]
+            parts.append(
+                f"wind in {dr.axis}: V {dr.v:.1f} kN, M {dr.m:.1f} kNm on {len(piers)} piers,"
+                f" worst {worst.wall} η {worst.eta:.2f}"
+                + (f", NOT OK: {', '.join(bad)}" if bad else "")
+            )
+            md += [
+                f"**Wind in {dr.axis}-Richtung:** h/d = {de(dr.hd, 2)}, c_pe,D = {de(dr.cd, 2)},"
+                f" c_pe,E = {de(dr.ce, 2)}; Lasten der Geschosse "
+                + ", ".join(f"{lv} {de(fz, 1)} kN in {de(z, 2)} m" for lv, fz, z in dr.forces)
+                + f"; im Geschoss V = {de(dr.v, 1)} kN, M = {de(dr.m, 1)} kNm.",
+                "",
+                md_table(
+                    [
+                        "Wand",
+                        "Pfeiler m",
+                        "Anteil",
+                        "V kN",
+                        "M kNm",
+                        "N_d kN",
+                        "e m",
+                        "l_c m",
+                        "v_Ed N/mm²",
+                        "f_vd N/mm²",
+                        "",
+                    ],
+                    [
+                        [
+                            x.wall,
+                            f"{de(x.lo, 2)}–{de(x.hi, 2)}",
+                            de(x.share, 3),
+                            de(x.v, 1),
+                            de(x.m, 1),
+                            de(x.n, 1),
+                            de(x.e, 2) if x.e != float("inf") else "∞",
+                            de(x.lc, 2) if x.lc > 0 else "–",
+                            de(x.v_ed, 3),
+                            de(x.f_vd, 3),
+                            "ok" if x.ok else f"**{x.why}**",
+                        ]
+                        for x in piers
+                    ],
+                    right=(2, 3, 4, 5, 6, 7, 8, 9),
+                ),
+                "",
+            ]
+        line = f"{p.no} bracing {p.id}: " + "; ".join(parts) + (" ok" if ok else "")
+        md.append(
+            "Windlast q_p · (c_pe,D − c_pe,E) auf die Fassade je Geschoss, an der Oberkante;"
+            " Verteilung auf die Pfeiler der tragenden Wände in Windrichtung nach t · l³ (Decken"
+            " als starre Scheiben, ohne Torsion); je Pfeiler N_d = γ_G,inf · G, Ausmitte e = M/N,"
+            " überdrückte Länge l_c = 3 · (l/2 − e) ≥ l/2, Schub v_Ed = V/(t · l_c) ≤ f_vd ="
+            " min(f_vk0 + 0,4 · σ_d, f_vlt)/γ_M (DIN EN 1996-1-1, 6.2, 3.6.2)."
+        )
+        return Proof(p, ok, eta or None, line, md)
+
     # ---------- footing ----------
 
     def footing(self, p: Pos) -> Proof:
@@ -1171,7 +1267,7 @@ def report(d: Derived, des: Design) -> str:
         "## Nicht nachgewiesen",
         "",
         "- Dachtragwerk (Sparren, Pfetten, Kehlbalken) und seine Verankerung im Einzelnen.",
-        "- Aussteifung des Gebäudes und Horizontallasten aus Wind.",
+        "- Aussteifung: Torsion des Grundrisses, Decken als Scheiben, Schub aus Imperfektionen.",
         "- Decken: Robustheitsbewehrung, Begrenzung der Rissbreite, Verformung über die"
         " Biegeschlankheit hinaus; Durchstanzen entfällt, die Decken sind linienförmig gelagert;"
         " Bodenplatte.",
@@ -1217,5 +1313,7 @@ STRUCT = Calculator(
         BEAM_MATERIAL,
         TIMBER,
         COLUMN_SECTION,
+        WIND_WALL,
+        MASONRY_SHEAR,
     ),
 )

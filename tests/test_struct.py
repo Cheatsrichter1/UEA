@@ -27,8 +27,10 @@ from uea.packs.struct.tables import (
     LINTEL,
     MASONRY,
     MASONRY_END,
+    MASONRY_SHEAR,
     SECTION,
     TIMBER,
+    WIND_WALL,
 )
 
 HOUSE = BOX + (
@@ -73,6 +75,8 @@ LINTEL_T = (
 )
 SECTION_T = "name,material,w,i,av,g\nS-160,steel-x,300,2400,18,0.42\n"
 COLUMN_T = "name,material,a,imin,alpha,g\nC-140,steel-x,40,500,0.49,0.3\n"
+WALLWIND_T = "upto,d,e\n1,0.8,-0.5\n5,0.9,-0.6\n"
+MSHEAR_T = "material,fvk0,fvlt\nmw,0.15,1\nks,0.2,1.2\nziegel-t9,0.1,0.8\n"
 STEEL_T = "material,fk,fvk,e,gamma,kmod\nsteel-x,230,130,200000,1.1,1\n"
 ROOF = (
     "type DA roof layers=ziegel:0.05,*sparren:0.2\n"
@@ -115,6 +119,8 @@ def tables(tmp_path: Path) -> None:
         (BEAM_MATERIAL, STEEL_T),
         (TIMBER, TIMBER_T),
         (COLUMN_SECTION, COLUMN_T),
+        (WIND_WALL, WALLWIND_T),
+        (MASONRY_SHEAR, MSHEAR_T),
     ):
         install(spec.id, spec, text, tmp_path)
 
@@ -473,11 +479,13 @@ def test_positions(tables: None) -> None:
         ("1.02", "wall", "w6", "OG"),
         ("1.03", "wall", "w7", "OG"),
         ("1.04", "wall", "w8", "OG"),
+        ("1.05", "bracing", "OG", "OG"),
         ("2.01", "slab", "sl2", "EG"),
         ("2.02", "wall", "w1", "EG"),
         ("2.03", "wall", "w2", "EG"),
         ("2.04", "wall", "w3", "EG"),
         ("2.05", "wall", "w4", "EG"),
+        ("2.06", "bracing", "EG", "EG"),
         ("3.01", "footing", "w1", "EG"),
         ("3.02", "footing", "w2", "EG"),
         ("3.03", "footing", "w3", "EG"),
@@ -627,3 +635,53 @@ def test_column_checks() -> None:
         HOUSE + "beam bm1 OG S-160 a=W,S+4 b=W+5,S+4\ncolumn co1 EG C-140 at=W+5,S+4\n"
     )
     assert found(rep, "W-STRUCT-003") == [] and found(rep, "W-STRUCT-005") == []
+
+
+# ---------- 8e: bracing ----------
+
+
+def test_bracing(tables: None) -> None:
+    from uea.packs.struct.bracing import bracing, piers_of
+    from uea.packs.struct.loads import calculate
+
+    d, _ = derive_text(HOUSE + "door d9 w2 1x2.01 y=S+3\n")
+    env = Env(STRUCT, {"qp": "0.5"})
+    res = calculate(d, env)
+    eg = {dr.axis: dr for dr in bracing(d, res, env, "EG")}
+    x = eg["x"]
+    # the box 10 x 8, the walls up to 2.75 + 2.5 = 5.25 m: h/d = 0.525 in x, so c_pe,D 0.8 and
+    # c_pe,E -0.5; the bands 2.75 m (EG, from the terrain at 0) and 2.5 m (OG), 8 m wide
+    f_eg, f_og = 0.5 * 1.3 * 8 * 2.75, 0.5 * 1.3 * 8 * 2.5
+    assert [round(fz, 4) for _, fz, _ in x.forces] == [round(f_eg, 4), round(f_og, 4)]
+    assert x.v == pytest.approx(f_eg + f_og)
+    assert x.m == pytest.approx(f_eg * 2.75 + f_og * 5.25)
+    # w1 and w3 along x, alike: half each
+    w1 = next(p for p in x.piers if p.wall == "w1")
+    assert w1.share == pytest.approx(0.5)
+    n = 0.9 * res.walls["w1"].base.g
+    e = x.m / 2 / n
+    lc = min(10.0, 3 * (5 - e))
+    sigma = n / (0.3 * lc) / 1000
+    assert w1.n == pytest.approx(n) and w1.lc == pytest.approx(lc)
+    assert w1.f_vd == pytest.approx(min(0.15 + 0.4 * sigma, 1) / 1.6)
+    assert w1.v_ed == pytest.approx(x.v / 2 / (0.3 * lc) / 1000)
+    # w2 with a door is two piers: 3 - 0.5 and the rest; stiffness t · l³
+    w2 = d.arch.walls["w2"]
+    stretches = piers_of(d, w2)
+    assert stretches == [
+        (pytest.approx(0.3), pytest.approx(3.0)),
+        (pytest.approx(4.0), pytest.approx(7.7)),
+    ]
+    y = eg["y"]
+    lengths = [p.length for p in y.piers]
+    stiff = sum(0.3 * ln**3 for ln in lengths)
+    assert [p.share for p in y.piers] == [pytest.approx(0.3 * ln**3 / stiff) for ln in lengths]
+    o = run(STRUCT, d, None, qp=0.5)
+    line = next(ln for ln in o.lines if "bracing EG" in ln)
+    # after the walls and the door's lintel
+    assert line.startswith("2.07 bracing EG: wind in x: V 27.3 kN, M 107.6 kNm") and line.endswith(
+        " ok"
+    )
+    # without qp: not proved
+    o = run(STRUCT, d, None)
+    assert any("bracing EG: needs the wind pressure qp= NOT OK" in ln for ln in o.lines)

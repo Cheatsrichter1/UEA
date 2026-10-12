@@ -4,9 +4,10 @@ the calculation always agree.
 
 Groups by storey from the top: group k holds the roofs on the k-th storey from the top with
 their rafters, the slab above it and the beams under that slab, its load-bearing walls and the
-lintels over their openings, and its columns; the last group holds the strip footings under
-the lowest storey's walls and the pad footings under its columns. Each position is drawn on the
-floor plan of the storey it is in (a slab and its beams on the plan of the storey below it).
+lintels over their openings, its columns and its bracing; the last group holds the strip
+footings under the lowest storey's walls and the pad footings under its columns. Each position
+is drawn on the floor plan of the storey it is in (a slab and its beams on the plan of the
+storey below it).
 """
 
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ TITLE = {
     "footing": "Streifenfundament",
     "column": "Stütze",
     "pad": "Einzelfundament",
+    "bracing": "Aussteifung",
 }
 
 
@@ -83,6 +85,8 @@ def positions(d: Derived) -> list[Pos]:
         for w in walls:
             items += [("lintel", o.id) for o in lintel_openings(g, w.id)]
         items += [("column", c.id) for c in columns_of(sg, lv)]
+        if walls:
+            items.append(("bracing", lv))
         out += [Pos(f"{k}.{j:02d}", kind, key, lv) for j, (kind, key) in enumerate(items, 1)]
     if first is not None:
         k = len(order) + 1

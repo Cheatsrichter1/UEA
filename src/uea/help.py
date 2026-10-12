@@ -171,9 +171,10 @@ openings (over: the undercut or an element), checked by uea calc airflow once th
 STRUCT_NOTES = """\
 The load path is the architecture's: a slab rests on the load-bearing walls (lb) of the storey
 below, a load-bearing wall on those of the storey below its core overlaps. struct.uea adds what
-the architecture does not give: beams where a wall or a slab has no wall under it, and point or
-line loads the rooms' uses do not cover. Sections and strengths are rows of the office's tables.
-The roof rests on the walls under its eaves. uea calc loads: the loads and their takedown; uea
+the architecture does not give: beams where a wall or a slab has no wall under it, columns under
+beams, point or line loads the rooms' uses do not cover, and the rafters of a gable roof.
+Sections and strengths are rows of the office's tables. The roof rests on the walls under its
+eaves. uea calc loads: the loads and their takedown; uea
 calc struct: the Statische Berechnung, every position proved (help calc); uea export pdf
 struct:<level>: the Positionsplan. The signature is the Tragwerksplaner's.
 """
@@ -233,7 +234,8 @@ uea calc loads [soil=<kN/m²> sk=<kN/m²> qp=<kN/m²>]
 uea calc struct [soil= sk= qp=]
                         the Statische Berechnung (norm): slabs as plates and beams on the solver
                         PyNite (pip install 'uea[struct]'), masonry walls (DIN EN 1996-3),
-                        lintels from the office's table, footings; one line per position
+                        lintels from the office's table, rafters, columns, the bracing against
+                        wind (needs qp), footings; one line per position
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
