@@ -16,10 +16,21 @@ from uea.derive import Derived, GeoError, Unresolved
 from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Crossing, Net, finish, gap, grow, node_of, routed, through
-from uea.packs.vent.kinds import ROLES, Ahu, AhuType, Air, DuctType, Fan, FanType
+from uea.packs.net import Crossing, Net, Zoned, finish, gap, grow, node_of, routed, through
+from uea.packs.vent.kinds import (
+    ROLES,
+    Ahu,
+    AhuType,
+    Air,
+    DuctType,
+    Fan,
+    FanType,
+    Inlet,
+    InletType,
+    Over,
+)
 
-PLACED = ("ahu", "fan", "air")
+PLACED = ("ahu", "fan", "air", "inlet")
 
 
 @dataclass
@@ -41,6 +52,12 @@ class VentGeo:
     """Where the ducts pass the slabs (decision 0039)."""
     holes: dict[str, str | None] = field(default_factory=dict[str, str | None])
     """Each unit and terminal on an exterior wall: the hole it goes through, if any."""
+    overflow: dict[str, float] = field(default_factory=dict[str, float])
+    """The free area of each overflow opening, cm²."""
+    over_rooms: dict[str, tuple[str | None, str | None]] = field(
+        default_factory=dict[str, tuple[str | None, str | None]]
+    )
+    """The rooms on either side of each overflow opening's door."""
 
     def duct_from(self, end: str) -> tuple[str, float] | None:
         for (unit, _), net in self.ducts.items():
@@ -95,11 +112,11 @@ def derive_vent(d: Derived) -> None:
             unit = m[u]
             assert isinstance(unit, Ahu)
             via = unit.via.refs() if unit.via else ()
-            grow(net, {u}, [u], ends, "duct", routed(d, via))
+            grow(net, {u}, [u], ends, "duct", Zoned(d, routed(d, via)))
             finish(net, set(ends))
             v.crossings += through(d, net, via)
             v.ducts[(u, role)] = net
-    for kind in ("fan", "air"):
+    for kind in ("fan", "air", "inlet"):
         for el in m.of_kind(kind):
             mt = v.at.get(el.id)
             if mt is None or mt.wall is None or d.arch.walls[mt.wall].ext is None:
@@ -131,6 +148,18 @@ def derive_vent(d: Derived) -> None:
         roles = {"alt": ("sup", "ext"), "both": ("sup", "ext"), "ext": ("ext",)}[el.mode]
         for role in roles:
             v.terminals.setdefault(mt.room, {}).setdefault(role, []).append(el.id)
+    for el in m.of_kind("inlet"):
+        mt = v.at.get(el.id)
+        if mt is not None and mt.room is not None:
+            v.terminals.setdefault(mt.room, {}).setdefault("sup", []).append(el.id)
+    for el in m.of_kind("over"):
+        assert isinstance(el, Over)
+        o = d.arch.openings.get(el.host.id)
+        if o is None:
+            continue
+        width = o.hi - o.lo
+        v.overflow[el.id] = el.area if el.area is not None else width * (el.cut or 0.0) * 1e4
+        v.over_rooms[el.id] = (o.sides[0], o.sides[1])
 
 
 def _role(el: Element) -> str:
@@ -176,7 +205,7 @@ class Placer:
                 x, y = p.x, p.y
             lv = g.levels[rg.level]
             return Mounted(el.id, el.kind, rg.level, (x, y), lv.z + el.z, rg.id, width=0.6)
-        host = self.d.model.get(el.host.id) if isinstance(el, Air | Fan) else None
+        host = self.d.model.get(el.host.id) if isinstance(el, Air | Fan | Inlet) else None
         if isinstance(el, Air) and host is not None and host.kind == "room":
             if el.role in ("oda", "eha"):
                 raise GeoError(
@@ -211,3 +240,8 @@ def fan_flow(d: Derived, el: Element) -> float | None:
 
 def ahu_type(d: Derived, el: Element) -> AhuType | None:
     return vent_type(d, el, AhuType, "ahu")
+
+
+def inlet_flow(d: Derived, el: Element) -> float | None:
+    t = vent_type(d, el, InletType, "inlet")
+    return t.flow if t is not None else None

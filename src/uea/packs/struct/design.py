@@ -4,10 +4,12 @@ strip footings and the holes in load-bearing members, as one calculation to sign
 A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved as follows:
 
     roof     the loads on the walls under its eaves and the uplift at the eaves (loads)
-    slab     a plate on the solver (plate.py) under γ_G·g + γ_Q·q of the rooms on it; design
-             moments m ± |m_xy| (Wood-Armer) at the elements' middles; per direction and face
-             μ = m / (d²·f_cd), ω = 1 − √(1 − 2μ), a_s = ω·d·f_cd / f_yd, x/d = ω / λ ≤ xi
-             (rectangular stress block, λ = 0.8, η = 1, DIN EN 1992-1-1, 3.1.7(3))
+    slab     a plate on the solver (plate.py) under γ_G·g + γ_Q·q of the rooms on it, all rooms
+             and alternate rooms loaded; design moments m ± |m_xy| (Wood-Armer) at the
+             elements' middles; per direction and face μ = m / (d²·f_cd), ω = 1 − √(1 − 2μ),
+             a_s = ω·d·f_cd / f_yd, x/d = ω / λ ≤ xi (rectangular stress block, λ = 0.8, η = 1,
+             DIN EN 1992-1-1, 3.1.7(3)), at least a_s,min (9.2.1.1); shear v_Ed ≤ v_Rd,c
+             (6.2.2); slenderness l/d ≤ min(ld, ld-span / l) (7.4.2 with NA)
     beam     a continuous beam on the solver: M_Ed ≤ W·k_mod·f_k/γ_M, V_Ed ≤ A_v·k_mod·f_v,k/γ_M,
              the deflection under the characteristic loads ≤ L/n
     wall     DIN EN 1996-3, 4.2.2: N_Ed ≤ N_Rd = Φ·f_d·t per metre of the wall without its
@@ -16,13 +18,21 @@ A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved
              office's table; the conditions of the simplified method from the office's limits
     lintel   q_d of the wall's load at its top per metre and of the masonry over the opening
              (no arching), against the manufacturer's table
-    footing  b ≥ n_d / σ_R,d (loads)
+    rafter   a pair of rafters of a gable roof, with its collar beam, as a plane frame on the
+             solver: bending with compression or tension (k_c), shear and deflection
+             (DIN EN 1995-1-1, 6.2.3, 6.2.4, 6.3.2)
+    column   N_Ed ≤ N_b,Rd = χ·A·f_k/γ_M, χ by the section's buckling curve (DIN EN 1993-1-1,
+             6.3.1.2), pinned at both ends
+    bracing  the wind on the facades per storey, shared by the masonry piers along it
+             (bracing.py)
+    footing  b ≥ n_d / σ_R,d (loads); a column's pad a ≥ √(N_d / σ_R,d)
 """
 
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+import shapely
 from shapely.geometry import LineString
 from shapely.geometry import Point as SPoint
 from shapely.geometry.base import BaseGeometry
@@ -32,18 +42,22 @@ from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
 from uea.export.tables import wall_profile
-from uea.packs.arch.geometry import ArchGeo, OpeningGeo, WallGeo
+from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, WallGeo
 from uea.packs.struct.actions import Factors
-from uea.packs.struct.frame import Case, beam, solver_version
+from uea.packs.struct.bracing import bracing
+from uea.packs.struct.frame import Bar, Case, Push, beam, plane_frame, solver_version
+from uea.packs.struct.kinds import Rafter
 from uea.packs.struct.loads import (
     NORM as LOADS_NORM,
 )
 from uea.packs.struct.loads import (
     PARAMS,
     Result,
+    RoofLoad,
     SlabLoad,
     calculate,
     footing_line,
+    interp,
     report_body,
     uplift,
 )
@@ -51,10 +65,11 @@ from uea.packs.struct.loads import (
     VERSION as LOADS_VERSION,
 )
 from uea.packs.struct.model import Support, slab_supports
-from uea.packs.struct.plate import MESH, Moments, analyse
+from uea.packs.struct.plate import MESH, Moments, solve
 from uea.packs.struct.positions import Pos, positions
 from uea.packs.struct.tables import (
     BEAM_MATERIAL,
+    COLUMN_SECTION,
     CONCRETE,
     FACTORS,
     IMPOSED,
@@ -62,15 +77,18 @@ from uea.packs.struct.tables import (
     LINTEL,
     MASONRY,
     MASONRY_END,
+    MASONRY_SHEAR,
     PARTITION,
     PSI,
     SECTION,
     SNOW,
+    TIMBER,
     UNIT_WEIGHT,
     WIND,
+    WIND_WALL,
 )
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NORM = (
     "DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01"
     " mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge);"
@@ -209,6 +227,146 @@ class Design:
             parts.append("flat on " + ", ".join(rl.flat))
         return Proof(p, ok, None, f"{p.no} {p.id} roof: " + "; ".join(parts), md)
 
+    # ---------- rafters ----------
+
+    def rafter(self, p: Pos) -> Proof:
+        el = self.d.model[p.id]
+        assert isinstance(el, Rafter)
+        rg = self.g.roofs.get(el.roof.id)
+        roof = self.d.model.get(el.roof.id)
+        ridge = getattr(roof, "ridge", None)
+        if rg is None or getattr(roof, "shape", "") != "gable" or ridge is None:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} {p.id} rafters: only the rafters of a gable roof are proved NOT OK",
+                ["Nur Sparren eines Satteldachs werden nachgewiesen: nicht nachgewiesen."],
+            )
+        rl = next(r for r in self.res.roofs if r.id == rg.id)
+        tim = self.env.table(TIMBER).find(material=el.material)
+        if tim is None:
+            raise ValueError(f"timber has no row for {el.material} ({el.id}): add it to the table")
+        fr = rafter_frame(self.g, rg, rl, el, ridge, float(tim["e0mean"]) * 1000)
+        if isinstance(fr, str):
+            return Proof(p, False, None, f"{p.no} {p.id} rafters: {fr} NOT OK", [fr])
+        f = self.f
+        sk, qp = self.res.sk or 0.0, self.res.qp or 0.0
+        pitch = rg.pitch
+        mu = interp(self.env.table(SNOW), "mu1", pitch, el.id)
+        cp = interp(self.env.table(WIND), "pressure", pitch, el.id)
+        cs = min(0.0, interp(self.env.table(WIND), "suction", pitch, el.id))
+        a = math.radians(pitch)
+        sa, ca = math.sin(a), math.cos(a)
+        g_m = rl.g_surface * el.e
+        s_m = mu * sk * el.e * ca
+        cases: dict[str, list[Push]] = {"g": [], "s": [], "w": []}
+        for name, side in fr.sides.items():
+            cases["g"].append((name, 0.0, -g_m))
+            cases["s"].append((name, 0.0, -s_m))
+            c = cp if side == "l" else cs
+            nx = -sa if side == "l" else sa
+            cases["w"].append((name, -c * qp * el.e * nx, -c * qp * el.e * ca))
+        gg, gq = f.value("gamma-g"), f.value("gamma-q")
+        combos = {
+            "ULS-g": {"g": gg},
+            "ULS-s": {"g": gg, "s": gq, "w": gq * f.psi("w")},
+            "ULS-w": {"g": gg, "w": gq, "s": gq * f.psi("s")},
+            "SLS": {"g": 1.0, "s": 1.0, "w": 1.0},
+        }
+        eff, rx = plane_frame(fr.nodes, fr.bars, ["FL", "FR"], cases, combos)
+        kmod, gm = float(tim["kmod"]), float(tim["gamma"])
+
+        def fd(col: str) -> float:
+            return kmod * float(tim[col]) / gm * 1000
+
+        e005 = float(tim["e005"])
+        rows: list[list[str]] = []
+        etas: list[float] = []
+        n_def = f.limit("deflection")
+        for group, names in fr.groups.items():
+            bw, bh = fr.section[group]
+            area, wsec = bw * bh, bw * bh * bh / 6
+            length = max(_bar_length(fr, n) for n in names)
+            i_r = min(bw, bh) / math.sqrt(12) if group == "collar" else bh / math.sqrt(12)
+            kc = buckling(length / i_r, float(tim["fc0k"]), e005, float(tim["betac"]))
+            uls = [eff[k][n] for k in combos if k != "SLS" for n in names]
+            m_ed = max(x.moment for x in uls)
+            n_c = max(x.compression for x in uls)
+            n_t = max(x.tension for x in uls)
+            v_ed = max(x.shear for x in uls)
+            eta_n = (n_c / area) / (kc * fd("fc0k")) + (m_ed / wsec) / fd("fmk")
+            eta_t = (n_t / area) / fd("ft0k") + (m_ed / wsec) / fd("fmk")
+            eta_v = 1.5 * v_ed / (float(tim["kcr"]) * area) / fd("fvk")
+            w = max(eff["SLS"][n].deflection for n in names)
+            eta_w = w / (length / n_def) if group != "overhang" else w / (2 * length / n_def)
+            eta = max(eta_n, eta_t, eta_v, eta_w)
+            etas.append(eta)
+            rows.append(
+                [
+                    GROUP_DE[group],
+                    f"{de(bw * 100, 0)}/{de(bh * 100, 0)}",
+                    de(length, 2),
+                    de(m_ed, 2),
+                    de(n_c, 1),
+                    de(n_t, 1),
+                    de(kc, 3),
+                    de(max(eta_n, eta_t), 2),
+                    de(eta_v, 2),
+                    de(w * 1000, 1),
+                    de(eta, 2),
+                ]
+            )
+        eta = max(etas)
+        ok = eta <= 1 + 1e-9
+        h_foot = max(abs(rx[k]["FL"][0]) for k in combos if k != "SLS")
+        kind = "Kehlbalkendach" if el.collar is not None else "Sparrendach"
+        line = (
+            f"{p.no} {p.id} rafters {el.material} {el.b * 100:g}/{el.h * 100:g} e {el.e:g}"
+            + (f", collar at {el.collar:g}" if el.collar is not None else "")
+            + f": η {eta:.2f}, thrust {h_foot / el.e:.1f} kN/m at the feet"
+            f" {'ok' if ok else 'NOT OK'}"
+        )
+        md = [
+            f"{kind}, Neigung {de(pitch, 1)}°, Sparren {el.material} b/h = {de(el.b * 100, 0)}/"
+            f"{de(el.h * 100, 0)} cm im Abstand e = {de(el.e, 2)} m; Auflager auf"
+            f" {', '.join(fr.walls)} im Abstand {de(fr.span, 2)} m"
+            + (f", Kehlbalken {de(el.collar, 2)} m über den Fußpunkten" if el.collar else "")
+            + f". Ebenes Stabwerk mit {solver_version()}, Firstgelenk, Fußpunkte gelenkig und"
+            " horizontal gehalten.",
+            f"Lasten je Sparren: g = {de(rl.g_surface, 2)} kN/m² · e entlang der Dachfläche,"
+            f" s = μ1 · s_k · e = {de(mu, 2)} · {de(sk, 2)} · e im Grundriss, w = c_pe · q_p · e"
+            f" senkrecht zur Dachfläche (Luv {de(cp, 2)}, Lee {de(cs, 2)}); Kombinationen mit"
+            " Schnee oder Wind als Leiteinwirkung.",
+            "",
+            md_table(
+                [
+                    "Stab",
+                    "b/h cm",
+                    "l m",
+                    "M_Ed kNm",
+                    "N_c,Ed kN",
+                    "N_t,Ed kN",
+                    "k_c",
+                    "η σ",
+                    "η τ",
+                    "w mm",
+                    "η",
+                ],
+                rows,
+                right=(2, 3, 4, 5, 6, 7, 8, 9, 10),
+            ),
+            "",
+            f"f_d = k_mod · f_k / γ_M mit k_mod = {de(kmod, 2)}, γ_M = {de(gm, 2)}. Biegung mit"
+            " Druck σ_c/(k_c · f_c,0,d) + σ_m/f_m,d ≤ 1, mit Zug σ_t/f_t,0,d + σ_m/f_m,d ≤ 1"
+            " (DIN EN 1995-1-1, 6.2.3, 6.2.4, 6.3.2), Schub 1,5 · V/(k_cr · b · h) ≤ f_v,d,"
+            f" Durchbiegung unter den charakteristischen Lasten ≤ l/{n_def:g} (Überstand"
+            f" 2l/{n_def:g}).",
+            f"Horizontalschub am Fußpunkt H = {de(h_foot, 1)} kN je Sparren,"
+            f" {de(h_foot / el.e, 1)} kN/m entlang der Traufe: von der Decke aufzunehmen.",
+        ]
+        return Proof(p, ok, eta, line, md)
+
     # ---------- slab ----------
 
     def slab(self, p: Pos) -> Proof:
@@ -226,15 +384,19 @@ class Design:
         fcd = f.value("alpha-cc") * fck / f.value("gamma-c") * 1000
         fyd = f.value("fyk") / f.value("gamma-s") * 1000
         xi_max = f.limit("xi")
-        m = analyse(
-            self.g,
-            sl.net,
-            sup,
-            t,
-            ecm * 1000,
-            _area_load(f, load),
-            [(x, y, f.design(a)) for x, y, a in load.points],
-        )
+        points = [(x, y, f.design(a)) for x, y, a in load.points]
+        cases = {
+            name: (_area_load(f, load, rooms), points) for name, rooms in _patterns(load).items()
+        }
+        each = solve(self.g, sl.net, sup, t, ecm * 1000, cases)
+        m = Moments()
+        for got in each.values():
+            m.envelope(got)
+            m.elements, m.held = got.elements, got.held
+        # the minimum reinforcement, DIN EN 1992-1-1, 9.3.1.1 with 9.2.1.1 (9.1N); f_ctm by
+        # Tabelle 3.1 for f_ck ≤ 50
+        fctm = 0.30 * fck ** (2 / 3)
+        as_min = max(f.value("rho-min-ft") * fctm / f.value("fyk"), f.value("rho-min")) * dd * 1e4
         rows: list[list[str]] = []
         ok = True
         worst = 0.0
@@ -253,6 +415,8 @@ class Design:
                 need[key] = math.inf
                 continue
             xi, a_s = got
+            if key.startswith("bottom"):
+                a_s = max(a_s, as_min)
             good = xi <= xi_max + 1e-9
             ok = ok and good
             worst = max(worst, xi / xi_max)
@@ -269,21 +433,50 @@ class Design:
                     ("ok" if good else "zu groß") + where,
                 ]
             )
+        # shear without shear reinforcement, DIN EN 1992-1-1, 6.2.2 (6.2a, 6.2b), with ρ_l of
+        # the minimum reinforcement (on the safe side)
+        k = min(1 + math.sqrt(0.2 / dd), 2.0)
+        rho_l = min(as_min / (dd * 1e4), 0.02)
+        v_c = f.value("crdc") * k * (100 * rho_l * fck) ** (1 / 3)
+        v_min = f.value("vmin") * k**1.5 * math.sqrt(fck)
+        v_rd = max(v_c, v_min) * dd * 1000
+        eta_v = m.shear / v_rd
+        ok = ok and eta_v <= 1 + 1e-9
+        # the slenderness instead of a deflection calculation, DIN EN 1992-1-1/NA, 7.4.2
+        l_i = field_span(self.g, sl.net, sup)
+        lim = min(f.limit("ld"), f.limit("ld-span") / l_i) if l_i > 0 else math.inf
+        eta_l = (l_i / dd) / lim if l_i > 0 else 0.0
+        ok = ok and eta_l <= 1 + 1e-9
+        eta = max(worst, eta_v, eta_l)
         line = (
             f"{p.no} {p.id} slab h {t:.2f}: a_s bottom x {need['bottom_x']:.2f} y"
             f" {need['bottom_y']:.2f}, top x {need['top_x']:.2f} y {need['top_y']:.2f} cm²/m,"
-            f" x/d {worst * xi_max:.2f} ≤ {xi_max:g} {'ok' if ok else 'NOT OK'}"
+            f" x/d {worst * xi_max:.2f} ≤ {xi_max:g}, v_Ed {m.shear:.1f}/v_Rd,c {v_rd:.1f} kN/m,"
+            f" l/d {l_i / dd:.1f} ≤ {lim:.1f} {'ok' if ok else 'NOT OK'}"
         )
         md = [
             *_slab_md(sl.id, t, dd, mat, fck, fcd, fyd, m, sup),
+            f"Lastfälle: {', '.join(PATTERN_DE.get(k, k) for k in cases)}; je Wert der"
+            " ungünstigste.",
             "",
             md_table(
                 ["Bewehrung", "m_Ed kNm/m", "μ_Ed", "x/d", "erf. a_s cm²/m", ""],
                 rows,
                 right=(1, 2, 3, 4),
             ),
+            "",
+            f"Mindestbewehrung unten: a_s,min = max({de(f.value('rho-min-ft'), 2)} · f_ctm / f_yk,"
+            f" {de(f.value('rho-min'), 4)}) · b · d = {de(as_min, 2)} cm²/m (f_ctm ="
+            f" {de(fctm, 2)} N/mm²).",
+            f"Querkraft ohne Querkraftbewehrung: v_Ed = {de(m.shear, 1)} kN/m"
+            + (f" bei x {de(m.at_shear[0], 2)}, y {de(m.at_shear[1], 2)}" if m.at_shear else "")
+            + f"; k = {de(k, 3)}, ρ_l = {de(rho_l, 4)}, v_Rd,c = max({de(v_c, 3)}, v_min ="
+            f" {de(v_min, 3)}) N/mm² · d = {de(v_rd, 1)} kN/m; η = {de(eta_v, 2)}.",
+            f"Biegeschlankheit: größte kürzere Stützweite eines Feldes l = {de(l_i, 2)} m,"
+            f" l/d = {de(l_i / dd, 1)} ≤ min({de(f.limit('ld'), 0)},"
+            f" {de(f.limit('ld-span'), 0)}/l) = {de(lim, 1)}; η = {de(eta_l, 2)}.",
         ]
-        return Proof(p, ok, worst, line, md)
+        return Proof(p, ok, eta, line, md)
 
     # ---------- beam ----------
 
@@ -501,6 +694,153 @@ class Design:
         ]
         return Proof(p, ok, eta, line, md)
 
+    # ---------- column ----------
+
+    def column(self, p: Pos) -> Proof:
+        cl = self.res.columns[p.id]
+        if p.id in self.res.unsupported:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} {p.id} column: stands on nothing NOT OK",
+                ["Steht auf keinem Auflager: nicht nachgewiesen."],
+            )
+        sec = self.env.table(COLUMN_SECTION).find(name=cl.section)
+        assert sec is not None
+        mat = self.env.table(BEAM_MATERIAL).find(material=str(sec["material"]))
+        if mat is None:
+            raise ValueError(f"beam-material has no row for {sec['material']} ({cl.id})")
+        area = float(sec["a"]) * 1e-4
+        radius = math.sqrt(float(sec["imin"]) * 1e-8 / area)
+        fk, e = float(mat["fk"]), float(mat["e"])
+        chi, rel = buckling_chi(cl.height / radius, fk, e, float(sec["alpha"]))
+        n_rd = chi * area * float(mat["kmod"]) * fk / float(mat["gamma"]) * 1000
+        n_ed = self.f.design(cl.base)
+        eta = n_ed / n_rd
+        ok = eta <= 1 + 1e-9
+        line = (
+            f"{p.no} {p.id} column {cl.section} {cl.height:.2f} m: N_Ed {n_ed:.1f}/N_b,Rd"
+            f" {n_rd:.1f} kN, χ {chi:.3f}, η {eta:.2f} {'ok' if ok else 'NOT OK'}"
+        )
+        md = [
+            f"Querschnitt {cl.section} ({sec['material']}), A = {de(area * 1e4, 1)} cm², i ="
+            f" {de(radius * 100, 2)} cm, Knicklänge = Stützenlänge {de(cl.height, 2)} m (beidseits"
+            f" gelenkig); λ̄ = {de(rel, 3)}, α = {de(float(sec['alpha']), 2)}, χ = {de(chi, 3)}"
+            " (DIN EN 1993-1-1, 6.3.1.2).",
+            f"N_Ed = {de(n_ed, 1)} kN (aus G {de(cl.base.g, 1)}, Q {de(cl.base.q, 1)}, S"
+            f" {de(cl.base.s, 1)}, W {de(cl.base.w, 1)} kN) ≤ N_b,Rd = χ · A · f_k / γ_M ="
+            f" {de(n_rd, 1)} kN, η = {de(eta, 2)}. Steht auf {cl.to}.",
+        ]
+        return Proof(p, ok, eta, line, md)
+
+    def pad(self, p: Pos) -> Proof:
+        cl = self.res.columns[p.id]
+        nd = self.f.design(cl.base)
+        soil = self.res.soil
+        a = math.sqrt(nd / soil) if soil else None
+        line = f"{p.no} {p.id} pad: N_d {nd:.1f} kN" + (f", a ≥ {a:.2f} m" if a else "")
+        md = [
+            f"Unter {p.id}: N_d = {de(nd, 1)} kN"
+            + (
+                f"; mit σ_R,d = {de(soil, 0)} kN/m²: a ≥ √(N_d/σ_R,d) = {de(a, 2)} m (quadratisch)."
+                if soil and a
+                else "; die Größe folgt aus dem Bodengutachten (σ_R,d nicht angegeben)."
+            )
+        ]
+        return Proof(p, True, None, line, md)
+
+    # ---------- bracing ----------
+
+    def bracing(self, p: Pos) -> Proof:
+        if self.res.qp is None:
+            return Proof(
+                p,
+                False,
+                None,
+                f"{p.no} bracing {p.id}: needs the wind pressure qp= NOT OK",
+                ["Ohne Böengeschwindigkeitsdruck q_p nicht nachgewiesen."],
+            )
+        dirs = bracing(self.d, self.res, self.env, p.id)
+        parts: list[str] = []
+        md: list[str] = []
+        ok = True
+        eta = 0.0
+        roofed = bool(self.g.roofs_on(p.id))
+        for dr in dirs:
+            piers = dr.piers
+            if not piers and roofed:
+                parts.append(f"wind in {dr.axis}: through the roof's bracing to the storey below")
+                md.append(
+                    f"Wind in {dr.axis}-Richtung: keine Wand in dieser Richtung; die Last geht über"
+                    " die Aussteifung der Dachfläche (Windrispen) in die Decke darunter und ist"
+                    " in den Geschossen darunter enthalten. Die Windrispen sind nicht nachgewiesen."
+                )
+                continue
+            if not piers:
+                ok = False
+                parts.append(f"wind in {dr.axis}: no wall along it NOT OK")
+                md.append(f"Wind in {dr.axis}-Richtung: keine tragende Wand in dieser Richtung.")
+                continue
+            worst = max(piers, key=lambda x: (not x.ok, x.eta))
+            ok = ok and all(x.ok for x in piers)
+            eta = max([eta, *(x.eta for x in piers if x.ok)])
+            bad = [f"{x.wall} ({x.why})" for x in piers if not x.ok]
+            parts.append(
+                f"wind in {dr.axis}: V {dr.v:.1f} kN, M {dr.m:.1f} kNm on {len(piers)} piers,"
+                f" worst {worst.wall} η {worst.eta:.2f}"
+                + (f", NOT OK: {', '.join(bad)}" if bad else "")
+            )
+            md += [
+                f"**Wind in {dr.axis}-Richtung:** h/d = {de(dr.hd, 2)}, c_pe,D = {de(dr.cd, 2)},"
+                f" c_pe,E = {de(dr.ce, 2)}; Lasten der Geschosse "
+                + ", ".join(f"{lv} {de(fz, 1)} kN in {de(z, 2)} m" for lv, fz, z in dr.forces)
+                + f"; im Geschoss V = {de(dr.v, 1)} kN, M = {de(dr.m, 1)} kNm.",
+                "",
+                md_table(
+                    [
+                        "Wand",
+                        "Pfeiler m",
+                        "Anteil",
+                        "V kN",
+                        "M kNm",
+                        "N_d kN",
+                        "e m",
+                        "l_c m",
+                        "v_Ed N/mm²",
+                        "f_vd N/mm²",
+                        "",
+                    ],
+                    [
+                        [
+                            x.wall,
+                            f"{de(x.lo, 2)}–{de(x.hi, 2)}",
+                            de(x.share, 3),
+                            de(x.v, 1),
+                            de(x.m, 1),
+                            de(x.n, 1),
+                            de(x.e, 2) if x.e != float("inf") else "∞",
+                            de(x.lc, 2) if x.lc > 0 else "–",
+                            de(x.v_ed, 3),
+                            de(x.f_vd, 3),
+                            "ok" if x.ok else f"**{x.why}**",
+                        ]
+                        for x in piers
+                    ],
+                    right=(2, 3, 4, 5, 6, 7, 8, 9),
+                ),
+                "",
+            ]
+        line = f"{p.no} bracing {p.id}: " + "; ".join(parts) + (" ok" if ok else "")
+        md.append(
+            "Windlast q_p · (c_pe,D − c_pe,E) auf die Fassade je Geschoss, an der Oberkante;"
+            " Verteilung auf die Pfeiler der tragenden Wände in Windrichtung nach t · l³ (Decken"
+            " als starre Scheiben, ohne Torsion); je Pfeiler N_d = γ_G,inf · G, Ausmitte e = M/N,"
+            " überdrückte Länge l_c = 3 · (l/2 − e) ≥ l/2, Schub v_Ed = V/(t · l_c) ≤ f_vd ="
+            " min(f_vk0 + 0,4 · σ_d, f_vlt)/γ_M (DIN EN 1996-1-1, 6.2, 3.6.2)."
+        )
+        return Proof(p, ok, eta or None, line, md)
+
     # ---------- footing ----------
 
     def footing(self, p: Pos) -> Proof:
@@ -521,6 +861,142 @@ class Design:
         return Proof(p, True, None, line, md)
 
 
+GROUP_DE = {
+    "foot": "Sparren Fuß – Kehlbalken",
+    "top": "Sparren Kehlbalken – First",
+    "rafter": "Sparren Fuß – First",
+    "overhang": "Sparren Überstand",
+    "collar": "Kehlbalken",
+}
+
+
+@dataclass
+class RafterFrame:
+    nodes: dict[str, tuple[float, float]]
+    bars: list[Bar]
+    sides: dict[str, str]
+    """The roof plane of each rafter bar: l (windward) or r."""
+    groups: dict[str, list[str]]
+    section: dict[str, tuple[float, float]]
+    walls: list[str]
+    span: float
+
+
+def rafter_frame(
+    g: ArchGeo, rg: RoofGeo, rl: RoofLoad, el: Rafter, ridge: str, e: float
+) -> RafterFrame | str:
+    """A pair of rafters across a gable roof as a plane frame: from the eaves' tip over the
+    bearing on the eaves wall to the ridge (a hinge), and the collar beam between them."""
+    lo_edge, hi_edge = ("s", "n") if ridge == "x" else ("w", "e")
+    edges = {e.edge: e for e in rl.edges}
+    if lo_edge not in edges or hi_edge not in edges or not edges[lo_edge].to:
+        return "the roof does not rest on walls under both eaves"
+    if not edges[hi_edge].to:
+        return "the roof does not rest on walls under both eaves"
+
+    def axis(edge: str) -> float:
+        to = edges[edge].to
+        return sum(g.walls[k].mid * f for k, f in to.items())
+
+    c_l, c_r = axis(lo_edge), axis(hi_edge)
+    ox0, oy0, ox1, oy1 = rg.over.bounds
+    if ridge == "x":
+        along = (rg.x0 + rg.x1) / 2
+        o_lo, o_hi, c_ridge = oy0, oy1, (rg.y0 + rg.y1) / 2
+
+        def z(c: float) -> float:
+            return rg.underside(along, c)
+    else:
+        along = (rg.y0 + rg.y1) / 2
+        o_lo, o_hi, c_ridge = ox0, ox1, (rg.x0 + rg.x1) / 2
+
+        def z(c: float) -> float:
+            return rg.underside(c, along)
+
+    z0 = z(c_l)
+    nodes = {
+        "TL": (o_lo - c_l, z(o_lo) - z0),
+        "FL": (0.0, 0.0),
+        "R": (c_ridge - c_l, z(c_ridge) - z0),
+        "FR": (c_r - c_l, z(c_r) - z0),
+        "TR": (o_hi - c_l, z(o_hi) - z0),
+    }
+    walls = [*edges[lo_edge].to, *edges[hi_edge].to]
+    return _rafter_bars(nodes, el, rg.slope, walls, c_r - c_l, e)
+
+
+def _rafter_bars(
+    nodes: dict[str, tuple[float, float]],
+    el: Rafter,
+    slope: float,
+    walls: list[str],
+    span: float,
+    e: float,
+) -> RafterFrame | str:
+    """The bars of the frame; e: the timber's E_0,mean, kN/m²."""
+    a, ih = el.b * el.h, el.b * el.h**3 / 12
+    sides: dict[str, str] = {}
+    groups: dict[str, list[str]] = {"overhang": []}
+    bars: list[Bar] = []
+    for side, tip, foot in (("l", "TL", "FL"), ("r", "TR", "FR")):
+        if abs(nodes[tip][0] - nodes[foot][0]) > 1e-6:
+            name = f"O{side}"
+            bars.append(Bar(name, tip, foot, a, ih, e))
+            sides[name] = side
+            groups["overhang"].append(name)
+    if not groups["overhang"]:
+        del groups["overhang"]
+    if el.collar is None:
+        bars += [Bar("Rl", "FL", "R", a, ih, e, hinge_j=True), Bar("Rr", "FR", "R", a, ih, e)]
+        sides.update({"Rl": "l", "Rr": "r"})
+        groups["rafter"] = ["Rl", "Rr"]
+        section = dict.fromkeys(groups, (el.b, el.h))
+    else:
+        if el.collar >= nodes["R"][1] - 0.1:
+            return f"the collar at {el.collar:g} m is not below the ridge"
+        u = el.collar / slope
+        nodes["KL"] = (u, el.collar)
+        nodes["KR"] = (nodes["FR"][0] - u, nodes["FR"][1] + el.collar)
+        cb, ch = el.cb or el.b, el.ch or el.h
+        bars += [
+            Bar("Fl", "FL", "KL", a, ih, e),
+            Bar("Tl", "KL", "R", a, ih, e, hinge_j=True),
+            Bar("Fr", "FR", "KR", a, ih, e),
+            Bar("Tr", "KR", "R", a, ih, e),
+            Bar("K", "KL", "KR", cb * ch, cb * ch**3 / 12, e, hinge_i=True, hinge_j=True),
+        ]
+        sides.update({"Fl": "l", "Tl": "l", "Fr": "r", "Tr": "r"})
+        groups.update({"foot": ["Fl", "Fr"], "top": ["Tl", "Tr"], "collar": ["K"]})
+        section = dict.fromkeys(groups, (el.b, el.h))
+        section["collar"] = (cb, ch)
+    used = {k for b in bars for k in (b.i, b.j)}
+    nodes = {k: v for k, v in nodes.items() if k in used}
+    return RafterFrame(nodes, bars, sides, groups, section, walls, span)
+
+
+def _bar_length(fr: RafterFrame, name: str) -> float:
+    b = next(x for x in fr.bars if x.name == name)
+    (xi, yi), (xj, yj) = fr.nodes[b.i], fr.nodes[b.j]
+    return math.hypot(xj - xi, yj - yi)
+
+
+def buckling_chi(lam: float, fk: float, e: float, alpha: float) -> tuple[float, float]:
+    """χ and λ̄ of a member in compression with slenderness λ = l / i and the imperfection
+    factor α of its buckling curve, DIN EN 1993-1-1, 6.3.1.2."""
+    rel = lam / math.pi * math.sqrt(fk / e)
+    phi = 0.5 * (1 + alpha * (rel - 0.2) + rel * rel)
+    return min(1.0, 1 / (phi + math.sqrt(phi * phi - rel * rel))), rel
+
+
+def buckling(lam: float, fc0k: float, e005: float, beta_c: float) -> float:
+    """k_c of a member in compression with slenderness λ = l / i, DIN EN 1995-1-1, 6.3.2."""
+    rel = lam / math.pi * math.sqrt(fc0k / e005)
+    if rel <= 0.3:
+        return 1.0
+    k = 0.5 * (1 + beta_c * (rel - 0.3) + rel * rel)
+    return 1 / (k + math.sqrt(k * k - rel * rel))
+
+
 def _combos(f: Factors, cases: dict[str, Case]) -> dict[str, dict[str, float]]:
     """The design combinations: γ_G·G with each variable action leading."""
     var = [k for k in ("q", "s", "w") if k in cases]
@@ -537,7 +1013,38 @@ def _combos(f: Factors, cases: dict[str, Case]) -> dict[str, dict[str, float]]:
     return out
 
 
-def _area_load(f: Factors, s: SlabLoad) -> Callable[[float, float], float]:
+PATTERN_DE = {
+    "all": "Nutzlast überall",
+    "odd": "Nutzlast feldweise (Räume der einen Gruppe)",
+    "even": "Nutzlast feldweise (Räume der anderen Gruppe)",
+}
+
+
+def _patterns(s: SlabLoad) -> dict[str, set[str] | None]:
+    """The load cases of a slab: the imposed load on every room, and on alternate rooms (two
+    groups of rooms, neighbours across a wall in different groups as far as two groups allow;
+    rooms that meet at a corner are not neighbours)."""
+    rooms = sorted(s.room_loads, key=lambda r: natural(r.id))
+    group: dict[str, int] = {}
+    for r in rooms:
+        near = {
+            group[o.id]
+            for o in rooms
+            if o.id in group and r.poly.buffer(0.6).intersection(o.poly).area > 0.1
+        }
+        group[r.id] = 0 if 0 not in near else (1 if 1 not in near else 0)
+    odd = {k for k, v in group.items() if v == 0}
+    even = {k for k, v in group.items() if v == 1}
+    out: dict[str, set[str] | None] = {"all": None}
+    if odd and even:
+        out["odd"], out["even"] = odd, even
+    return out
+
+
+def _area_load(
+    f: Factors, s: SlabLoad, loaded: set[str] | None = None
+) -> Callable[[float, float], float]:
+    """γ_G·g everywhere and γ_Q·q on the rooms loaded (all if None)."""
     gg, gq = f.value("gamma-g"), f.value("gamma-q")
     rooms = s.room_loads
 
@@ -546,10 +1053,38 @@ def _area_load(f: Factors, s: SlabLoad) -> Callable[[float, float], float]:
         q = gg * s.g_slab
         for r in rooms:
             if r.poly.contains(p):
-                return q + gg * r.g + gq * (r.q + s.partition)
+                on = loaded is None or r.id in loaded
+                return q + gg * r.g + (gq * (r.q + s.partition) if on else 0.0)
         return q
 
     return load
+
+
+def field_span(g: ArchGeo, net: BaseGeometry, supports: list[Support]) -> float:
+    """The largest of the fields' shorter spans: from points 0.5 m apart in the fields (not over
+    a wall that carries the slab), the distance between the support axes on either side, across
+    x and across y, the shorter of the two."""
+    axes = [_axis(g, s) for s in supports]
+    over = shapely.union_all([s.shape for s in supports if s.kind == "wall"])  # pyright: ignore[reportUnknownMemberType]
+    net = net.difference(over)
+    x0, y0, x1, y1 = net.bounds
+    out = 0.0
+    x = x0 + 0.25
+    while x < x1:
+        y = y0 + 0.25
+        while y < y1:
+            if net.contains(SPoint(x, y)):
+                spans: list[float] = []
+                for u in ((1.0, 0.0), (0.0, 1.0)):
+                    a = _ray(axes, (x, y), u)
+                    b = _ray(axes, (x, y), (-u[0], -u[1]))
+                    if a is not None and b is not None:
+                        spans.append(a + b)
+                if spans:
+                    out = max(out, min(spans))
+            y += 0.5
+        x += 0.5
+    return out
 
 
 def _wall_openings(g: ArchGeo, wall: str) -> list[OpeningGeo]:
@@ -732,9 +1267,10 @@ def report(d: Derived, des: Design) -> str:
         "## Nicht nachgewiesen",
         "",
         "- Dachtragwerk (Sparren, Pfetten, Kehlbalken) und seine Verankerung im Einzelnen.",
-        "- Aussteifung des Gebäudes und Horizontallasten aus Wind.",
-        "- Decken: Mindest- und Robustheitsbewehrung, Querkraft, Durchstanzen, Begrenzung der"
-        " Verformung und der Rissbreite; Lastanordnung feldweise; Bodenplatte.",
+        "- Aussteifung: Torsion des Grundrisses, Decken als Scheiben, Schub aus Imperfektionen.",
+        "- Decken: Robustheitsbewehrung, Begrenzung der Rissbreite, Verformung über die"
+        " Biegeschlankheit hinaus; Durchstanzen entfällt, die Decken sind linienförmig gelagert;"
+        " Bodenplatte.",
         "- Wände: Teilflächenpressung unter Sturz- und Trägerauflagern, Wände unter der obersten"
         " Decke (Φ3), Kellerwände mit Erddruck.",
         "- Fundamente: Grundbruch, Setzungen und Bemessung des Betons; Frosttiefe.",
@@ -775,5 +1311,9 @@ STRUCT = Calculator(
         LINTEL,
         SECTION,
         BEAM_MATERIAL,
+        TIMBER,
+        COLUMN_SECTION,
+        WIND_WALL,
+        MASONRY_SHEAR,
     ),
 )

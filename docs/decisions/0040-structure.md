@@ -138,7 +138,7 @@ The last group holds the strip footings. Numbers read `2.07`. A position is draw
   - basement walls with earth pressure;
   - the geotechnical checks of the footings.
 - **Open:**
-  - columns;
   - a beam's own deflection in the slab model;
   - the standard's worked examples as a private test suite;
   - the review.
+- **Since `0044-structure-completion.md`:** the slab checks beyond bending, the rafters and collar beams, columns with pad footings, and the bracing against wind are built; the list of what is not proved shrank to the connections and anchoring of the roof, the roof plane's bracing, torsion, robustness reinforcement and crack widths, timber columns and the geotechnical checks.

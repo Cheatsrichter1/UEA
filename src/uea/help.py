@@ -118,7 +118,9 @@ Derived, never stored: exterior walls, room outlines and areas (shell: between c
 fin: between finished surfaces), heights, volumes, slab outlines, stair risers, eaves and
 ridge heights. Read them with uea get.
 Holes (Durchbrüche, Kernbohrungen, Schlitze) answer the services' requests: their checks say
-where a pipe, duct or facade terminal passes a wall or slab without one.
+where a pipe, duct or facade terminal passes a wall or slab without one. A shaft opens every
+slab it passes, and what changes storey goes through it; a prewall carries the fixtures and
+devices on its wall face; zones are the runs the pipes, cables and ducts of a storey follow.
 """
 
 ELEC_NOTES = """\
@@ -151,7 +153,9 @@ storeys (each riser and stack through a hole in the slab); hot water from the ne
 heat.uea whose type is dhw; waste water from each fixture to its stack (to=, else the nearest on
 its storey) or the sewer connection, down the stack and under the floor to the sewer. Each
 network is the shortest tree over the rectilinear distances, a lower bound like the cables. uea
-get shows each fixture's way. Pipe sizes: uea calc water and uea calc drain (help calc).
+get shows each fixture's way. recirc <tank> keeps the hot water warm: its pipe runs back beside
+the hot-water pipes up to the branches to single fixtures. Pipe sizes: uea calc water, uea calc
+drain, uea calc recirc (help calc).
 """
 
 VENT_NOTES = """\
@@ -160,16 +164,19 @@ wall. The ducts are derived like the pipes: from the unit, the shortest tree ove
 of each kind of air. A decentral unit goes through an exterior wall; pair= joins a push-pull
 pair, the other side is derived. The flows the rooms need, and whether the system gives them:
 uea calc airflow; duct sizes and the fans' pressure: uea calc ducts (help calc). Ducts that
-change storey pass the slab through a hole, via= on the unit; units and terminals on the facade
-through a hole in the wall. Ask arch for them with a request.
+change storey pass the slab through a hole, via= on the unit; units, terminals and inlets on the
+facade through a hole in the wall. Ask arch for them with a request. An exhaust system gets its
+outdoor air through inlets (inlet) in the supply rooms; the air passes the doors through overflow
+openings (over: the undercut or an element), checked by uea calc airflow once there is one.
 """
 
 STRUCT_NOTES = """\
 The load path is the architecture's: a slab rests on the load-bearing walls (lb) of the storey
 below, a load-bearing wall on those of the storey below its core overlaps. struct.uea adds what
-the architecture does not give: beams where a wall or a slab has no wall under it, and point or
-line loads the rooms' uses do not cover. Sections and strengths are rows of the office's tables.
-The roof rests on the walls under its eaves. uea calc loads: the loads and their takedown; uea
+the architecture does not give: beams where a wall or a slab has no wall under it, columns under
+beams, point or line loads the rooms' uses do not cover, and the rafters of a gable roof.
+Sections and strengths are rows of the office's tables. The roof rests on the walls under its
+eaves. uea calc loads: the loads and their takedown; uea
 calc struct: the Statische Berechnung, every position proved (help calc); uea export pdf
 struct:<level>: the Positionsplan. The signature is the Tragwerksplaner's.
 """
@@ -183,13 +190,22 @@ uea calc cable method=B2 [scope] [insulation=PVC temp=<C> group=<n> arrangement=
 uea calc vdrop limit=<%> [scope] [reserve=1.2 cos=1 demand=1 current=auto|in]
                         voltage drop from the board to the farthest device (norm; table
                         conductor). Length: the derived cable length (uea get c1) times reserve
+uea calc equip grade=<g> [scope] [combos=one|each]
+                        each room's sockets, lighting, data outlets and connections against its
+                        minimum (DIN 18015-2, norm; table elec-minimum by use, grade and area).
+                        Scope: a storey or a room. A waiver of W-ELEC-010 on a room accepts it
 uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
-                  [groundwater=deep|shallow te=<C> tme=<C>]
+                  [groundwater=deep|shallow te=<C> tme=<C> flow=<C> spread=<K> floor=<C>
+                  bathfloor=<C> insulation=high|low]
                         Heizlast room by room (norm). tb: thermal bridge surcharge. Scope: a
                         storey or a room. Room temperatures by use and theta_e by postcode come
-                        from the office's tables (uea data)
+                        from the office's tables (uea data). flow, spread: the system's design
+                        temperatures, for emitter types of DIN EN 442 (wn= n=) or 1264 (kh=);
+                        floor: the highest floor surface temperature of underfloor heating.
+                        insulation: take the ventilation system's flows (as airflow) and its
+                        heat recovery into Phi_V
 uea calc water [building=residential]
                         drinking-water pipe sizes and each fixture's pressure (norm). Flows by
                         fixture, the peak flow and vmax from the office's tables; the supply
@@ -197,14 +213,21 @@ uea calc water [building=residential]
 uea calc drain slope=<%> [building=residential]
                         waste-water pipe sizes and the branch lengths (norm); slope: the pipes
                         under the building
-uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s>
+uea calc recirc loss=<W/m> dt=<K> dead=<l> [building=residential]
+                        the hot-water circulation (norm): flows from the pipes' heat loss and
+                        the temperature drop, circulation pipe sizes, the pump head and each
+                        end's valve; dead: the most water a branch without circulation holds
+uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s> [flow=<C>]
                         heating pipe sizes and the hydraulic balance on each room's Heizlast
-                        (norm): valve and kv per circuit, throttles, pump heads
+                        (norm): valve and kv per circuit, throttles, pump heads; a manifold's
+                        own flow= spread= and its mixing valve (mix: needs the system's flow=)
 uea calc airflow n50=<1/h> insulation=high|low
                         the dwelling's air flows (DIN 1946-6, norm), whether a ventilation
-                        measure is needed, each room's flow against the units in vent.uea
+                        measure is needed, each room's flow against the units in vent.uea;
+                        overflow openings against the table vent-overflow
 uea calc ducts n50= insulation= vmax=<m/s>
-                        duct sizes of the central units and each side's fan pressure (norm)
+                        duct sizes of the central units and each side's fan pressure (norm),
+                        with the terminals' dp= and the unit's silencers sil=
 uea calc loads [soil=<kN/m²> sk=<kN/m²> qp=<kN/m²>]
                         the loads of the slabs, roofs, beams and walls, their takedown to the
                         foundation and the line loads on the footings (DIN EN 1991, norm); sk,
@@ -213,7 +236,8 @@ uea calc loads [soil=<kN/m²> sk=<kN/m²> qp=<kN/m²>]
 uea calc struct [soil= sk= qp=]
                         the Statische Berechnung (norm): slabs as plates and beams on the solver
                         PyNite (pip install 'uea[struct]'), masonry walls (DIN EN 1996-3),
-                        lintels from the office's table, footings; one line per position
+                        lintels from the office's table, rafters, columns, the bracing against
+                        wind (needs qp), footings; one line per position
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,

@@ -1,10 +1,11 @@
 """The Positionsplan of a storey (decision 0040): the floor plan in grey, the load-bearing walls
 in blue, and the number of every position of the Statische Berechnung where it is: the slab
-over the storey and its beams, the walls, the lintels over their openings, the roof and its
-eaves, and on the lowest storey the strip footings. The numbers are those of `uea calc struct`
-(`packs/struct/positions.py`): both come from the model.
+over the storey and its beams, the walls, the lintels over their openings, the columns, the roof
+with its eaves and rafters, and on the lowest storey the strip and pad footings. The numbers are
+those of `uea calc struct` (`packs/struct/positions.py`): both come from the model.
 """
 
+from shapely.geometry import box as rect
 from shapely.ops import unary_union
 
 from uea.derive import Derived
@@ -35,6 +36,7 @@ KEYS = {
     "wall": "Tragende Wand",
     "lintel": "Sturz über Öffnung",
     "beam": "Unterzug",
+    "column": "Stütze",
     "eaves": "Traufe (Auflager des Daches)",
     "pos": "Positionsnummer (Statische Berechnung)",
 }
@@ -54,7 +56,7 @@ class PosPlan(InstallPlan):
         if bbox is None or not self.pos:
             return None
         need = dict.fromkeys("SNWE", 8.0)
-        self.dw.sheet = fit_sheet(bbox, need, strip=STRIP, fits=FITS_INSTALL)
+        self.dw.sheet = fit_sheet(bbox, need, strip=STRIP, fits=FITS_INSTALL, extra=self.north_room)
         self.cut_all = unary_union([w.poly for w in self.live])
         self.stair_zone = unary_union(
             [s.poly.buffer(self.sh.m(5.0)) for s in self.g.stairs.values() if s.level == self.level]
@@ -67,10 +69,12 @@ class PosPlan(InstallPlan):
         self.bearing_walls()
         self.lintels()
         self.beams()
+        self.columns()
         self.roofs()
         self.slab()
         self.legend()
         self.caption(bbox, need)
+        self.north_arrow()
         nr = f"T-{self.g.level_order().index(self.level) + 1:02d}"
         note = "Positionen der Statischen Berechnung (uea calc struct); tragende Wände blau"
         self.title_block(self.heading, note, nr)
@@ -131,6 +135,22 @@ class PosPlan(InstallPlan):
                 mx + self.sh.m(1.5), my + self.sh.m(1.5), f"{p.no} {p.id} {b.section}", 0.0, 1.8
             )
 
+    def columns(self) -> None:
+        sg = getattr(self.d, "struct", None)
+        if sg is None:
+            return
+        half = 0.12
+        for p in self.pos:
+            if p.kind != "column":
+                continue
+            x, y = sg.columns[p.id].at
+            sq = rect(x - half, y - half, x + half, y + half)
+            self.dw.add(poly_item(sq, BLUE, self.pen(0.25, BLUE), T_WALL))
+            txt = f"{p.no} {p.id} {sg.columns[p.id].section}"
+            if ("pad", p.id) in self.no:
+                txt += f" · {self.no[('pad', p.id)]}"
+            self.label(x + self.sh.m(2.0), y + self.sh.m(2.0), txt, 0.0, 1.8)
+
     def roofs(self) -> None:
         pen = self.pen(0.5, BLUE, (3.0, 1.5))
         for p in self.pos:
@@ -148,6 +168,18 @@ class PosPlan(InstallPlan):
                 self.dw.add(Line(a, b, pen, T_EAVES))
             c = rg.foot.centroid
             self.label(c.x, c.y - self.sh.m(6.0), f"{p.no} Dach {p.id}", 0.0, 2.6)
+            below = 10.0
+            for r in self.pos:
+                el = self.d.model.get(r.id)
+                if r.kind != "rafter" or el is None or getattr(el, "roof").id != p.id:  # noqa: B009
+                    continue
+                b, h, e = (getattr(el, k) for k in ("b", "h", "e"))
+                size = f"{b * 100:g}/{h * 100:g}, e = {e:g}".replace(".", ",")
+                txt = f"{r.no} Sparren {r.id} {size}"
+                if getattr(el, "collar", None) is not None:
+                    txt += " mit Kehlbalken"
+                self.label(c.x, c.y - self.sh.m(below), txt, 0.0, 2.0)
+                below += 4.0
 
     def slab(self) -> None:
         for p in self.pos:
@@ -181,7 +213,7 @@ class PosPlan(InstallPlan):
         self.text(sh.pt(bx + 2, top - 4.2), "Legende", 2.4, T_LEGEND, anchor="start", bold=True)
         kinds = {p.kind for p in self.pos}
         shown = ["wall"] if "wall" in kinds else []
-        shown += [k for k in ("lintel", "beam") if k in kinds]
+        shown += [k for k in ("lintel", "beam", "column") if k in kinds]
         if "roof" in kinds:
             shown.append("eaves")
         shown.append("pos")
@@ -196,6 +228,10 @@ class PosPlan(InstallPlan):
         if key == "wall":
             ink = Ink(self.dw, sh, Spot(sh.pt(x, y)), BLUE, T_LEGEND)
             ink.poly([(-2.4, -0.9), (2.4, -0.9), (2.4, 0.9), (-2.4, 0.9)], WALL_FILL, 0.25)
+            return
+        if key == "column":
+            ink = Ink(self.dw, sh, Spot(sh.pt(x, y)), BLUE, T_LEGEND)
+            ink.poly([(-1.2, -1.2), (1.2, -1.2), (1.2, 1.2), (-1.2, 1.2)], BLUE, 0.25)
             return
         if key == "pos":
             self.text(sh.pt(x, y - 0.6), "2.01", 1.8, T_LEGEND, bold=True, color=BLUE)

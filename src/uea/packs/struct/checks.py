@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from uea.core.issues import Issue
 from uea.derive import Derived
+from uea.packs.struct.geometry import StructGeo
 from uea.packs.struct.model import (
     MIN_OVERLAP,
     beam_bearings,
@@ -18,14 +19,15 @@ from uea.packs.struct.model import (
 CODES: dict[str, str] = {
     "W-STRUCT-001": "load-bearing wall that stands on no load-bearing wall of the storey below",
     "W-STRUCT-002": "slab with no load-bearing wall under it",
-    "W-STRUCT-003": "beam that rests on fewer than two load-bearing walls",
+    "W-STRUCT-003": "beam that rests on fewer than two load-bearing walls or columns",
     "W-STRUCT-004": "hole in a slab over the wall that carries the slab",
+    "W-STRUCT-005": "column that carries no beam",
 }
 
 
 def struct_checks(d: Derived) -> Iterable[Issue]:
     g = d.arch
-    sg = getattr(d, "struct", None)
+    sg: StructGeo | None = getattr(d, "struct", None)
     out: list[Issue] = []
     first = lowest(g)
     for w in sorted(g.walls.values(), key=lambda w: w.id):
@@ -57,7 +59,7 @@ def struct_checks(d: Derived) -> Iterable[Issue]:
                 )
             )
     for b in sorted(sg.beams.values() if sg else [], key=lambda b: b.id):
-        on = beam_bearings(g, b)
+        on = beam_bearings(g, b, sg)
         if len(on) < 2:
             below = g.levels[b.level].below
             got = ", ".join(k for k, _ in on) or "none"
@@ -65,9 +67,24 @@ def struct_checks(d: Derived) -> Iterable[Issue]:
                 Issue(
                     "W-STRUCT-003",
                     b.id,
-                    f"rests on {got} of the load-bearing walls of {below}: a beam needs two",
-                    "run a= and b= into load-bearing walls of the storey below",
+                    f"rests on {got} of the load-bearing walls and columns of {below}: a beam"
+                    " needs two",
+                    "run a= and b= into load-bearing walls of the storey below, or add a column",
                     tuple(k for k, _ in on),
+                )
+            )
+    beams = list(sg.beams.values()) if sg else []
+    carried = {k for b in beams for k, _ in beam_bearings(g, b, sg)}
+    for c in sorted(sg.columns.values() if sg else [], key=lambda c: c.id):
+        if c.id not in carried:
+            above = g.levels[c.level].above
+            out.append(
+                Issue(
+                    "W-STRUCT-005",
+                    c.id,
+                    f"carries no beam: none of {above} runs over it",
+                    "move it under a beam's axis, or give the beam its point",
+                    (),
                 )
             )
     for h in sorted(g.holes.values(), key=lambda h: h.id):

@@ -28,7 +28,7 @@ Date: 2026-10-09
 
 **`vdrop`: the voltage drop.** ΔU = b · (ρ · L / S · cos φ + λ · L · sin φ) · I with b = 2 (one phase) or 1 (three), as a percentage of 230 V (IEC 60364-5-52 Annex G). ρ and λ come from the table `conductor`, so no number of the standard is in the code. L is the derived cable length to the farthest device (`0027-cable-routes.md`) times `reserve` (1.2 unless given: the derived length is a minimum). I is the declared load for a circuit without sockets, else In times `demand` (1 unless given), and the whole current is taken over the whole length. `limit` has no default: the permissible drop is the office's rule, and DIN 18015-1 sets it for the route from the meter, of which a circuit is only a part. Aluminium is a cable starting NA.
 
-**Not built: `W-ELEC-010`.** The minimum equipment of a room as a check would make `uea check` differ from machine to machine, depending on the tables installed. It will be a calculator with its own table (a later slice), so the result names the table it used.
+**`W-ELEC-010` is a calculator.** The minimum equipment of a room as a check would make `uea check` differ from machine to machine, depending on the tables installed. It is the calculator `equip` with its own table, so the result names the table it used (`0041-minimum-equipment.md`).
 
 ## Alternatives
 
@@ -46,4 +46,4 @@ Date: 2026-10-09
 - Both calculators are `norm` calculators that are **not yet reviewed** by a licensed person (see the validation reports). Their lengths are a lower bound, hence the reserve.
 - `Calculator.fn` takes `(d, scope)`, or `(d, scope, env)` when it declares settings or tables; the calculators in a project's `calc/` keep working unchanged.
 - The help grew by 8 tokens in the bench's reading (`uea data` named in the command list); the task set is unchanged at 3,403.
-- Open: the worked examples of the standards as a private test suite, short-circuit protection and the fault loop, the minimum cross-section by use, aluminium ampacity, the grouping and temperature derived from the model instead of settings, the feeder from the house connection, `W-ELEC-010`.
+- Open: the worked examples of the standards as a private test suite, short-circuit protection and the fault loop, the minimum cross-section by use, aluminium ampacity, the grouping and temperature derived from the model instead of settings, the feeder from the house connection.

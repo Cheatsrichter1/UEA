@@ -553,6 +553,63 @@ class Section(Element):
         return self
 
 
+class Shaft(Element):
+    kind: ClassVar[str] = "shaft"
+    pack: ClassVar[str] = "arch"
+    prefix: ClassVar[str | None] = "sh"
+    positional: ClassVar[tuple[str, ...]] = ("level", "size")
+    doc: ClassVar[str] = (
+        "An installation shaft (Schacht) from a storey up through the storeys above:"
+        " shaft sh1 EG 0.4x0.6 at=w4+0.5,w3-0.5 to=DB. It opens every slab it passes and is not"
+        " floor area of the rooms it stands in; pipes, cables and ducts that change storey"
+        " run through it."
+    )
+    level: Annotated[Ref, F("its lowest storey", targets=("level",))]
+    size: Annotated[Size, F("x by y", unit="m")]
+    at: Annotated[Point, F("its centre", unit="m")]
+    to: Annotated[Ref, F("its highest storey", targets=("level",))]
+    status: Status = "new"
+
+
+class Prewall(_Opening):
+    kind: ClassVar[str] = "prewall"
+    prefix: ClassVar[str | None] = "vw"
+    doc: ClassVar[str] = (
+        "A pre-wall installation (Vorwandinstallation) in front of a wall face, d deep:"
+        " prewall vw1 w9.n 1.6x1.2 x=w13+0.1 d=0.2 (width x height, its edge like an opening)."
+        " Fixtures and devices on that face within it sit on its front; the pipes behind them"
+        " run in it."
+    )
+    host: Annotated[Ref, F("wall face, e.g. w9.n", targets=("wall",))]
+    d: Annotated[float, F("depth in front of the wall's finished face", unit="m")]
+    status: Status = "new"
+
+    @model_validator(mode="after")
+    def _face(self) -> Self:
+        if self.host.face is None or self.host.face == "c":
+            raise ValueError("host needs a face: w9.n, w9.s, w9.e or w9.w")
+        if self.d <= 0:
+            raise ValueError("d must be larger than 0")
+        return self
+
+
+class Zone(Element):
+    kind: ClassVar[str] = "zone"
+    pack: ClassVar[str] = "arch"
+    prefix: ClassVar[str | None] = "iz"
+    positional: ClassVar[tuple[str, ...]] = ("level",)
+    doc: ClassVar[str] = (
+        "An installation zone (Installationszone, Trasse): a horizontal run on a storey that the"
+        " pipes, cables and ducts of the storey follow: zone iz1 EG a=w4+0.3,w1+0.3"
+        " b=w2-0.3,w1+0.3 z=2.3. Zones that meet form one network; the networks reach them"
+        " straight from their ends."
+    )
+    level: Annotated[Ref, F("storey", targets=("level",))]
+    a: Annotated[Point, F("start, a point x,y", unit="m")]
+    b: Annotated[Point, F("end, a point x,y", unit="m")]
+    z: Annotated[float, F("height above the FFL", unit="m")]
+
+
 TYPES: tuple[type[Element], ...] = (WallType, SlabType, FloorType, RoofType, WinType, DoorType)
 KINDS: tuple[type[Element], ...] = (
     *TYPES,
@@ -568,4 +625,7 @@ KINDS: tuple[type[Element], ...] = (
     Sep,
     Room,
     Section,
+    Shaft,
+    Prewall,
+    Zone,
 )

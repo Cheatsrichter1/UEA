@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import BOX, PROTOTYPE, Shell, derive_text
+from tests.conftest import BOX, PROTOTYPE, Shell, derive_text, model_from
 from tests.test_calc_elec import install, run
 from tests.test_elec import found
 from uea.calc import Env
@@ -21,12 +21,16 @@ from uea.packs.struct.plate import analyse
 from uea.packs.struct.positions import positions
 from uea.packs.struct.tables import (
     BEAM_MATERIAL,
+    COLUMN_SECTION,
     CONCRETE,
     LIMITS,
     LINTEL,
     MASONRY,
     MASONRY_END,
+    MASONRY_SHEAR,
     SECTION,
+    TIMBER,
+    WIND_WALL,
 )
 
 HOUSE = BOX + (
@@ -52,13 +56,15 @@ IMPOSED_T = (
 PARTS = "upto,qk\n4,0.7\n6,1.1\n"
 FAC = (
     "name,value\ngamma-g,1.3\ngamma-q,1.4\ngamma-g-inf,0.9\ngamma-m,1.6\nzeta,0.8\nrho2,0.7\n"
-    "gamma-c,1.6\nalpha-cc,0.8\ngamma-s,1.2\nfyk,480\nd1,0.03\n"
+    "gamma-c,1.6\nalpha-cc,0.8\ngamma-s,1.2\nfyk,480\nd1,0.03\ncrdc,0.12\nvmin,0.04\n"
+    "rho-min-ft,0.25\nrho-min,0.0012\n"
 )
 PSI_T = "action,psi0\nimposed,0.65\nsnow,0.45\nwind,0.55\n"
 SNOW_T = "pitch,mu1\n0,0.7\n30,0.7\n60,0\n"
 WIND_T = "pitch,pressure,suction\n0,0,-0.6\n30,0.4,-0.4\n45,0.6,-0.2\n"
 LIMITS_T = (
     "name,value\nbuilding-height,18\nspan,8\nqk,4.5\nclear-height,2.8\nxi,0.4\ndeflection,250\n"
+    "ld,33\nld-span,145\n"
 )
 MASONRY_T = "material,fk\nmw,4\nks,9.5\nziegel-t9,3.2\n"
 END_T = "upto,phi\n5,0.75\n8,0.45\n"
@@ -68,6 +74,9 @@ LINTEL_T = (
     "FS-365,0.365,2.5,25\nSB-365,0.365,2.5,90\nFS-240,0.24,1.25,30\nSB-240,0.24,1.25,90\n"
 )
 SECTION_T = "name,material,w,i,av,g\nS-160,steel-x,300,2400,18,0.42\n"
+COLUMN_T = "name,material,a,imin,alpha,g\nC-140,steel-x,40,500,0.49,0.3\n"
+WALLWIND_T = "upto,d,e\n1,0.8,-0.5\n5,0.9,-0.6\n"
+MSHEAR_T = "material,fvk0,fvlt\nmw,0.15,1\nks,0.2,1.2\nziegel-t9,0.1,0.8\n"
 STEEL_T = "material,fk,fvk,e,gamma,kmod\nsteel-x,230,130,200000,1.1,1\n"
 ROOF = (
     "type DA roof layers=ziegel:0.05,*sparren:0.2\n"
@@ -83,6 +92,12 @@ carries the slab over its own core: 10 x 0.3 = 3 and 7.4 x 0.3 = 2.22 m²."""
 def near(v: float) -> object:
     """The data rounds to three decimals."""
     return pytest.approx(v, abs=2e-3)
+
+
+TIMBER_T = (
+    "material,fmk,ft0k,fc0k,fvk,e0mean,e005,kmod,gamma,kcr,betac\n"
+    "C24,24,14,21,4,11000,7400,0.9,1.3,0.67,0.2\n"
+)
 
 
 @pytest.fixture
@@ -102,6 +117,10 @@ def tables(tmp_path: Path) -> None:
         (LINTEL, LINTEL_T),
         (SECTION, SECTION_T),
         (BEAM_MATERIAL, STEEL_T),
+        (TIMBER, TIMBER_T),
+        (COLUMN_SECTION, COLUMN_T),
+        (WIND_WALL, WALLWIND_T),
+        (MASONRY_SHEAR, MSHEAR_T),
     ):
         install(spec.id, spec, text, tmp_path)
 
@@ -220,7 +239,9 @@ def test_on_the_command_line(sh: Shell, tables: None) -> None:
     code, out = sh("help", "struct")
     assert "calc struct: the Statische Berechnung" in out and "beam " in out
     code, out = sh("calc", "struct", "soil=150")
-    assert code == 0 and "2.01 sl2 slab h 0.20" in out and "3.01 w1 EG base" in out, out
+    # the box's slab spans 7.7 m with 0.2 m: too slender (test_slab_checks), so the result fails
+    assert code == 1 and "2.01 sl2 slab h 0.20" in out and "3.01 w1 EG base" in out, out
+    assert "l/d 45.3 ≤ 18.8 NOT OK" in out
     code, out = sh("export", "pdf", "struct")
     assert code == 0 and "struct.pdf A4" in out, out
     code, out = sh("export", "svg", "struct:EG")
@@ -344,12 +365,27 @@ def navier(q: float, a: float, b: float, nu: float = 0.2) -> tuple[float, float]
     return mx, my
 
 
+def edge_shear(q: float, a: float, b: float, nu: float = 0.2) -> float:
+    """The support's line reaction (Kirchhoff's effective shear V_y = Q_y + ∂M_xy/∂x) in the
+    middle of the edge y = b of a simply supported rectangle a x b under q (series)."""
+    out = 0.0
+    for m in range(1, 201, 2):
+        for n in range(1, 201, 2):
+            am, bn = m * math.pi / a, n * math.pi / b
+            w = 16 * q / (math.pi**2 * m * n) / (am**2 + bn**2) ** 2
+            out += w * math.sin(am * a / 2) * (bn**3 + (2 - nu) * am**2 * bn)
+    return out
+
+
 def test_plate() -> None:
     # sl2 on the axes of w1..w4: a 9.7 x 7.7 rectangle, under 12 kN/m² everywhere
     d, _ = derive_text(HOUSE)
     sl = d.arch.slabs["sl2"]
     m = analyse(d.arch, sl.net, slab_supports(d.arch, sl), 0.2, 30e6, lambda x, y: 12.0, [])
     mx, my = navier(12.0, 9.7, 7.7)
+    # the shear: the line reaction in the middle of the long edge, within 1 % of the series
+    assert m.shear == pytest.approx(edge_shear(12.0, 9.7, 7.7), rel=0.01)
+    assert m.at_shear == pytest.approx((5.0, 7.85))
     # the plate ends at the exterior walls' axes; at the elements' middles: within 1 %, and
     # m_x + |m_xy| peaks off the middle, toward the corners
     assert m.bottom_y == pytest.approx(my, rel=0.01)
@@ -366,6 +402,46 @@ def test_bending_and_slenderness() -> None:
     assert bending(300, 0.17, 14000, 400000)[1] is None
     # h_ef / t = 6.3: 0.85 - 0.0011 · 39.69 = 0.806341
     assert slenderness(6.3) == pytest.approx(0.806341)
+
+
+def test_slab_checks(tables: None) -> None:
+    d, _ = derive_text(HOUSE)
+    o = run(STRUCT, d, None)
+    line = next(x for x in o.lines if " sl2 slab" in x)
+    # d = 0.2 - 0.03; f_ctm = 0.3 · 28^(2/3); a_s,min = max(0.25 · f_ctm / 480, 0.0012) · d
+    dd = 0.17
+    fctm = 0.3 * 28 ** (2 / 3)
+    as_min = max(0.25 * fctm / 480, 0.0012) * dd * 1e4
+    assert as_min == pytest.approx(2.449, abs=1e-3)
+    # shear: k = min(1 + √(200/170), 2) = 2, ρ_l = a_s,min / (b d); v_Rd,c the larger of
+    # 0.12 · k · (100 ρ_l f_ck)^(1/3) and v_min = 0.04 · k^1.5 · √28, times d
+    rho = as_min / (dd * 1e4)
+    v_c = 0.12 * 2 * (100 * rho * 28) ** (1 / 3)
+    v_min = 0.04 * 2**1.5 * math.sqrt(28)
+    assert v_min > v_c
+    assert f"/v_Rd,c {v_min * dd * 1000:.1f} kN/m" in line
+    # slenderness: the field 9.7 x 7.7 between the axes, l = 7.7; l/d = 45.3 against
+    # min(33, 145 / 7.7) = 18.8: too slender
+    assert f"l/d {7.7 / dd:.1f} ≤ {145 / 7.7:.1f} NOT OK" in line
+    # the plate is loaded in three cases: every room, and alternate rooms (r1 alone here: the
+    # pattern needs two groups, so one case)
+    assert "Lastfälle: Nutzlast überall;" in o.report
+
+
+def test_load_patterns() -> None:
+    from uea.packs.struct.design import _patterns  # pyright: ignore[reportPrivateUsage]
+    from uea.packs.struct.loads import RoomLoad, SlabLoad
+
+    box = __import__("shapely").box
+    rooms = [
+        RoomLoad("r1", box(0, 0, 4, 4), 1, 2),
+        RoomLoad("r2", box(4.2, 0, 8, 4), 1, 2),
+        RoomLoad("r3", box(0, 4.2, 4, 8), 1, 2),
+        RoomLoad("r4", box(4.2, 4.2, 8, 8), 1, 2),
+    ]
+    s = SlabLoad("sl", "OG", 64, 5, 0, 0, 0, 0, room_loads=rooms)
+    # a checkerboard: r1 and r4 against r2 and r3
+    assert _patterns(s) == {"all": None, "odd": {"r1", "r4"}, "even": {"r2", "r3"}}
 
 
 def test_walls_and_lintels(tables: None) -> None:
@@ -403,11 +479,13 @@ def test_positions(tables: None) -> None:
         ("1.02", "wall", "w6", "OG"),
         ("1.03", "wall", "w7", "OG"),
         ("1.04", "wall", "w8", "OG"),
+        ("1.05", "bracing", "OG", "OG"),
         ("2.01", "slab", "sl2", "EG"),
         ("2.02", "wall", "w1", "EG"),
         ("2.03", "wall", "w2", "EG"),
         ("2.04", "wall", "w3", "EG"),
         ("2.05", "wall", "w4", "EG"),
+        ("2.06", "bracing", "EG", "EG"),
         ("3.01", "footing", "w1", "EG"),
         ("3.02", "footing", "w2", "EG"),
         ("3.03", "footing", "w3", "EG"),
@@ -436,3 +514,174 @@ def test_wall_hole(tables: None) -> None:
     ] == [("lintel", "ho1")]
     assert any(" ho1 lintel 0.30 m in w2" in x for x in o.lines)
     assert o.data["holes"] == ["ho1", "ho2"]
+
+
+# ---------- 8e: rafters ----------
+
+
+def test_rafter_frames() -> None:
+    from uea.packs.struct.design import _rafter_bars  # pyright: ignore[reportPrivateUsage]
+    from uea.packs.struct.frame import plane_frame
+    from uea.packs.struct.kinds import Rafter
+
+    # a couple roof 8 m wide at 35°: a three-hinged frame. Under q along the slope, w = q / cos α
+    # on plan: M = w (L/2)² / 8 in each rafter, H = w L² / (8 f), N at the foot H cos α + V sin α
+    span, rise = 8.0, 4.0 * math.tan(math.radians(35))
+    nodes = {"TL": (0.0, 0.0), "FL": (0.0, 0.0), "R": (4.0, rise), "FR": (8.0, 0.0)}
+    nodes["TR"] = (8.0, 0.0)
+    el = model_from("rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n")["sp1"]
+    assert isinstance(el, Rafter)
+    fr = _rafter_bars(dict(nodes), el, rise / 4, ["w1", "w2"], span, 1.1e7)
+    assert not isinstance(fr, str) and set(fr.nodes) == {"FL", "R", "FR"}
+    a = math.atan(rise / 4)
+    w = 2.0 / math.cos(a)
+    eff, rx = plane_frame(
+        fr.nodes, fr.bars, ["FL", "FR"], {"g": [(n, 0.0, -2.0) for n in fr.sides]}, {"c": {"g": 1}}
+    )
+    h = w * span**2 / (8 * rise)
+    assert eff["c"]["Rl"].moment == pytest.approx(w * 4.0**2 / 8, rel=1e-6)
+    assert rx["c"]["FL"] == (pytest.approx(h, rel=1e-6), pytest.approx(w * 4.0, rel=1e-6))
+    assert eff["c"]["Rl"].compression == pytest.approx(
+        h * math.cos(a) + w * 4.0 * math.sin(a), rel=1e-6
+    )
+    # a collar at half the rise: the rafter is nearly a beam over two spans of L/4 on plan,
+    # w (L/4)² / 8 over the collar; the collar in compression
+    el = model_from(f"rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8 collar={rise / 2}\n")["sp1"]
+    assert isinstance(el, Rafter)
+    fr = _rafter_bars(dict(nodes), el, rise / 4, ["w1", "w2"], span, 1.1e7)
+    assert not isinstance(fr, str)
+    eff, _ = plane_frame(
+        fr.nodes, fr.bars, ["FL", "FR"], {"g": [(n, 0.0, -2.0) for n in fr.sides]}, {"c": {"g": 1}}
+    )
+    two = w * 2.0**2 / 8
+    assert 0.9 * two < eff["c"]["Fl"].moment <= two
+    assert eff["c"]["K"].compression > 0 and eff["c"]["K"].moment == pytest.approx(0, abs=1e-6)
+    with pytest.raises(ValueError, match="give collar= too"):
+        model_from("rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8 cb=0.06\n")
+
+
+def test_rafters(tables: None) -> None:
+    from uea.packs.struct.design import buckling
+
+    text = HOUSE + ROOF + "rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n"
+    text += "rafter sp2 rf1 C24 b=0.08 h=0.2 e=0.8 collar=1.5\n"
+    d, _ = derive_text(text)
+    o = run(STRUCT, d, None, sk=0.85, qp=0.5)
+    pos = {p["id"]: k for k, p in o.data["positions"].items()}
+    assert (pos["rf1"], pos["sp1"], pos["sp2"]) == ("1.01", "1.02", "1.03")
+    sp1 = next(x for x in o.lines if " sp1 rafters" in x)
+    assert sp1.startswith("1.02 sp1 rafters C24 8/20 e 0.8: η ") and sp1.endswith(" ok")
+    assert "Sparren sp1" in o.report and "Horizontalschub am Fußpunkt" in o.report
+    # k_c: λ_rel = λ / π · √(f_c,0,k / E_0,05), k = 0.5 (1 + β_c (λ_rel − 0.3) + λ_rel²)
+    rel = 100 / math.pi * math.sqrt(21 / 7400)
+    k = 0.5 * (1 + 0.2 * (rel - 0.3) + rel**2)
+    assert buckling(100, 21, 7400, 0.2) == pytest.approx(1 / (k + math.sqrt(k * k - rel * rel)))
+    assert buckling(10, 21, 7400, 0.2) == 1.0
+    # a hip roof: its rafters are not proved
+    d, _ = derive_text(
+        HOUSE + ROOF.replace("gable ridge=x", "hip") + "rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8\n"
+    )
+    o = run(STRUCT, d, None, sk=0.85, qp=0.5)
+    assert any("sp1 rafters: only the rafters of a gable roof" in x for x in o.lines)
+
+
+# ---------- 8e: columns ----------
+
+COLUMN = "beam bm1 OG S-160 a=W,S+4 b=E,S+4\ncolumn co1 EG C-140 at=W+5,S+4\n"
+
+
+def test_columns(tables: None) -> None:
+    from uea.packs.struct.design import buckling_chi
+
+    d, rep = derive_text(HOUSE + COLUMN)
+    assert [i.code for i in rep.issues if i.code.startswith("W-STRUCT")] == []
+    # the beam rests on w4, the column and w2
+    from uea.packs.struct.model import beam_bearings
+
+    on = beam_bearings(d.arch, d.struct.beams["bm1"], d.struct)
+    assert [k for k, _ in on] == ["w4", "co1", "w2"]
+    o = run(LOADS, d, None, soil=200)
+    assert o.ok, o.lines
+    col = o.data["columns"]["co1"]
+    reaction = o.data["beams"]["bm1"]["co1"]
+    # from the EG's SSL -0.15 to sl2's underside 2.9 - 0.15 - 0.2 = 2.55: 2.70 m of 0.3 kN/m
+    assert col["height"] == pytest.approx(2.7) and col["own"] == pytest.approx(0.81)
+    assert col["G"] == pytest.approx(reaction["G"] + 0.81, abs=2e-3)
+    assert col["Q"] == pytest.approx(reaction["Q"], abs=2e-3)
+    assert col["to"] == "Einzelfundament"
+    o = run(STRUCT, d, None, soil=200)
+    pos = {(p["kind"], p["id"]): k for k, p in o.data["positions"].items()}
+    # sl2, bm1, w1..w4, then the column; the pad after the four strip footings
+    assert pos[("column", "co1")] == "2.07" and pos[("pad", "co1")] == "3.05"
+    # i = √(500 / 40) cm, λ = 2.7 / i; λ̄ = λ / π · √(230 / 200000); χ by α = 0.49
+    lam = 2.7 / math.sqrt(500e-8 / 40e-4)
+    rel = lam / math.pi * math.sqrt(230 / 200000)
+    phi = 0.5 * (1 + 0.49 * (rel - 0.2) + rel**2)
+    chi = 1 / (phi + math.sqrt(phi**2 - rel**2))
+    assert buckling_chi(lam, 230, 200000, 0.49) == (pytest.approx(chi), pytest.approx(rel))
+    n_rd = chi * 40e-4 * 230 / 1.1 * 1000
+    n_ed = 1.3 * col["G"] + 1.4 * col["Q"]
+    line = next(x for x in o.lines if " co1 column" in x)
+    assert f"N_Ed {n_ed:.1f}/N_b,Rd {n_rd:.1f} kN" in line and line.endswith(" ok")
+    pad = next(x for x in o.lines if " co1 pad" in x)
+    assert f"a ≥ {math.sqrt(n_ed / 200):.2f} m" in pad
+
+
+def test_column_checks() -> None:
+    _, rep = derive_text(HOUSE + "column co1 EG C-140 at=W+5,S+4\n")
+    assert found(rep, "W-STRUCT-005") == ["co1"]
+    # a beam from w4 that ends on a column: two supports
+    _, rep = derive_text(
+        HOUSE + "beam bm1 OG S-160 a=W,S+4 b=W+5,S+4\ncolumn co1 EG C-140 at=W+5,S+4\n"
+    )
+    assert found(rep, "W-STRUCT-003") == [] and found(rep, "W-STRUCT-005") == []
+
+
+# ---------- 8e: bracing ----------
+
+
+def test_bracing(tables: None) -> None:
+    from uea.packs.struct.bracing import bracing, piers_of
+    from uea.packs.struct.loads import calculate
+
+    d, _ = derive_text(HOUSE + "door d9 w2 1x2.01 y=S+3\n")
+    env = Env(STRUCT, {"qp": "0.5"})
+    res = calculate(d, env)
+    eg = {dr.axis: dr for dr in bracing(d, res, env, "EG")}
+    x = eg["x"]
+    # the box 10 x 8, the walls up to 2.75 + 2.5 = 5.25 m: h/d = 0.525 in x, so c_pe,D 0.8 and
+    # c_pe,E -0.5; the bands 2.75 m (EG, from the terrain at 0) and 2.5 m (OG), 8 m wide
+    f_eg, f_og = 0.5 * 1.3 * 8 * 2.75, 0.5 * 1.3 * 8 * 2.5
+    assert [round(fz, 4) for _, fz, _ in x.forces] == [round(f_eg, 4), round(f_og, 4)]
+    assert x.v == pytest.approx(f_eg + f_og)
+    assert x.m == pytest.approx(f_eg * 2.75 + f_og * 5.25)
+    # w1 and w3 along x, alike: half each
+    w1 = next(p for p in x.piers if p.wall == "w1")
+    assert w1.share == pytest.approx(0.5)
+    n = 0.9 * res.walls["w1"].base.g
+    e = x.m / 2 / n
+    lc = min(10.0, 3 * (5 - e))
+    sigma = n / (0.3 * lc) / 1000
+    assert w1.n == pytest.approx(n) and w1.lc == pytest.approx(lc)
+    assert w1.f_vd == pytest.approx(min(0.15 + 0.4 * sigma, 1) / 1.6)
+    assert w1.v_ed == pytest.approx(x.v / 2 / (0.3 * lc) / 1000)
+    # w2 with a door is two piers: 3 - 0.5 and the rest; stiffness t · l³
+    w2 = d.arch.walls["w2"]
+    stretches = piers_of(d, w2)
+    assert stretches == [
+        (pytest.approx(0.3), pytest.approx(3.0)),
+        (pytest.approx(4.0), pytest.approx(7.7)),
+    ]
+    y = eg["y"]
+    lengths = [p.length for p in y.piers]
+    stiff = sum(0.3 * ln**3 for ln in lengths)
+    assert [p.share for p in y.piers] == [pytest.approx(0.3 * ln**3 / stiff) for ln in lengths]
+    o = run(STRUCT, d, None, qp=0.5)
+    line = next(ln for ln in o.lines if "bracing EG" in ln)
+    # after the walls and the door's lintel
+    assert line.startswith("2.07 bracing EG: wind in x: V 27.3 kN, M 107.6 kNm") and line.endswith(
+        " ok"
+    )
+    # without qp: not proved
+    o = run(STRUCT, d, None)
+    assert any("bracing EG: needs the wind pressure qp= NOT OK" in ln for ln in o.lines)

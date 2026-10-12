@@ -47,11 +47,13 @@ from uea.packs.arch.kinds import (
     DoorType,
     Hole,
     Niche,
+    Prewall,
     Roof,
     RoofType,
     Room,
     Section,
     Sep,
+    Shaft,
     Slab,
     SlabType,
     Stair,
@@ -60,6 +62,7 @@ from uea.packs.arch.kinds import (
     WallType,
     Win,
     WinType,
+    Zone,
 )
 from uea.packs.arch.stairs import layout
 from uea.packs.arch.stairs import to_plan as stair_to_plan
@@ -415,6 +418,55 @@ class VoidGeo:
 
 
 @dataclass
+class ShaftGeo:
+    """An installation shaft through several storeys (decision 0045)."""
+
+    id: str
+    level: str
+    to: str
+    poly: Polygon
+    levels: list[str]
+    """The storeys it runs through, from the lowest."""
+    slabs: list[str]
+    """The slabs it opens: those of the storeys above its lowest."""
+    status: str
+
+
+@dataclass
+class PrewallGeo:
+    """A pre-wall installation in front of a wall face (decision 0045)."""
+
+    id: str
+    wall: str
+    level: str
+    side: "Side"
+    lo: float
+    hi: float
+    """Along the wall."""
+    z0: float
+    z1: float
+    """Absolute bottom and top."""
+    depth: float
+    poly: Polygon
+    """Its footprint, from the wall's finished face into the room."""
+    front: float
+    """Its front face across the wall, as the wall's lo and hi are measured."""
+    status: str
+
+
+@dataclass
+class ZoneGeo:
+    """An installation zone: a horizontal run on a storey (decision 0045)."""
+
+    id: str
+    level: str
+    a: tuple[float, float]
+    b: tuple[float, float]
+    z: float
+    """Absolute height."""
+
+
+@dataclass
 class HoleGeo:
     """An opening without a fill (decision 0039)."""
 
@@ -562,6 +614,13 @@ class ArchGeo:
     seeds: dict[str, tuple[float, float]] = field(default_factory=dict[str, tuple[float, float]])
     domains: dict[str, BaseGeometry] = field(default_factory=dict[str, BaseGeometry])
     regions: dict[str, list[Polygon]] = field(default_factory=dict[str, list[Polygon]])
+    shafts: dict[str, ShaftGeo] = field(default_factory=dict[str, ShaftGeo])
+    prewalls: dict[str, PrewallGeo] = field(default_factory=dict[str, PrewallGeo])
+    zones: dict[str, ZoneGeo] = field(default_factory=dict[str, ZoneGeo])
+
+    def shafts_on(self, level: str) -> list[ShaftGeo]:
+        """The shafts that run through a storey."""
+        return [sh for sh in self.shafts.values() if level in sh.levels and sh.status != "demolish"]
 
     def level_order(self) -> list[str]:
         return sorted(self.levels, key=lambda k: self.levels[k].z)
@@ -936,7 +995,12 @@ class Resolver:
         return "hi" if host.face == hi_face else "lo"
 
     def _along(
-        self, key: str, el: Door | Win | Niche | Hole, along: Anchor, width: float, w: WallGeo
+        self,
+        key: str,
+        el: Door | Win | Niche | Hole | Prewall,
+        along: Anchor,
+        width: float,
+        w: WallGeo,
     ) -> tuple[Axis, float, float]:
         """Where an opening lies along its wall: the axis and its two edges."""
         axis = w.along
@@ -1133,6 +1197,97 @@ class Resolver:
         self.level(el.level.id)
         return (self.point(el.at.x, "x"), self.point(el.at.y, "y"))
 
+    # ---------- installations (decision 0045) ----------
+
+    def _shafts(self) -> None:
+        order = self.g.level_order()
+        for el in self.m.of_kind("shaft"):
+            assert isinstance(el, Shaft)
+            if el.level.id not in self.g.levels or el.to.id not in self.g.levels:
+                continue
+            a, b = order.index(el.level.id), order.index(el.to.id)
+            if b <= a:
+                self.d.add(
+                    "E-ARCH-070",
+                    el.id,
+                    f"{el.to.id} is not above {el.level.id}: a shaft runs up through a slab",
+                    f"~ {el.id} to=<a storey above {el.level.id}>",
+                )
+                continue
+            try:
+                cx, cy = self.point(el.at.x, "x"), self.point(el.at.y, "y")
+            except Unresolved:
+                continue
+            except GeoError as e:
+                self.d.add(e.code, el.id, e.msg, e.fix)
+                continue
+            w, h = el.size.w, el.size.h
+            poly = rect(cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2)
+            levels = order[a : b + 1]
+            slabs = [sl.id for lv in levels[1:] if (sl := self.g.slab_on(lv)) is not None]
+            self.g.shafts[el.id] = ShaftGeo(
+                el.id, el.level.id, el.to.id, poly, levels, slabs, el.status
+            )
+            if el.status != "demolish":
+                for k in slabs:
+                    sl = self.g.slabs[k]
+                    sl.net = clean(sl.net.difference(poly))
+
+    def _prewalls(self) -> None:
+        for el in self.m.of_kind("prewall"):
+            assert isinstance(el, Prewall)
+            if el.host.id not in self.g.walls:
+                continue
+            try:
+                w = self.wall(el.host.id)
+                face = self._face(el.host, w)
+                axis, lo, hi = self._along(el.id, el, el.along, el.size.w, w)
+            except Unresolved:
+                continue
+            except GeoError as e:
+                self.d.add(e.code, el.id, e.msg, e.fix)
+                continue
+            del axis
+            f = w.finish(face)
+            if face == "hi":
+                band = (w.hi + f, w.hi + f + el.d)
+                front = band[1]
+            else:
+                band = (w.lo - f - el.d, w.lo - f)
+                front = band[0]
+            poly = Polygon(
+                [
+                    w.plan_point(lo, band[0]),
+                    w.plan_point(hi, band[0]),
+                    w.plan_point(hi, band[1]),
+                    w.plan_point(lo, band[1]),
+                ]
+            )
+            lv = self.g.levels[w.level]
+            self.g.prewalls[el.id] = PrewallGeo(
+                el.id, w.id, w.level, face, lo, hi, lv.z, lv.z + el.size.h, el.d, poly, front,
+                el.status,
+            )  # fmt: skip
+
+    def _zones(self) -> None:
+        for el in self.m.of_kind("zone"):
+            assert isinstance(el, Zone)
+            lv = self.g.levels.get(el.level.id)
+            if lv is None:
+                continue
+            try:
+                a = (self.point(el.a.x, "x"), self.point(el.a.y, "y"))
+                b = (self.point(el.b.x, "x"), self.point(el.b.y, "y"))
+            except Unresolved:
+                continue
+            except GeoError as e:
+                self.d.add(e.code, el.id, e.msg, e.fix)
+                continue
+            if abs(a[0] - b[0]) + abs(a[1] - b[1]) < 1e-6:
+                self.d.add("E-ARCH-071", el.id, "a= and b= are the same point", "give it a length")
+                continue
+            self.g.zones[el.id] = ZoneGeo(el.id, lv.id, a, b, lv.z + el.z)
+
     # ---------- whole model ----------
 
     def run(self) -> None:
@@ -1153,6 +1308,7 @@ class Resolver:
         self._joins()
         self._slabs()
         self._voids()
+        self._shafts()
         self._domains()
         self._exterior()
         for el in self.m.of_kind("hole"):  # after _exterior: the finishes need the inner side
@@ -1160,6 +1316,8 @@ class Resolver:
                 self.hole(el.id)
         self._roofs()
         self._wall_tops()
+        self._prewalls()
+        self._zones()
         self._rooms()
         self._opening_sides()
 
@@ -1405,6 +1563,10 @@ class Resolver:
                 taken[idx] = el.id
                 poly = regions[idx]
                 fin = clean(poly.difference(band_u))
+                # a shaft is not floor area of the room it stands in (decision 0045)
+                shafts = [sh.poly for sh in self.g.shafts_on(lv.id)]
+                if shafts:
+                    fin = clean(fin.difference(union(shafts)))
                 edge = poly.exterior.buffer(1e-5)
                 bounds = [
                     w.id

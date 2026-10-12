@@ -12,6 +12,7 @@ from uea.calc import Calculator, Env, Output, split_args
 from uea.calc import data as norm_data
 from uea.derive import Derived
 from uea.packs.elec.cable import AMPACITY, CABLE, GROUPING, TEMPERATURE
+from uea.packs.elec.equip import EQUIP, MINIMUM
 from uea.packs.elec.vdrop import CONDUCTOR, VDROP, material_of
 
 AMP = """\
@@ -323,3 +324,59 @@ def test_the_commands(sh: Shell, tmp_path: Path) -> None:
     code, out = sh("calc", "vdrop", "c2", "limit=3", "reserve=1.5")
     assert code == 0 and out.splitlines()[1] == "1 circuits: 1 within 3 %, 0 over"
     assert (sh.root / "out" / "vdrop-c2.json").exists()
+
+
+# ---------- equip ----------
+
+MIN = """\
+use,grade,upto,sock,light,data,conn
+living,1,20,3,1,1,0
+living,1,100,5,2,1,0
+kitchen,1,999,5,2,0,2
+"""
+DEVICES = (
+    "sock s1 w4 c2 y=w1+1.5 n=2\n"
+    "sock s2 w4 c2 y=w1+3\n"
+    "sock s3 w4 c2 y=w1+4\n"
+    "lum l1 r1\n"
+    "lum l2 r1 at=W+2,S+2\n"
+)
+
+
+def test_equip_counts_against_the_table(tmp_path: Path) -> None:
+    install("m", MINIMUM, MIN, tmp_path)
+    d = circuits(DEVICES)
+    # r1: 9.38 x 7.38 = 69.22 m² finished, the row up to 100 m²
+    o = run(EQUIP, d, grade=1)
+    r1 = o.data["rooms"]["r1"]
+    assert r1["area"] == pytest.approx(9.38 * 7.38)
+    assert r1["upto"] == 100
+    assert r1["have"] == {"sock": 3, "light": 2, "data": 0, "conn": 0}
+    assert r1["need"] == {"sock": 5, "light": 2, "data": 1, "conn": 0}
+    assert r1["missing"] == {"sock": 2, "data": 1}
+    assert r1["status"] == "short"
+    assert o.lines == ["1 rooms: 0 ok, 1 short", "r1 living 69.2 m²: sock 3/5, data 0/1 W-ELEC-010"]
+    assert not o.ok
+    assert "| r1 | Wohnen | 69,22 | 3 / 5 | 2 / 2 | 0 / 1 | 0 / 0 | **nicht erfüllt** |" in o.report
+    # each outlet of the double socket counts
+    o = run(EQUIP, d, grade=1, combos="each")
+    assert o.data["rooms"]["r1"]["have"]["sock"] == 4
+
+
+def test_equip_waiver_grade_and_area(tmp_path: Path) -> None:
+    install("m", MINIMUM, MIN, tmp_path)
+    d = circuits(DEVICES + 'waive wv1 W-ELEC-010 r1 "Wunsch Bauherr" by=elektroplaner\n')
+    o = run(EQUIP, d, grade=1)
+    assert o.data["rooms"]["r1"]["status"] == "waived"
+    assert o.ok
+    assert o.lines[1].endswith("(waived: Wunsch Bauherr (elektroplaner))")
+    assert "- r1: Wunsch Bauherr (elektroplaner)" in o.report
+    # no row for the grade
+    o = run(EQUIP, d, grade=3)
+    assert o.data["rooms"]["r1"]["status"] == "nodata" and not o.ok
+    # larger than the last row: the last row applies
+    install("m", MINIMUM, "use,grade,upto,sock,light,data,conn\nliving,1,20,3,1,0,0\n", tmp_path)
+    o = run(EQUIP, circuits(DEVICES), grade=1)
+    assert o.data["rooms"]["r1"]["status"] == "large" and o.ok
+    with pytest.raises(ValueError, match="'zz' is not a room or a storey"):
+        run(EQUIP, d, "zz", grade=1)

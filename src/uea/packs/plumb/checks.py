@@ -8,7 +8,7 @@ from uea.core.issues import Issue
 from uea.derive import Derived
 from uea.packs.net import missing_holes
 from uea.packs.plumb.geometry import nets
-from uea.packs.plumb.kinds import San
+from uea.packs.plumb.kinds import Recirc, San
 
 CODES: dict[str, str] = {
     "E-PLUMB-002": "fixture on a wall without a usable face",
@@ -18,6 +18,7 @@ CODES: dict[str, str] = {
     "W-PLUMB-004": "riser or stack that nothing runs through",
     "W-PLUMB-005": "a second meter or sewer connection; the first one serves",
     "W-PLUMB-006": "pipe that passes a slab with no hole for it",
+    "W-PLUMB-007": "circulation of a tank with no hot-water pipe but single branches",
 }
 
 
@@ -60,4 +61,23 @@ def plumb_checks(d: Derived) -> Iterable[Issue]:
         for k in more:
             add("W-PLUMB-005", k, f"a second {what}: {first} serves", f"- {k}", first)
     out += missing_holes(p.crossings, "W-PLUMB-006", "plumb", via=False)
+    for el in m.of_kind("recirc"):
+        assert isinstance(el, Recirc)
+        net = p.recirc.get(el.tank.id)
+        if el.tank.id not in p.hot:
+            add(
+                "W-PLUMB-007",
+                el.id,
+                f"{el.tank.id} supplies no hot water: nothing to circulate",
+                f"- {el.id}, or a fixture with hot water on {el.tank.id}",
+                el.tank.id,
+            )
+        elif net is not None and not net.sections:
+            add(
+                "W-PLUMB-007",
+                el.id,
+                f"{el.tank.id} feeds its fixtures by single branches: nothing to circulate",
+                f"- {el.id}",
+                el.tank.id,
+            )
     return out

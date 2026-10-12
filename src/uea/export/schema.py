@@ -19,7 +19,7 @@ from uea.export.paper import BLACK, BLOCK_H, BLOCK_W, GREY, PAPER, Paper, Stand,
 from uea.export.tables import USE_DE
 from uea.export.tga import FIXTURE_DE
 from uea.packs.heat.geometry import heat_type, tank_type
-from uea.packs.heat.kinds import GenType, ManType, RadType
+from uea.packs.heat.kinds import GenType, ManType
 from uea.packs.plumb.kinds import San
 
 H_SCHEMA = "H-SCHEMA"
@@ -284,8 +284,8 @@ class Schema(Diagram):
                     if w is not None:
                         self.say(x, b.y + 61.0, f"{w:.0f} W", 1.3, color=GREY)
             else:
-                t = heat_type(self.m, el, RadType, "rad")
-                self.say(x, b.y + 54.0, f"{t.w:.0f} W" if t else "Heizkörper", 1.3, color=GREY)
+                w = h.output.get(key)
+                self.say(x, b.y + 54.0, f"{w:.0f} W" if w else "Heizkörper", 1.3, color=GREY)
 
     def loop(self, x: float, y: float) -> None:
         """A loop: a zigzag from the supply down and back to the return."""

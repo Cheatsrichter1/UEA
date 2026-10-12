@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `loads` 0.2.0, kind `norm` |
+| Calculator | `loads` 0.3.0, kind `norm` |
 | Standards | DIN EN 1991-1-1:2010-12 (actions), DIN EN 1991-1-3:2010-12 (snow), DIN EN 1991-1-4:2010-12 (wind), each with NA; DIN EN 1990:2010-12 with NA (combination) |
 | Code | `src/uea/packs/struct/loads.py`, `actions.py`; the load path in `model.py`; beams on `frame.py` |
 | Tests | `tests/test_struct.py` |
@@ -27,7 +27,9 @@ All values of the standards come from the office's tables. The soil's resistance
 
 **For each point or line load:** the support it goes to.
 
-**For each beam:** its reactions on its walls, per action.
+**For each beam:** its reactions on its walls and columns, per action.
+
+**For each column:** what its beams put on it, its own weight, and what it stands on (a support of the slab under it, or its pad footing).
 
 **For each load-bearing wall:**
 
@@ -65,7 +67,8 @@ The record is `out/loads.json`, the report `out/loads.md`.
   - Each wall's share is the length of its core along the line.
   - Uplift: n = (γ_G,inf · G + γ_Q · W⁻) / L.
 - **Point and line loads:** a line is split into points 5 cm apart. Each point goes to the nearest support of its slab; on a beam it is a point load at its projection.
-- **Beam:** a continuous beam from a to b on pinned supports at the middle of each bearing, solved per action. The reactions do not depend on EI for a beam of one section.
+- **Beam:** a continuous beam from a to b on pinned supports at the middle of each bearing on a wall and at each column on its axis, solved per action. The reactions do not depend on EI for a beam of one section.
+- **Column:** G_own = g · h, h from the storey's SSL to the underside of the slab above (`column-section`); its base to the nearest support of the slab it stands on, as a point load, or on the lowest storey to its pad footing.
 - **Wall:** G_own = g_wall · A_net,elevation.
 - **Takedown,** from the top storey down:
   - G_base = G_own + what arrives at the top.
@@ -92,12 +95,13 @@ The record is `out/loads.json`, the report `out/loads.md`.
 | γ_G, γ_Q, γ_G,inf | table `struct-factors` |
 | ψ0 | table `struct-psi` |
 | A beam's weight | table `beam-section` |
+| A column's weight | table `column-section` |
 | s_k, q_p | settings `sk=`, `qp=`, from the snow load and wind zones of the site |
 | σ_R,d | setting `soil=`, from the geotechnical report |
 
 ## Deviations and not implemented
 
-- **Wind:** only as the roof's load on the walls. There are no horizontal loads and no bracing.
+- **Wind:** here only as the roof's load on the walls; the horizontal wind and the bracing are `struct`'s (`struct.md`).
 - **Snow:** no drifts or accumulations; each plane is fully loaded, with no asymmetric case.
 - **The roof:** a couple roof bearing at its eaves. A purlin roof needs its purlins as beams.
 - **Uniform loads:**
@@ -149,3 +153,4 @@ The record is `out/loads.json`, the report `out/loads.md`.
 |---|---|
 | 0.1.0 | First version |
 | 0.2.0 | Roofs with snow and wind on their eaves, beams, point and line loads, heavy partitions as line loads, combination with ψ0 |
+| 0.3.0 | Columns under beams, with their pad footings (`test_columns` in `tests/test_struct.py`, decision 0044) |

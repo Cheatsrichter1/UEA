@@ -1,7 +1,8 @@
 """Things mounted on a wall or in a room: luminaires and electrical devices (decision 0025).
 
 A device sits on one face of a wall, a distance along it, at a height above the storey's FFL
-(the centre of the device). A luminaire or smoke detector may hang in a room instead, at a point.
+(the centre of the device); in front of a pre-wall installation, on its front. A luminaire or
+smoke detector may hang in a room instead, at a point.
 Positions are anchors like everywhere else, and they may anchor on another mounted thing:
 `x=sw2+0.071` is one frame width past the switch sw2.
 """
@@ -169,6 +170,17 @@ class Mounts:
             raise GeoError(f"{key} needs a height above the FFL", f"~ {key} z=1.2")
         lv = self.g.levels[wall.level]
         c = wall.hi if side == "hi" else wall.lo
+        # on a pre-wall installation in front of the face: on its front (decision 0045)
+        for pw in self.g.prewalls.values():
+            if (
+                pw.wall == wall.id
+                and pw.side == side
+                and pw.status != "demolish"
+                and pw.lo - 1e-6 <= s <= pw.hi + 1e-6
+                and pw.z0 - 1e-6 <= lv.z + zrel <= pw.z1 + 1e-6
+            ):
+                c = pw.front
+                break
         x, y = wall.plan_point(s, c)
         sign = 1.0 if side == "hi" else -1.0
         nx, ny = wall.n

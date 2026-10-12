@@ -96,7 +96,7 @@ Kinds: `project`, `level`, `grid`.
 
 #### `project`
 
-The project, one per project: project <name> "title" site=DE-HE postcode=64283 ground=-0.3
+The project, one per project: project <name> "title" site=DE-HE postcode=64283 ground=-0.3 north=12
 
 `project <name>`
 
@@ -105,6 +105,7 @@ The project, one per project: project <name> "title" site=DE-HE postcode=64283 g
 | site | `site=` |  | country and state as ISO 3166-2, e.g. DE-HE |
 | postcode | `postcode=` |  | postcode |
 | ground | `ground=` | m | terrain height relative to ±0.00, the ground storey's FFL |
+| north | `north=` | ° | true north, clockwise from the plan's +y axis; plans get a north arrow |
 
 #### `level`
 
@@ -133,7 +134,7 @@ A grid line: x= for a line along y, y= for a line along x.
 
 Types: `type … wall`, `type … slab`, `type … floor`, `type … roof`, `type … win`, `type … door`.
 
-Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `hole`, `roof`, `stair`, `sep`, `room`, `section`.
+Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `hole`, `roof`, `stair`, `sep`, `room`, `section`, `shaft`, `prewall`, `zone`.
 
 #### `type … wall`
 
@@ -402,9 +403,52 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 | y | `y=` | m | y of a cut across y (the cut plane runs along x) |
 | look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
 
+#### `shaft`
+
+An installation shaft (Schacht) from a storey up through the storeys above: shaft sh1 EG 0.4x0.6 at=w4+0.5,w3-0.5 to=DB. It opens every slab it passes and is not floor area of the rooms it stands in; pipes, cables and ducts that change storey run through it.
+
+`shaft <id> <level> <size>` · ids `sh1`, `sh2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | its lowest storey |
+| size | positional | m | x by y |
+| at | `at=` | m | its centre (required) |
+| to | `to=` |  | its highest storey (required) |
+| status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
+
+#### `prewall`
+
+A pre-wall installation (Vorwandinstallation) in front of a wall face, d deep: prewall vw1 w9.n 1.6x1.2 x=w13+0.1 d=0.2 (width x height, its edge like an opening). Fixtures and devices on that face within it sit on its front; the pipes behind them run in it.
+
+`prewall <id> <host> <size>` · ids `vw1`, `vw2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall face, e.g. w9.n |
+| size | positional | m | structural opening width x height (Rohbaurichtmaß) |
+| x | `x=` | m | edge position along a wall running along x |
+| y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
+| d | `d=` | m | depth in front of the wall's finished face (required) |
+| status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
+
+#### `zone`
+
+An installation zone (Installationszone, Trasse): a horizontal run on a storey that the pipes, cables and ducts of the storey follow: zone iz1 EG a=w4+0.3,w1+0.3 b=w2-0.3,w1+0.3 z=2.3. Zones that meet form one network; the networks reach them straight from their ends.
+
+`zone <id> <level>` · ids `iz1`, `iz2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey |
+| a | `a=` | m | start, a point x,y (required) |
+| b | `b=` | m | end, a point x,y (required) |
+| z | `z=` | m | height above the FFL (required) |
+
 ### Structure (`struct.uea`)
 
-Kinds: `beam`, `load`.
+Kinds: `beam`, `load`, `column`, `rafter`.
 
 #### `beam`
 
@@ -433,6 +477,35 @@ A load on the slab of a storey: load lo1 OG g=3 at=w4+0.5,w5+0.5 "Pufferspeicher
 | at | `at=` |  | a point load: where it stands |
 | a | `a=` |  | a line load: the start of its line |
 | b | `b=` |  | a line load: the end of its line |
+
+#### `column`
+
+A column (Stütze) in a storey, under a beam of the slab above it: column co1 EG HEB-140 at=w6,w1+3. It stands on the storey's floor: on the lowest storey on its own pad footing, else as a point load on that slab. section: a row of the office's column-section table.
+
+`column <id> <level> <section>` · ids `co1`, `co2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey it stands in |
+| section | positional |  | section, a name in the office's column-section table |
+| at | `at=` |  | its axis, a point x,y (required) |
+
+#### `rafter`
+
+The rafters of a gable roof (Sparren of a Sparren- or Kehlbalkendach): rafter sp1 rf1 C24 b=0.08 h=0.2 e=0.8. b, h: the section; e: the spacing. collar= the height of a collar beam (Kehlbalken) above the rafters' feet, cb= ch= its section if not the rafter's. material: a strength class of the office's timber table.
+
+`rafter <id> <roof> <material>` · ids `sp1`, `sp2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| roof | positional |  | the roof |
+| material | positional |  | strength class, a row of the office's timber table: C24 |
+| b | `b=` | m | width of a rafter (required) |
+| h | `h=` | m | depth of a rafter (required) |
+| e | `e=` | m | spacing of the rafters (required) |
+| collar | `collar=` | m | height of the collar beam's axis above the rafters' feet |
+| cb | `cb=` | m | width of the collar beam |
+| ch | `ch=` | m | depth of the collar beam |
 
 ### Luminaires (`light.uea`)
 
@@ -651,28 +724,31 @@ Manifold type (Heizkreisverteiler): type HKV-10 man outlets=10 w=0.55.
 
 #### `type … ufh`
 
-Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
+Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; or kh: the equivalent heat transmission coefficient K_H for the floor covering (DIN EN 1264-2), and the calculators take q = K_H · Δθ_H at the circuit's temperatures. max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
 
 `type <name> ufh`
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
 | spacing | `spacing=` | m | pipe spacing (required) |
-| q | `q=` | W/m² | heat output per floor area (required) |
+| q | `q=` | W/m² | heat output per floor area |
 | max | `max=` | m | longest loop, with its connection lines (required) |
+| kh | `kh=` | W/(m²K) | equivalent heat transmission coefficient K_H |
 | pipe | `pipe=` | mm | the loop's pipe, outer diameter x wall |
 | k | `k=` | mm | roughness of the loop's pipe |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … rad`
 
-Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's design temperatures, from the manufacturer.
+Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's design temperatures, from the manufacturer; or wn= and n=: the standard output at 75/65/20 °C and the radiator exponent (DIN EN 442), and the calculators take the output at the circuit's temperatures.
 
 `type <name> rad`
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
-| w | `w=` | W | heat output at the design temperatures (required) |
+| w | `w=` | W | heat output at the design temperatures |
+| wn | `wn=` | W | standard output at 75/65/20 °C |
+| n | `n=` |  | radiator exponent n |
 | length | `length=` | m | length |
 | height | `height=` | m | height |
 | default | flag `default` | | used by elements of its kind without type= |
@@ -721,7 +797,7 @@ A storage tank (or a heat pump's indoor unit with one) in a room: tank t1 r3 at=
 
 #### `man`
 
-A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6.
+A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6. flow= and spread= its circuits' design temperatures if not the system's; mix: a mixing valve with its own pump in front of it (Mischerkreis), for circuits colder than the system.
 
 `man <id> <host> <src>` · ids `hv1`, `hv2`, … assigned by UEA
 
@@ -735,6 +811,9 @@ A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man
 | z | `z=` | m | height of its centre above the FFL |
 | type | `type=` |  | manifold type; default if left out |
 | via | `via=` |  | slab holes or voids its pipes change storey through |
+| flow | `flow=` | °C | design flow temperature of its circuits |
+| spread | `spread=` | K | design spread of its circuits |
+| mix | flag `mix` | | a mixing valve and pump in front of it |
 
 #### `ufh`
 
@@ -769,7 +848,7 @@ A radiator (Heizkörper) on a wall face: rad hk1 w1 hv1 x=f1. z= its centre, 0.4
 
 Types: `type … pipe`, `type … drain`.
 
-Kinds: `san`, `meter`, `riser`, `stack`, `sewer`.
+Kinds: `san`, `meter`, `riser`, `stack`, `sewer`, `recirc`.
 
 #### `type … pipe`
 
@@ -864,11 +943,22 @@ Where the waste water leaves the building for the public sewer (an inspection ch
 | at | `at=` | m | plan point x,y (required) |
 | type | `type=` |  | drain pipe system; the default drain type if left out |
 
+#### `recirc`
+
+A hot-water circulation (Zirkulation) of a tank that heats drinking water: recirc zk1 t1. Its pipe runs back beside the tank's hot-water pipes, all but the branches that end at a single fixture (Einzelzuleitungen). Flows, sizes and the pump: uea calc recirc.
+
+`recirc <id> <tank>` · ids `zk1`, `zk2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| tank | positional |  | the storage tank |
+| type | `type=` |  | pipe system of the circulation; the default pipe type if left out |
+
 ### Ventilation (`vent.uea`)
 
-Types: `type … ahu`, `type … fan`, `type … duct`.
+Types: `type … ahu`, `type … fan`, `type … inlet`, `type … duct`.
 
-Kinds: `ahu`, `fan`, `air`.
+Kinds: `ahu`, `fan`, `air`, `inlet`, `over`.
 
 #### `type … ahu`
 
@@ -893,6 +983,17 @@ Decentral unit type (dezentrales Lüftungsgerät, Abluftventilator): type DZ-160
 |---|---|---|---|
 | flow | `flow=` | m³/h | air flow at the nominal level (required) |
 | hr | `hr=` |  | heat recovery efficiency, 0 to 1 |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … inlet`
+
+Outdoor air inlet type (Außenluftdurchlass, ALD): type ALD-30 inlet flow=30. flow: its air flow at the design pressure difference of the exhaust system, from the manufacturer.
+
+`type <name> inlet`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| flow | `flow=` | m³/h | air flow at the design pressure difference (required) |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … duct`
@@ -922,6 +1023,7 @@ A central ventilation unit with heat recovery in a room: ahu lg1 r3 at=w4+0.5,w3
 | z | `z=` | m | height of its duct connections above the FFL |
 | type | `type=` |  | unit type; default if left out |
 | via | `via=` |  | slab holes or voids its ducts change storey through |
+| sil | `sil=` | Pa | loss of the silencers on each side (supply, extract) at the design flow |
 
 #### `fan`
 
@@ -956,6 +1058,34 @@ An air terminal of a central unit (Luftdurchlass): in a room for supply or extra
 | s | `s=` | m | centre along a wall in any direction |
 | z | `z=` | m | height of its centre above the FFL |
 | src | `src=` |  | its central unit |
+| dp | `dp=` | Pa | its pressure loss at its design flow |
+
+#### `inlet`
+
+An outdoor air inlet (Außenluftdurchlass, ALD) through an exterior wall, for a room an exhaust system supplies: inlet al1 w1 x=W+2. Its type's flow counts as the room's supply. z= 2.0 if left out.
+
+`inlet <id> <host>` · ids `al1`, `al2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| type | `type=` |  | inlet type; default if left out |
+
+#### `over`
+
+An overflow opening (Überströmöffnung) in or under a door, for the air between the supply and the extract rooms: over ue1 d3 cut=0.01 (the door's undercut) or over ue2 d4 area=150 (an overflow element, free area in cm²).
+
+`over <id> <host>` · ids `ue1`, `ue2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | the door |
+| cut | `cut=` | m | the door's undercut |
+| area | `area=` | cm² | free area of an overflow element |
 
 ### Requests and waivers (`issues.uea`)
 
@@ -1026,10 +1156,13 @@ E is an error, W a warning.
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 | W-ARCH-060 | section outside the building (it cuts no wall) |
+| E-ARCH-070 | shaft whose highest storey is not above its lowest |
+| E-ARCH-071 | installation zone without a length |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
-| W-STRUCT-003 | beam that rests on fewer than two load-bearing walls |
+| W-STRUCT-003 | beam that rests on fewer than two load-bearing walls or columns |
 | W-STRUCT-004 | hole in a slab over the wall that carries the slab |
+| W-STRUCT-005 | column that carries no beam |
 | E-LIGHT-002 | luminaire on a wall without a usable face |
 | E-ELEC-001 | device outside its host wall |
 | E-ELEC-002 | device on a wall without a usable face |
@@ -1057,13 +1190,14 @@ E is an error, W a warning.
 | W-PLUMB-004 | riser or stack that nothing runs through |
 | W-PLUMB-005 | a second meter or sewer connection; the first one serves |
 | W-PLUMB-006 | pipe that passes a slab with no hole for it |
+| W-PLUMB-007 | circulation of a tank with no hot-water pipe but single branches |
 | E-VENT-002 | unit or terminal on a wall without a usable face, or outdoor or exhaust air in a room |
 | W-VENT-001 | ventilation unit without a type, and none of its kind is marked default |
 | W-VENT-002 | push-pull unit without a matching pair |
-| W-VENT-003 | decentral unit, or outdoor or exhaust air terminal, not on an exterior wall |
+| W-VENT-003 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, not on an exterior wall |
 | W-VENT-004 | air terminal with no central unit |
 | W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
-| W-VENT-006 | decentral unit, or outdoor or exhaust air terminal, with no hole through its wall |
+| W-VENT-006 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, with no hole through its wall |
 | W-VENT-007 | ducts that change storey through a slab with no hole for them |
 
 ## Calculators
@@ -1072,18 +1206,20 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|
-| `wofl` | norm | 0.1.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
+| `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
+| `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
-| `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
-| `hydronic` | norm | 0.1.1 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
+| `heatload` | norm | 0.3.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
+| `hydronic` | norm | 0.2.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
-| `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
-| `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
-| `loads` | norm | 0.2.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
-| `struct` | norm | 0.1.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
+| `recirc` | norm | 0.1.0 | DIN 1988-300:2012-05, Kurzverfahren der Zirkulation | Zirkulation |
+| `airflow` | norm | 0.2.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
+| `ducts` | norm | 0.2.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
+| `loads` | norm | 0.3.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
+| `struct` | norm | 0.2.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
 
 ### `cable` settings
 
@@ -1105,6 +1241,13 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `demand` | float | 1.0 | share of In taken as the current of a circuit with sockets, more than 0 and at most 1 |
 | `current` | str | auto | auto: declared load if the circuit has no socket, else In times demand; in: always In (auto / in) |
 
+### `equip` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `grade` | str | required | the equipment grade the client chose, as your table names it |
+| `combos` | str | one | a socket or data frame with several outlets counts as one, or each outlet counts (one / each) |
+
 ### `heatload` settings
 
 | Setting | Type | Default | Meaning |
@@ -1115,6 +1258,11 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+| `flow` | float |  | the system's design flow temperature, °C; with spread=, emitters of DIN EN 442 or 1264 values give their output at it |
+| `spread` | float |  | the system's design spread, K |
+| `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
+| `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
+| `insulation` | str |  | with a ventilation system: the building's insulation for its flows (DIN 1946-6, as airflow); the supply air then comes in warmed by the units' heat recovery (high / low) |
 
 ### `hydronic` settings
 
@@ -1126,7 +1274,11 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
-| `spread` | float | required | design spread between flow and return, K |
+| `flow` | float |  | the system's design flow temperature, °C; with spread=, emitters of DIN EN 442 or 1264 values give their output at it |
+| `spread` | float |  | the system's design spread, K |
+| `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
+| `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
+| `insulation` | str |  | with a ventilation system: the building's insulation for its flows (DIN 1946-6, as airflow); the supply air then comes in warmed by the units' heat recovery (high / low) |
 | `vmax` | float | required | the highest velocity in the heating pipes, m/s |
 
 ### `water` settings
@@ -1141,6 +1293,15 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|
 | `slope` | float | required | slope of the pipes under the building, % |
 | `building` | str | residential | building use, a row of the table drain-k |
+
+### `recirc` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `building` | str | residential | building use, a row of the table peak-flow |
+| `loss` | float | required | heat loss of the insulated hot-water pipes, W/m |
+| `dt` | float | required | the temperature drop the hot water may have to the far end, K |
+| `dead` | float | required | the most water a pipe without circulation may hold, l |
 
 ### `airflow` settings
 
@@ -1226,6 +1387,22 @@ One row for copper (cables NYM, NYY, ...) and one for aluminium (cables starting
 | `lambda` | num > 0 | reactance of the cable per length, mΩ/m |
 
 One row for each: material.
+
+#### `elec-minimum`: Minimum electrical equipment of a room (DIN 18015-2)
+
+One row per use, grade and area range. A use with no rows is not checked.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use as UEA names it: living, kitchen, bedroom, ... |
+| `grade` | text | equipment grade as the office's table names it, e.g. 1, 2, 3 |
+| `upto` | num > 0 | finished floor area up to, m²; the last row of a use covers any area |
+| `sock` | num ≥ 0 | socket outlets |
+| `light` | num ≥ 0 | lighting outlets |
+| `data` | num ≥ 0 | communication outlets (telephone, data, TV) |
+| `conn` | num ≥ 0 | dedicated connections (cooker, washing machine, ...) |
+
+One row for each: use, grade, upto.
 
 #### `material`: Thermal conductivity of building materials (DIN 4108-4, DIN EN ISO 10456, or the manufacturer's declared design value)
 
@@ -1431,6 +1608,17 @@ q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.
 
 One row for each: name.
 
+#### `vent-overflow`: Free area of the overflow openings by air flow (DIN 1946-6)
+
+Needed once vent.uea has overflow openings (over).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | air flow through the room's doors up to, m³/h |
+| `area` | num > 0 | free area the overflow openings need, cm² |
+
+One row for each: upto.
+
 #### `unit-weight`: Unit weights of building materials (DIN EN 1991-1-1, Anhang A, or the manufacturer)
 
 One row for each material the load-bearing walls, slabs, floors, partitions and roofs name. A layer of rafters with insulation between them: the weight of both, smeared over the layer.
@@ -1466,11 +1654,11 @@ One row for each: upto.
 
 #### `struct-factors`: Partial factors and design settings (DIN EN 1990/NA, Tabelle NA.A.1.2(B); DIN EN 1996-1-1/NA, 2.4.3, 3.7.1; DIN EN 1996-3/NA, 4.2.2.3; DIN EN 1992-1-1/NA, 2.4.2.4, 3.1.6, 3.2)
 
-gamma-g, gamma-q: γ_G and γ_Q; gamma-g-inf: γ_G of a favourable permanent action (the uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the distance of the reinforcement's axis from the face of a slab, m. Each calculation needs the rows it uses.
+gamma-g, gamma-q: γ_G and γ_Q; gamma-g-inf: γ_G of a favourable permanent action (the uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the distance of the reinforcement's axis from the face of a slab, m; crdc: C_Rd,c and vmin: the factor of v_min = vmin · k^1.5 · √f_ck of a slab without shear reinforcement; rho-min-ft and rho-min: a_s,min = max(rho-min-ft · f_ctm / f_yk, rho-min) · b · d. Each calculation needs the rows it uses.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `name` | text | which value (one of gamma-g, gamma-q, gamma-g-inf, gamma-m, zeta, rho2, gamma-c, alpha-cc, gamma-s, fyk, d1) |
+| `name` | text | which value (one of gamma-g, gamma-q, gamma-g-inf, gamma-m, zeta, rho2, gamma-c, alpha-cc, gamma-s, fyk, d1, crdc, vmin, rho-min-ft, rho-min) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
@@ -1524,13 +1712,28 @@ One row for each section the beams name.
 
 One row for each: name.
 
-#### `struct-limits`: Limits of the methods (DIN EN 1996-3/NA, 4.2.1.1; DIN EN 1992-1-1/NA, 5.4(NA.5); DIN EN 1990/NA, A.1.4 with the office's choice of deflection limit)
+#### `column-section`: Sections of columns (the manufacturer's tables or DIN EN 10365 (steel); DIN EN 1993-1-1, 6.3.1 (buckling curves))
 
-building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and clear-height (m): the conditions of the simplified method for masonry; xi: the largest x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam.
+One row for each section the columns use.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `name` | text | which limit (one of building-height, span, qk, clear-height, xi, deflection) |
+| `name` | text | the section, as the column names it |
+| `material` | text | a material of the beam-material table |
+| `a` | num > 0 | area A, cm² |
+| `imin` | num > 0 | the smaller second moment of area, cm⁴ |
+| `alpha` | num > 0 | imperfection factor α of its buckling curve about that axis |
+| `g` | num > 0 | weight, kN/m |
+
+One row for each: name.
+
+#### `struct-limits`: Limits of the methods (DIN EN 1996-3/NA, 4.2.1.1; DIN EN 1992-1-1/NA, 5.4(NA.5); DIN EN 1990/NA, A.1.4 with the office's choice of deflection limit)
+
+building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and clear-height (m): the conditions of the simplified method for masonry; xi: the largest x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam or a rafter; ld and ld-span: the slenderness of a slab, l/d ≤ ld and ≤ ld-span / l (l in m).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which limit (one of building-height, span, qk, clear-height, xi, deflection, ld, ld-span) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
@@ -1594,6 +1797,50 @@ f_d = k_mod · f_k / γ_M for bending and shear.
 | `e` | num > 0 | modulus of elasticity, N/mm² |
 | `gamma` | num > 0 | partial factor γ_M |
 | `kmod` | num > 0 | k_mod for the load duration of the design (1 for steel) |
+
+One row for each: material.
+
+#### `timber`: Strength classes of solid and glued laminated timber (DIN EN 338, DIN EN 14080; DIN EN 1995-1-1 with NA (k_mod, γ_M, k_cr, β_c))
+
+One row for each strength class the rafters and collar beams use.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the strength class, as a rafter names it: C24, GL24h, ... |
+| `fmk` | num > 0 | bending strength f_m,k, N/mm² |
+| `ft0k` | num > 0 | tension strength along the grain f_t,0,k, N/mm² |
+| `fc0k` | num > 0 | compression strength along the grain f_c,0,k, N/mm² |
+| `fvk` | num > 0 | shear strength f_v,k, N/mm² |
+| `e0mean` | num > 0 | mean modulus of elasticity E_0,mean, N/mm² |
+| `e005` | num > 0 | 5 % modulus of elasticity E_0,05, N/mm² |
+| `kmod` | num > 0 | k_mod for the roof's load duration and service class |
+| `gamma` | num > 0 | γ_M |
+| `kcr` | num > 0 | k_cr for the shear of cracked members |
+| `betac` | num > 0 | β_c, the straightness factor for buckling |
+
+One row for each: material.
+
+#### `wind-wall`: External pressure coefficients of the walls (DIN EN 1991-1-4, 7.2.2 and Tabelle 7.1, with NA)
+
+For the horizontal wind on the building (bracing): rows by h/d, the first that covers it.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | h/d up to |
+| `d` | num ≥ 0 | c_pe,10 of zone D, the wall the wind blows on |
+| `e` | num | c_pe,10 of zone E, the wall on the lee side, negative |
+
+One row for each: upto.
+
+#### `masonry-shear`: Shear strength of masonry (DIN EN 1996-1-1, 3.6.2, with NA)
+
+For the bracing walls: f_vk = min(f_vk0 + 0.4 · σ_d, f_vlt).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the core material of a wall, as its build-up names it |
+| `fvk0` | num > 0 | initial shear strength f_vk0, N/mm² |
+| `fvlt` | num > 0 | the limit of f_vk, N/mm² |
 
 One row for each: material.
 

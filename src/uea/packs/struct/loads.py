@@ -44,12 +44,14 @@ from uea.packs.struct.geometry import SAMPLE, BeamGeo, LoadGeo, StructGeo
 from uea.packs.struct.model import (
     Support,
     beam_bearings,
+    column_height,
     lowest,
     on_beam,
     slab_supports,
     stands_on,
 )
 from uea.packs.struct.tables import (
+    COLUMN_SECTION,
     FACTORS,
     IMPOSED,
     PARTITION,
@@ -62,7 +64,7 @@ from uea.packs.struct.tables import (
 
 __all__ = ["FACTORS", "IMPOSED", "LOADS", "PARTITION", "PSI", "SNOW", "UNIT_WEIGHT", "WIND"]
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 NORM = (
     "DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA;"
     " DIN EN 1990:2010-12 mit NA"
@@ -168,9 +170,27 @@ class BeamLoad:
     g_own: float
     """kN/m."""
     bearings: list[tuple[str, float]]
-    """The walls it rests on, at s along it."""
+    """The walls and columns it rests on, at s along it."""
     cases: dict[str, Case] = field(default_factory=lambda: {k: Case() for k in "gqsw"})
     reactions: dict[str, Act] = field(default_factory=dict[str, Act])
+
+
+@dataclass
+class ColumnLoad:
+    id: str
+    level: str
+    section: str
+    height: float
+    own: float
+    """kN, its own weight."""
+    top: Act = field(default_factory=Act)
+    """What its beams put on it."""
+    to: str = ""
+    """What it stands on: a support of the slab under it, or its pad footing."""
+
+    @property
+    def base(self) -> Act:
+        return Act(self.top.g + self.own, self.top.q, self.top.s, self.top.w)
 
 
 @dataclass
@@ -208,6 +228,7 @@ class Result:
     slabs: list[SlabLoad] = field(default_factory=list[SlabLoad])
     walls: dict[str, WallLoad] = field(default_factory=dict[str, WallLoad])
     beams: dict[str, BeamLoad] = field(default_factory=dict[str, BeamLoad])
+    columns: dict[str, ColumnLoad] = field(default_factory=dict[str, ColumnLoad])
     roofs: list[RoofLoad] = field(default_factory=list[RoofLoad])
     partitions: dict[str, float] = field(default_factory=dict[str, float])
     """kN/m of each light partition."""
@@ -404,9 +425,15 @@ def calculate(d: Derived, env: Env) -> Result:
             lines.append(_partition_line(w, per_m))
             continue
         surcharge[w.level] = max(surcharge.get(w.level, 0.0), float(row["qk"]))
-    # the beams
+    # the beams and the columns
     for b in sorted(sg.beams.values() if sg else [], key=lambda b: natural(b.id)):
-        res.beams[b.id] = _beam_load(g, b, env)
+        res.beams[b.id] = _beam_load(g, b, env, sg)
+    for c in sorted(sg.columns.values() if sg else [], key=lambda c: natural(c.id)):
+        row = env.table(COLUMN_SECTION).find(name=c.section)
+        if row is None:
+            raise ValueError(f"column-section has no row for {c.section} ({c.id}): add it")
+        h = column_height(g, c)
+        res.columns[c.id] = ColumnLoad(c.id, c.level, c.section, h, float(row["g"]) * h)
     # the slabs: their loads and who carries them
     supports: dict[str, list[Support]] = {}
     for sl in sorted(g.slabs.values(), key=lambda s: natural(s.id)):
@@ -520,6 +547,25 @@ def calculate(d: Derived, env: Env) -> Result:
                 per_m = base.times(f / max(s1 - s0, 1e-6))
                 for a in "gqsw":
                     res.beams[k].cases[a].uniform.append((s0, s1, per_m.get(a)))
+        for cl in [x for x in res.columns.values() if x.level == lv]:
+            if lv == first:
+                cl.to = "Einzelfundament"
+                continue
+            sup = supports.get(lv)
+            if not sup:
+                res.unsupported.append(cl.id)
+                continue
+            assert sg is not None
+            x, y = sg.columns[cl.id].at
+            s = nearest(sup, x, y)
+            cl.to = s.id
+            base = cl.base
+            if s.kind == "wall":
+                res.walls[s.id].top.add(base)
+            else:
+                at = g_beam(sg, s.id).s_of(x, y)
+                for a in "gqsw":
+                    res.beams[s.id].cases[a].points.append((at, base.get(a)))
         for bl in [x for x in res.beams.values() if x.level == lv]:
             _solve(res, bl)
     return res
@@ -548,11 +594,12 @@ def _partition_line(w: WallGeo, per_m: float) -> LoadGeo:
     return LoadGeo(w.id, w.level, per_m, 0.0, [(p.x, p.y) for p in pts], line.length)
 
 
-def _beam_load(g: ArchGeo, b: BeamGeo, env: Env) -> BeamLoad:
+def _beam_load(g: ArchGeo, b: BeamGeo, env: Env, sg: StructGeo | None) -> BeamLoad:
     row = env.table(SECTION).find(name=b.section)
     if row is None:
         raise ValueError(f"beam-section has no row for {b.section} ({b.id}): add it to the table")
-    bl = BeamLoad(b.id, b.level, b.section, b.length, float(row["g"]), beam_bearings(g, b))
+    bearings = beam_bearings(g, b, sg)
+    bl = BeamLoad(b.id, b.level, b.section, b.length, float(row["g"]), bearings)
     bl.cases["g"].uniform.append((0.0, b.length, bl.g_own))
     return bl
 
@@ -568,7 +615,10 @@ def _solve(res: Result, bl: BeamLoad) -> None:
     for i, (wid, _) in enumerate(bl.bearings):
         act = Act(*(eff[k].reactions[i] if k in eff else 0.0 for k in "gqsw"))
         bl.reactions[wid] = act
-        res.walls[wid].top.add(act)
+        if wid in res.columns:
+            res.columns[wid].top.add(act)
+        else:
+            res.walls[wid].top.add(act)
 
 
 def run(d: Derived, scope: str | None, env: Env) -> Output:
@@ -607,7 +657,11 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
             continue
         on = ", ".join(f"{k} {a.total:.1f} kN" for k, a in bl.reactions.items())
         lines.append(f"{bl.id} {bl.level} {bl.section} {bl.length:.2f} m on {on}")
+    for cl in res.columns.values():
+        lines.append(column_line(res, cl))
     for k in res.unsupported:
+        if k in res.columns:
+            continue
         if "." in k or k not in res.beams:
             lines.append(f"{k}: no load-bearing wall under it, its load not passed on (not ok)")
     for k in res.floating:
@@ -649,6 +703,15 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
         "beams": {
             bl.id: {k: a.data() for k, a in bl.reactions.items()} for bl in res.beams.values()
         },
+        "columns": {
+            c.id: {
+                "height": round(c.height, 3),
+                "own": round(c.own, 3),
+                **c.base.data(),
+                "to": c.to,
+            }
+            for c in res.columns.values()
+        },
         "partitions": {k: round(v, 3) for k, v in res.partitions.items()},
         "heavy": res.heavy,
     }
@@ -684,6 +747,21 @@ def roof_lines(res: Result, rl: RoofLoad) -> list[str]:
             f" uplift n_d {up:.2f} kN/m{anchor}"
         )
     return out
+
+
+def column_line(res: Result, cl: ColumnLoad) -> str:
+    b = cl.base
+    nd = res.ed(b)
+    on = cl.to or "nothing (not ok)"
+    pad = (
+        f", pad a ≥ {math.sqrt(nd / res.soil):.2f} m"
+        if res.soil and cl.to.startswith("Einzel")
+        else ""
+    )
+    return (
+        f"{cl.id} {cl.level} {cl.section} {cl.height:.2f} m: G {b.g:.1f} kN, Q {b.q:.1f} kN,"
+        f" N_d {nd:.1f} kN on {on}{pad}"
+    )
 
 
 def footing_line(res: Result, wl: WallLoad) -> str:
@@ -820,6 +898,21 @@ def report_body(res: Result, level: int = 2) -> list[str]:
             )
             out.append(f"- {bl.id} ({bl.section}, {de(bl.length, 2)} m): Auflager {on}")
         out.append("")
+    if res.columns:
+        out += [f"{h} Stützen", ""]
+        for c in res.columns.values():
+            b = c.base
+            out.append(
+                f"- {c.id} ({c.section}, {de(c.height, 2)} m, {c.level}): G {de(b.g, 1)} kN,"
+                f" Q {de(b.q, 1)} kN, S {de(b.s, 1)} kN, W {de(b.w, 1)} kN; N_d ="
+                f" {de(res.ed(b), 1)} kN auf {c.to or '–'}"
+                + (
+                    f", Einzelfundament a ≥ {de(math.sqrt(res.ed(b) / res.soil), 2)} m"
+                    if res.soil and c.to.startswith("Einzel")
+                    else ""
+                )
+            )
+        out.append("")
     out += [
         f"{h} Tragende Wände",
         "",
@@ -870,7 +963,9 @@ def report_body(res: Result, level: int = 2) -> list[str]:
         "- Dach: jede Dachfläche auf ihre Traufe (Sparrendach), Eigengewicht auf die Dachfläche,"
         " Schnee μ1(α)·s_k und Wind c_pe·q_p auf die Grundfläche; die Traufe auf die tragenden"
         " Wände unter ihr, im Dachgeschoss oder darunter.",
-        "- Unterzüge: Durchlaufträger auf den Wänden, die sie kreuzen, mit dem Programm PyNite.",
+        "- Unterzüge: Durchlaufträger auf den Wänden, die sie kreuzen, und den Stützen unter"
+        " ihnen, mit dem Programm PyNite. Stützen: auf die Decke unter ihnen wie eine Einzellast,"
+        " im untersten Geschoss auf ein Einzelfundament.",
         "- Wände: Eigengewicht aus dem Schichtaufbau und der Ansichtsfläche abzüglich Öffnungen;"
         " Weitergabe an die tragenden Wände und Unterzüge darunter nach der Überdeckung.",
         "- Kombination: γ_G·G + γ_Q·(Q_k,1 + Σ ψ0,i·Q_k,i) mit der Leiteinwirkung, die den größten"
@@ -894,5 +989,5 @@ LOADS = Calculator(
     run,
     NORM,
     PARAMS,
-    (UNIT_WEIGHT, IMPOSED, PARTITION, FACTORS, PSI, SNOW, WIND, SECTION),
+    (UNIT_WEIGHT, IMPOSED, PARTITION, FACTORS, PSI, SNOW, WIND, SECTION, COLUMN_SECTION),
 )

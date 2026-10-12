@@ -1,4 +1,4 @@
-"""Where the structural elements are (decision 0040): beams and loads in plan."""
+"""Where the structural elements are (decision 0040): beams, loads and columns in plan."""
 
 from dataclasses import dataclass, field
 
@@ -8,7 +8,7 @@ from shapely.geometry import Point as SPoint
 from uea.core.values import Point
 from uea.derive import Derived, GeoError
 from uea.packs.arch.geometry import Resolver
-from uea.packs.struct.kinds import Beam, Load
+from uea.packs.struct.kinds import Beam, Column, Load
 
 SAMPLE = 0.05
 """A line load is shared out as point loads this far apart (m)."""
@@ -55,9 +55,19 @@ class LoadGeo:
 
 
 @dataclass
+class ColumnGeo:
+    id: str
+    level: str
+    """The storey it stands in."""
+    section: str
+    at: tuple[float, float]
+
+
+@dataclass
 class StructGeo:
     beams: dict[str, BeamGeo] = field(default_factory=dict[str, BeamGeo])
     loads: dict[str, LoadGeo] = field(default_factory=dict[str, LoadGeo])
+    columns: dict[str, ColumnGeo] = field(default_factory=dict[str, ColumnGeo])
 
 
 def derive_struct(d: Derived) -> None:
@@ -94,3 +104,11 @@ def derive_struct(d: Derived) -> None:
             return LoadGeo(el.id, el.level.id, el.g, el.q, [(p.x, p.y) for p in pts], line.length)
 
         d.attempt(el.id, sg.loads, load)
+    for el in d.model.of_kind("column"):
+        assert isinstance(el, Column)
+
+        def column(el: Column = el) -> ColumnGeo:
+            arch.level(el.level.id)
+            return ColumnGeo(el.id, el.level.id, el.section, pt(el.at))
+
+        d.attempt(el.id, sg.columns, column)

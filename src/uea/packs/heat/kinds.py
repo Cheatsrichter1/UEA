@@ -92,18 +92,25 @@ class UfhType(_HeatType):
     doc: ClassVar[str] = (
         "Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100"
         " pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the"
-        " floor covering, from the manufacturer; max: the longest loop, connection lines"
+        " floor covering, from the manufacturer; or kh: the equivalent heat transmission"
+        " coefficient K_H for the floor covering (DIN EN 1264-2), and the calculators take"
+        " q = K_H · Δθ_H at the circuit's temperatures. max: the longest loop, connection lines"
         " included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic."
     )
     spacing: Annotated[float, F("pipe spacing", unit="m")]
-    q: Annotated[float, F("heat output per floor area", unit="W/m²")]
+    q: Annotated[float | None, F("heat output per floor area", unit="W/m²")] = None
     max: Annotated[float, F("longest loop, with its connection lines", unit="m")]
+    kh: Annotated[
+        float | None, F("equivalent heat transmission coefficient K_H", unit="W/(m²K)")
+    ] = None
     pipe: Annotated[Bores | None, F("the loop's pipe, outer diameter x wall", unit="mm")] = None
     k: Annotated[float | None, F("roughness of the loop's pipe", unit="mm")] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        self._positive("spacing", "q", "max", "k")
+        self._positive("spacing", "q", "max", "k", "kh")
+        if self.q is None and self.kh is None:
+            raise ValueError("give q= (W/m² at the design temperatures) or kh= (K_H)")
         if self.pipe is not None and (
             len(self.pipe.items) != 1 or self.pipe.items[0].dn is not None
         ):
@@ -115,15 +122,23 @@ class RadType(_HeatType):
     category: ClassVar[str | None] = "rad"
     doc: ClassVar[str] = (
         "Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's"
-        " design temperatures, from the manufacturer."
+        " design temperatures, from the manufacturer; or wn= and n=: the standard output at"
+        " 75/65/20 °C and the radiator exponent (DIN EN 442), and the calculators take the"
+        " output at the circuit's temperatures."
     )
-    w: Annotated[float, F("heat output at the design temperatures", unit="W")]
+    w: Annotated[float | None, F("heat output at the design temperatures", unit="W")] = None
+    wn: Annotated[float | None, F("standard output at 75/65/20 °C", unit="W")] = None
+    n: Annotated[float | None, F("radiator exponent n")] = None
     length: Annotated[float | None, F("length", unit="m")] = None
     height: Annotated[float | None, F("height", unit="m")] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        self._positive("w", "length", "height")
+        self._positive("w", "wn", "n", "length", "height")
+        if (self.wn is None) != (self.n is None):
+            raise ValueError("wn= and n= go together")
+        if self.w is None and self.wn is None:
+            raise ValueError("give w= (W at the design temperatures) or wn= and n= (DIN EN 442)")
         return self
 
 
@@ -198,7 +213,9 @@ class Man(Element):
     positional: ClassVar[tuple[str, ...]] = ("host", "src")
     doc: ClassVar[str] = (
         "A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device:"
-        " man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6."
+        " man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6. flow= and spread= its circuits'"
+        " design temperatures if not the system's; mix: a mixing valve with its own pump in"
+        " front of it (Mischerkreis), for circuits colder than the system."
     )
     host: Annotated[Ref, F("niche, or wall face", targets=("niche", "wall"))]
     src: Annotated[Ref, F("tank or generator it gets its heat from", targets=("tank", "gen"))]
@@ -213,7 +230,18 @@ class Man(Element):
         RefList | None,
         F("slab holes or voids its pipes change storey through", targets=("hole", "void")),
     ] = None
+    flow: Annotated[float | None, F("design flow temperature of its circuits", unit="°C")] = None
+    spread: Annotated[float | None, F("design spread of its circuits", unit="K")] = None
+    mix: Annotated[bool, F("a mixing valve and pump in front of it", flag=True)] = False
     default_z: ClassVar[float | None] = 0.6
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.spread is not None and self.spread <= 0:
+            raise ValueError("spread must be more than 0")
+        if self.mix and self.flow is None:
+            raise ValueError("a mixing circuit needs its flow= temperature")
+        return self
 
     @property
     def width(self) -> float:

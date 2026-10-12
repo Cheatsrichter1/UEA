@@ -58,7 +58,7 @@ The light pack holds the luminaires, as `0006-pack-order.md` says: `type … lum
 | W-ELEC-030 / 031 | a luminaire with no switch / switched from two circuits |
 | W-ELEC-040 | a board other than a media board has no RCD |
 
-`W-ELEC-010` is kept for the minimum equipment of a room (how many sockets, DIN 18015-2). It needs the office's table and comes with the calculators; without a table there is no such check. Issues sit on the device, so a waiver is `waive wv1 W-ELEC-004 s5 "Wunsch Bauherr"`.
+`W-ELEC-010` is kept for the minimum equipment of a room (how many sockets, DIN 18015-2). It needs the office's table and is the calculator `equip` (`0041-minimum-equipment.md`); without a table there is no such check. Issues sit on the device, so a waiver is `waive wv1 W-ELEC-004 s5 "Wunsch Bauherr"`.
 
 **Upstream changes.** A device is placed from anchors, so it follows when a wall, a window or a grid moves; the batch says `follows:` and reports the errors the move causes in elec, which stay open there (ARCHITECTURE §5). Door handing, turned by the architect, clears W-ELEC-012 the same way.
 

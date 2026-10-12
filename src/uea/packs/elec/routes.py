@@ -3,10 +3,12 @@
 The cable of a circuit is a tree that starts at its board and reaches every device and luminaire
 on it. The tree is the shortest one over the rectilinear distances (Prim's algorithm): a cable
 runs horizontally along the walls and vertically beside them, so a run is the sum of its legs in
-x, y and z, not the straight line. Each run gets a fixed allowance for the ends at both devices.
-Nothing here is stored; the lengths follow when a device, a wall or a storey moves.
+x, y and z, not the straight line. On a storey with installation zones a run follows them
+(decision 0045). Each run gets a fixed allowance for the ends at both devices. Nothing here is
+stored; the lengths follow when a device, a wall or a storey moves.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from uea.core.registry import natural
@@ -54,8 +56,14 @@ class Route:
         return max(((k, v) for k, v in self.reach.items()), key=lambda kv: (kv[1], kv[0]))
 
 
-def tree(board: str, at: dict[str, Mounted], things: list[str]) -> Route:
-    """The shortest cable tree from the board over the things that have a place.
+def tree(
+    board: str,
+    at: dict[str, Mounted],
+    things: list[str],
+    dist: Callable[[Mounted, Mounted], float] = gap,
+) -> Route:
+    """The shortest cable tree from the board over the things that have a place; `dist` the
+    length of a run (rectilinear, or along the installation zones, decision 0045).
 
     Ties go to the lower id, so the same model always gives the same tree.
     """
@@ -65,7 +73,7 @@ def tree(board: str, at: dict[str, Mounted], things: list[str]) -> Route:
     inside = [board]
     while left:
         best = min(
-            ((gap(at[u], at[v]), natural(v), natural(u), u, v) for u in inside for v in left),
+            ((dist(at[u], at[v]), natural(v), natural(u), u, v) for u in inside for v in left),
         )
         d, _, _, u, v = best
         length = d + ALLOW

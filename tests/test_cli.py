@@ -144,7 +144,7 @@ def test_calc(sh: Shell) -> None:
     assert "wofl  norm" in out
     code, out = sh("calc", "wofl")
     assert code == 0
-    assert out.splitlines()[0].startswith("norm wofl 0.1.0 · Wohnfläche per WoFlV · all")
+    assert out.splitlines()[0].startswith("norm wofl 0.2.0 · Wohnfläche per WoFlV · all")
     assert "Wohnfläche 69.22 m²" in out
     assert (sh.root / "out" / "wofl.md").exists()
     report = json.loads((sh.root / "out" / "wofl.json").read_text())

@@ -164,11 +164,13 @@ class Result:
 def builtin() -> dict[str, Calculator]:
     from uea.packs.arch.wofl import WOFL
     from uea.packs.elec.cable import CABLE
+    from uea.packs.elec.equip import EQUIP
     from uea.packs.elec.vdrop import VDROP
     from uea.packs.heat.heatload import HEATLOAD
     from uea.packs.heat.hydronic import HYDRONIC
     from uea.packs.heat.uvalue import UVALUE
     from uea.packs.plumb.drain import DRAIN
+    from uea.packs.plumb.recirc import RECIRC
     from uea.packs.plumb.water import WATER
     from uea.packs.struct.design import STRUCT
     from uea.packs.struct.loads import LOADS
@@ -181,11 +183,13 @@ def builtin() -> dict[str, Calculator]:
             WOFL,
             CABLE,
             VDROP,
+            EQUIP,
             UVALUE,
             HEATLOAD,
             HYDRONIC,
             WATER,
             DRAIN,
+            RECIRC,
             AIRFLOW,
             DUCTS,
             LOADS,

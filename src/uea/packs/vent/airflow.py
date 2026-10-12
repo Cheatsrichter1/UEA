@@ -26,10 +26,10 @@ from uea.calc.data import Col, Spec, Table
 from uea.core.registry import natural
 from uea.derive import Derived
 from uea.packs.arch.kinds import Room, RoomUse
-from uea.packs.vent.geometry import ahu_type, fan_flow
+from uea.packs.vent.geometry import ahu_type, fan_flow, inlet_flow
 from uea.packs.vent.kinds import Fan
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NORM = "DIN 1946-6:2019-12"
 USES: tuple[str, ...] = RoomUse.__args__  # type: ignore[attr-defined]
 LEVELS = ("fl", "rl", "nl", "il")
@@ -88,6 +88,17 @@ VENT_INF = Spec(
     ("name",),
     "q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.",
 )
+VENT_OVERFLOW = Spec(
+    "vent-overflow",
+    "Free area of the overflow openings by air flow",
+    "DIN 1946-6",
+    (
+        Col("upto", "num", "air flow through the room's doors up to, m³/h"),
+        Col("area", "num", "free area the overflow openings need, cm²"),
+    ),
+    ("upto",),
+    "Needed once vent.uea has overflow openings (over).",
+)
 PARAMS = (
     Param("n50", float, None, "air change rate at 50 Pa the building is to meet, 1/h"),
     Param("insulation", str, None, "thermal insulation of the building", ("high", "low")),
@@ -130,6 +141,11 @@ class Result:
     """Each central unit: supply, extract, and the largest flow of its type."""
     fans: float = 0.0
     """What the decentral units supply, m³/h."""
+    overflow: dict[str, tuple[float, float, list[str]]] = field(
+        default_factory=dict[str, tuple[float, float, list[str]]]
+    )
+    """Each supply and extract room, once vent.uea has overflow openings: the area it needs and
+    the area its doors have, cm², and the openings."""
 
     @property
     def system(self) -> bool:
@@ -188,7 +204,24 @@ def calculate(d: Derived, env: Env) -> Result:
             r.need = design * fr[r.id] / sum(fr.values())
     res = Result(area, volume, q, inf, design, rooms, inf < q["fl"])
     _against(d, res)
+    if d.vent.overflow:
+        _overflow(d, res, env.table(VENT_OVERFLOW))
     return res
+
+
+def _overflow(d: Derived, res: Result, table: Table) -> None:
+    """The overflow openings of each supply and extract room against the area its flow needs:
+    the air a supply room gets leaves through its doors, the air an extract room loses comes in
+    through them."""
+    rows = sorted(table.rows, key=lambda r: float(r["upto"]))
+    v = d.vent
+    for r in res.rooms:
+        if r.role not in ("supply", "extract") or r.need <= 0:
+            continue
+        hit = next((x for x in rows if r.need <= float(x["upto"]) + 1e-9), None)
+        need = float(hit["area"]) if hit is not None else float("inf")
+        mine = sorted((k for k, sides in v.over_rooms.items() if r.id in sides), key=natural)
+        res.overflow[r.id] = (need, sum(v.overflow[k] for k in mine), mine)
 
 
 def _against(d: Derived, res: Result) -> None:
@@ -198,6 +231,10 @@ def _against(d: Derived, res: Result) -> None:
         role = {"supply": "sup", "extract": "ext"}.get(r.role)
         if role is None:
             continue
+        inlets = [k for k in v.terminals.get(r.id, {}).get(role, []) if m[k].kind == "inlet"]
+        for k in inlets:
+            r.got += inlet_flow(d, m[k]) or 0.0
+            r.by.append(k)
         fans = [k for k in v.terminals.get(r.id, {}).get(role, []) if m[k].kind == "fan"]
         for k in fans:
             el = m[k]
@@ -256,6 +293,10 @@ def verdict(res: Result) -> tuple[bool, list[str]]:
         for u, (sup, ext, flow) in res.units.items():
             if flow is not None and max(sup, ext) > flow + 0.5:
                 short.append(f"{u} {max(sup, ext):.0f} m³/h over its {flow:g}")
+    for k, (need, has, _) in res.overflow.items():
+        if has < need - 1e-6:
+            what = f"{need:.0f} cm²" if need != float("inf") else "more than the table's last row"
+            short.append(f"{k} overflow {has:.0f} of {what}")
     return not short, short
 
 
@@ -283,6 +324,10 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
     for u, (sup, ext, flow) in res.units.items():
         cap = f" of {flow:g}" if flow is not None else ""
         lines.append(f"{u}: supply {sup:.0f}, extract {ext:.0f} m³/h{cap}")
+    for k, (need, has, by) in res.overflow.items():
+        if has < need - 1e-6:
+            what = f"{need:.0f}" if need != float("inf") else "?"
+            lines.append(f"{k} overflow {has:.0f} of {what} cm² ({', '.join(by) or 'none'})")
     data: dict[str, object] = {
         "area": round(res.area, 3),
         "volume": round(res.volume, 3),
@@ -298,6 +343,10 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
         "units": {
             u: {"supply": round(s, 2), "extract": round(e, 2), "flow": f}
             for u, (s, e, f) in res.units.items()
+        },
+        "overflow": {
+            k: {"need": None if n == float("inf") else round(n, 1), "has": round(h, 1), "by": b}
+            for k, (n, h, b) in res.overflow.items()
         },
         "short": short,
     }
@@ -378,6 +427,23 @@ def report(d: Derived, res: Result, env: Env, short: list[str]) -> str:
             ),
             "",
         ]
+    if res.overflow:
+        out += [
+            md_table(
+                ["Raum", "Überströmöffnungen", "vorhanden cm²", "erforderlich cm²"],
+                [
+                    [
+                        k,
+                        ", ".join(b) or "–",
+                        de(h, 0),
+                        de(n, 0) if n != float("inf") else "über der Tabelle",
+                    ]
+                    for k, (n, h, b) in res.overflow.items()
+                ],
+                right=(2, 3),
+            ),
+            "",
+        ]
     if res.fans:
         out += [
             f"Dezentrale Geräte: Zuluft im Mittel {de(res.fans, 0)} m³/h (Pendellüfter je zur"
@@ -405,11 +471,12 @@ def report(d: Derived, res: Result, env: Env, short: list[str]) -> str:
         "",
         "## Abweichungen und nicht abgebildet",
         "",
-        "- Eine Nutzungseinheit je Projekt. Keine Überströmöffnungen, keine Außenluftdurchlässe"
-        " einer Abluftanlage, keine Feuerstätten.",
+        "- Eine Nutzungseinheit je Projekt, keine Feuerstätten. Überströmöffnungen je Raum über"
+        " seine Türen (Tabelle `vent-overflow`), sobald das Modell welche hat; der Weg der Luft"
+        " durch die Überströmzone wird nicht verfolgt. Außenluftdurchlässe zählen mit dem"
+        " Volumenstrom ihres Typs zur Zuluft ihres Raums.",
         "- Die Infiltration nach der Formel oben mit den Faktoren der Tabelle, ohne"
         " Unterscheidung nach Anlagenart und Gebäudelage über die Tabelle hinaus.",
-        "- Die Lüftung geht nicht in die Heizlast ein (Wärmerückgewinnung).",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"
         " fachkundigen Person.",
@@ -426,5 +493,5 @@ AIRFLOW = Calculator(
     run,
     NORM,
     PARAMS,
-    (VENT_TOTAL, VENT_ROOM, VENT_INF),
+    (VENT_TOTAL, VENT_ROOM, VENT_INF, VENT_OVERFLOW),
 )

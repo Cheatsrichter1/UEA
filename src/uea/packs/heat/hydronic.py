@@ -27,18 +27,17 @@ from dataclasses import dataclass, field
 from uea.calc import Calculator, Env, Output, Param, de, md_table
 from uea.core.registry import natural
 from uea.derive import Derived
-from uea.packs.heat import heatload
+from uea.packs.heat import emitters, heatload
 from uea.packs.heat.geometry import heat_type
-from uea.packs.heat.kinds import GenType, HpipeType, UfhType
+from uea.packs.heat.kinds import GenType, HpipeType, Man, UfhType
 from uea.packs.hydraulics import full, heat_flow
 from uea.packs.net import Section
 from uea.packs.pipes import Bore
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 NORM = "Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09"
 PARAMS = (
     *heatload.PARAMS,
-    Param("spread", float, None, "design spread between flow and return, K"),
     Param("vmax", float, None, "the highest velocity in the heating pipes, m/s"),
 )
 
@@ -129,6 +128,23 @@ class Pump:
     index: str
     gen: float | None
     """The generator's own loss, if the pump drives one."""
+    mix: bool = False
+    """The pump of a mixing circuit, behind its mixing valve."""
+
+
+@dataclass
+class Mixer:
+    """A manifold with a mixing valve: colder circuits behind it, a smaller flow in front."""
+
+    man: str
+    flow: float
+    ret: float
+    primary: float
+    """The flow it draws from the system, l/s: Φ / (ρ c_p (θ_V,system − θ_R,circuit))."""
+    secondary: float
+    """The flow of its circuits, l/s."""
+    valve: float = 0.0
+    """What the mixing valve takes at the primary flow, hPa: the throttle of its branch."""
 
 
 @dataclass
@@ -141,6 +157,7 @@ class Result:
     pipes: list[Pipe] = field(default_factory=list[Pipe])
     ends: list[End] = field(default_factory=list[End])
     pumps: list[Pump] = field(default_factory=list[Pump])
+    mixers: list[Mixer] = field(default_factory=list[Mixer])
     hpipe: str = ""
     spread: float = 0.0
     vmax: float = 0.0
@@ -157,26 +174,52 @@ def kv(q: float, dp: float) -> float | None:
 
 def calculate(d: Derived, env: Env) -> Result:
     m, h = d.model, d.heat
+    if env.param("spread") is None:
+        raise ValueError("hydronic needs spread=<K>: the system's design spread")
     spread, vmax = float(env.param("spread")), float(env.param("vmax"))
+    system = env.param("flow")
     if spread <= 0 or vmax <= 0:
         raise ValueError("spread and vmax must be more than 0")
     if not any(h.emitters.values()):
         raise ValueError("there are no emitters: add ufh or rad to heat.uea")
     loads, _, _ = heatload.calculate(d, env)
-    room_phi = {r.id: r.phi for r in loads}
+    by_room = {r.id: r for r in loads}
     res = Result(spread=spread, vmax=vmax)
     for room, ems in sorted(h.emitters.items(), key=lambda kv: natural(kv[0])):
-        if room not in room_phi:
+        if room not in by_room:
             res.unheated += ems
             for e in ems:
                 res.phi[e], res.q[e] = 0.0, 0.0
             continue
-        out = {e: h.output.get(e, 0.0) for e in ems}
+        out = {k: o.w for k, o in heatload.outputs(d, by_room[room], env).items()}
         total = sum(out.values())
         for e in ems:
             share = out[e] / total if total > 0 else 1 / len(ems)
-            res.phi[e] = room_phi[room] * share
-            res.q[e] = heat_flow(res.phi[e], spread)
+            res.phi[e] = by_room[room].phi * share
+            t = emitters.temps_of(d, e, system, spread)
+            res.q[e] = heat_flow(res.phi[e], t.spread if t is not None else spread)
+    for el in sorted(m.of_kind("man"), key=lambda el: natural(el.id)):
+        if not isinstance(el, Man) or not el.mix:
+            continue
+        assert el.flow is not None
+        if system is None:
+            raise ValueError(f"{el.id} mixes: give flow=<°C>, the system's flow temperature")
+        ret = el.flow - (el.spread if el.spread is not None else spread)
+        if el.flow > system + 1e-9 or ret >= system:
+            raise ValueError(
+                f"{el.id} mixes to {el.flow:g} °C: it must be colder than the system's {system:g}"
+            )
+        phi = _phi(h.supplies, res.phi, el.id)
+        res.mixers.append(
+            Mixer(
+                el.id,
+                el.flow,
+                ret,
+                heat_flow(phi, system - ret),
+                sum(res.q.get(x, 0.0) for x in h.supplies.get(el.id, [])),
+            )
+        )
+    mixing = {x.man: x for x in res.mixers}
     hp = _hpipe(d) if h.nets else None
     if hp is not None:
         res.hpipe = hp.id
@@ -201,10 +244,15 @@ def calculate(d: Derived, env: Env) -> Result:
     def flow(k: str) -> float:
         if k in res.q:
             return res.q[k]
+        if k in mixing:
+            return mixing[k].primary
         return sum(flow(x) for x in h.supplies.get(k, []))
 
     def own(k: str) -> tuple[float, str]:
         mine = [c for c in res.circuits if c.man == k]
+        if k in mixing:
+            # its circuits are behind the mixing valve and its own pump
+            mine = []
         if not mine:
             return 0.0, k
         c = max(mine, key=lambda c: (c.pipe.dp, natural(c.el)))
@@ -238,6 +286,13 @@ def calculate(d: Derived, env: Env) -> Result:
         gt = heat_type(m, m[root], GenType, "gen") if m[root].kind == "gen" else None
         gdp = gt.dp if gt is not None else None
         res.pumps.append(Pump(root, flow(root), worst.need + (gdp or 0.0), worst.index, gdp))
+    for x in res.mixers:
+        end = next((e for e in res.ends if e.el == x.man), None)
+        x.valve = end.throttle if end is not None else 0.0
+        mine = [c for c in res.circuits if c.man == x.man]
+        if mine:
+            c = max(mine, key=lambda c: (c.pipe.dp, natural(c.el)))
+            res.pumps.append(Pump(x.man, x.secondary, c.pipe.dp, f"{x.man} {c.el}", None, True))
     return res
 
 
@@ -306,6 +361,13 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
     for e in res.ends:
         if e.throttle >= 1.0:
             lines.append(f"{e.el} on {e.net}: throttle {e.throttle:.0f} hPa")
+    for x in res.mixers:
+        k = kv(x.primary, x.valve)
+        valve = "valve open (index)" if k is None else f"valve {x.valve:.0f} hPa kv {k:.2f}"
+        lines.append(
+            f"mixer {x.man} {x.flow:g}/{x.ret:g} °C: {x.primary * 3600:.0f} l/h from the system,"
+            f" {x.secondary * 3600:.0f} l/h in its circuits, {valve}"
+        )
     for pu in res.pumps:
         gen = f", {pu.root} {pu.gen:.0f}" if pu.gen is not None else ""
         lines.append(
@@ -358,8 +420,26 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
             for e in res.ends
         ],
         "pumps": [
-            {"root": p.root, "q": round(p.q, 6), "head": round(p.head, 2), "index": p.index}
+            {
+                "root": p.root,
+                "q": round(p.q, 6),
+                "head": round(p.head, 2),
+                "index": p.index,
+                "mix": p.mix,
+            }
             for p in res.pumps
+        ],
+        "mixers": [
+            {
+                "man": x.man,
+                "flow": x.flow,
+                "ret": x.ret,
+                "primary": round(x.primary, 6),
+                "secondary": round(x.secondary, 6),
+                "valve": round(x.valve, 2),
+                "kv": None if (k := kv(x.primary, x.valve)) is None else round(k, 3),
+            }
+            for x in res.mixers
         ],
     }
     return Output(
@@ -479,6 +559,15 @@ def report(d: Derived, res: Result, env: Env) -> str:
             ),
             "",
         ]
+        for x in res.mixers:
+            k = kv(x.primary, x.valve)
+            out.append(
+                f"- **Mischer {x.man}:** {de(x.flow, 0)}/{de(x.ret, 0)} °C; aus dem System"
+                f" {de(x.primary * 3600, 0)} l/h, in den Heizkreisen {de(x.secondary * 3600, 0)}"
+                f" l/h; Mischventil "
+                + ("offen (ungünstigster Abnehmer)." if k is None else f"{de(x.valve, 0)} hPa,"
+                   f" kv {de(k, 2)} m³/h.")
+            )  # fmt: skip
         for p in res.pumps:
             gen = (
                 f", davon Wärmeerzeuger {de(p.gen, 0)} hPa"
@@ -488,7 +577,8 @@ def report(d: Derived, res: Result, env: Env) -> str:
                 )
             )
             out.append(
-                f"- **Pumpe {p.root}:** V̇ = {de(p.q * 3600, 0)} l/h, Förderhöhe"
+                f"- **{'Mischerpumpe' if p.mix else 'Pumpe'} {p.root}:** V̇ = {de(p.q * 3600, 0)}"
+                " l/h, Förderhöhe"
                 f" {de(p.head, 0)} hPa ({de(p.head / 98.1, 2)} m){gen}; ungünstigster Kreis"
                 f" {p.index}."
             )
@@ -522,12 +612,15 @@ def report(d: Derived, res: Result, env: Env) -> str:
         "",
         "## Abweichungen und nicht abgebildet",
         "",
-        "- Eine Spreizung für alle Heizflächen; keine Mischer, keine Vorlauftemperatur je Kreis.",
+        "- Spreizung und Vorlauftemperatur des Systems, oder des Heizkreisverteilers, wenn er"
+        " eigene angibt. Ein Mischerkreis bezieht aus dem System V̇ = Φ / (ρ · c_p · (θ_V,System"
+        " − θ_R,Kreis)); seine Kreise hinter dem Mischventil fördert eine eigene Pumpe, das"
+        " Mischventil nimmt den Drosselanteil seines Strangs.",
         "- Ohne Druckverlust von Verteiler, Heizkörper, Armaturen und Bögen der Heizkreise;"
         " ohne Mindest-Ventilautorität. Die Voreinstellung eines Ventils folgt aus kv und dem"
         " Diagramm des Herstellers.",
-        "- Fußbodenheizung: Leistung nach Herstellerangabe, nicht nach DIN EN 1264;"
-        " Heizkörper nicht nach DIN EN 442.",
+        "- Aufteilung der Raumheizlast auf die Heizflächen nach ihrer Leistung bei den"
+        " Temperaturen des Kreises (Typwert, DIN EN 442 oder DIN EN 1264, siehe Heizlast).",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"
         " fachkundigen Person.",
