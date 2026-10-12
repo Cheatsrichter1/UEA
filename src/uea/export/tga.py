@@ -180,7 +180,7 @@ class TgaPlan(InstallPlan):
         if bbox is None or not (self.here or self.ufh):
             return None
         need = dict.fromkeys("SNWE", 8.0)
-        self.dw.sheet = fit_sheet(bbox, need, strip=STRIP, fits=FITS_INSTALL)
+        self.dw.sheet = fit_sheet(bbox, need, strip=STRIP, fits=FITS_INSTALL, extra=self.north_room)
         self.cut_all = unary_union([w.poly for w in self.live])
         self.stair_zone = unary_union(
             [s.poly.buffer(self.sh.m(5.0)) for s in self.g.stairs.values() if s.level == self.level]
@@ -217,6 +217,7 @@ class TgaPlan(InstallPlan):
             nr = f"L-{self.g.level_order().index(self.level) + 1:02d}"
         self.legend(keys)
         self.caption(bbox, need)
+        self.north_arrow()
         self.title_block(self.heading, note, nr)
         return self.dw
 

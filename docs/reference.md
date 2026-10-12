@@ -96,7 +96,7 @@ Kinds: `project`, `level`, `grid`.
 
 #### `project`
 
-The project, one per project: project <name> "title" site=DE-HE postcode=64283 ground=-0.3
+The project, one per project: project <name> "title" site=DE-HE postcode=64283 ground=-0.3 north=12
 
 `project <name>`
 
@@ -105,6 +105,7 @@ The project, one per project: project <name> "title" site=DE-HE postcode=64283 g
 | site | `site=` |  | country and state as ISO 3166-2, e.g. DE-HE |
 | postcode | `postcode=` |  | postcode |
 | ground | `ground=` | m | terrain height relative to ±0.00, the ground storey's FFL |
+| north | `north=` | ° | true north, clockwise from the plan's +y axis; plans get a north arrow |
 
 #### `level`
 

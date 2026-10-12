@@ -2,21 +2,24 @@
 
 Rohbau plan at Entwurf level: cut walls as filled shapes with real openings, door swings and
 window symbols, stairs, room stamps, three dimension chains per side, grid axes with bubbles,
-the cut lines of the sections, a frame and a title block that stays unsigned. Lengths are chosen
-in mm on paper and turned into plan metres by the sheet's scale (`paper.py`).
+the cut lines of the sections, the roof over the storey dashed (its outline with the overhangs,
+its ridges, hips and valleys), the north arrow when the project gives `north=`, a frame and a
+title block that stays unsigned. Lengths are chosen in mm on paper and turned into plan metres by
+the sheet's scale (`paper.py`).
 
-Not drawn yet: a north arrow (the project has no north direction), windows above the cut plane
-as dashed outlines (every opening is drawn as cut), roofs, furniture.
+Not drawn yet: windows above the cut plane as dashed outlines (every opening is drawn as cut),
+furniture.
 """
 
 from itertools import pairwise
 
+import shapely
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
 from uea.derive import Derived
-from uea.export.drawing import Arc, Circle, Drawing, Line, Poly
+from uea.export.drawing import Arc, Circle, Drawing, Line, Poly, Pt
 from uea.export.paper import (
     BLACK,
     BUBBLE_R,
@@ -25,6 +28,7 @@ from uea.export.paper import (
     L_DOOR,
     L_FINISH,
     L_GRID,
+    L_ROOF,
     L_STAIR,
     L_TEXT,
     L_VOID,
@@ -47,7 +51,7 @@ from uea.export.paper import (
 from uea.export.plan import door_swing
 from uea.export.tables import USE_DE
 from uea.geom import polys
-from uea.packs.arch.geometry import HoleGeo, OpeningGeo, SectionGeo, WallGeo
+from uea.packs.arch.geometry import ArchGeo, HoleGeo, OpeningGeo, SectionGeo, WallGeo, roof_pieces
 from uea.packs.arch.kinds import Room
 from uea.packs.project import Grid
 
@@ -162,7 +166,7 @@ class PlanSheet(Paper):
             s: allowance(len(chains[s]), s in bubbles) + (MARK if s in marks else 0.0)
             for s in "SNWE"
         }
-        self.dw.sheet = fit_sheet(bbox, need)
+        self.dw.sheet = fit_sheet(bbox, need, extra=self.north_room)
         self.cut_all = unary_union([w.poly for w in self.live])
         # a stair with room for its label under it
         self.stair_zone = unary_union(
@@ -174,7 +178,9 @@ class PlanSheet(Paper):
         self.axes(bbox, grids, chains)
         self.section_marks(bbox, cuts, chains, bubbles)
         self.rooms()
+        self.roof_lines()
         self.caption(bbox, need)
+        self.north_arrow()
         lv = self.g.levels[self.level]
         okff = f"OKFF {height_text(lv.z)} m"
         if abs(lv.z) > 1e-9:
@@ -486,6 +492,19 @@ class PlanSheet(Paper):
                     at = (sc.coord, out if side == "N" else out - sh.m(3.5))
                 self.text(at, sc.id, 3.5, L_CUT, anchor=anchor, bold=True)
 
+    # the roof above
+
+    def roof_lines(self) -> None:
+        """The roof over this storey, as seen from below the cut: its outline with the overhangs
+        and the lines where its planes meet (ridge, hips, valleys, the break of a mansard),
+        dashed."""
+        if not self.g.roofs_on(self.level):
+            return
+        lines = roof_outline(self.g, self.level)
+        pen = self.pen(0.25, BLACK, (3.0, 1.5))
+        for a, b in lines:
+            self.dw.add(Line(a, b, pen, L_ROOF))
+
     # caption
 
     def caption(self, bbox: tuple[float, float, float, float], need: dict[str, float]) -> None:
@@ -509,6 +528,22 @@ def _cm(v: float) -> str:
 def _span(h: HoleGeo) -> tuple[float, float]:
     x0, y0, x1, y1 = h.poly.bounds
     return (x1 - x0, y1 - y0)
+
+
+def roof_outline(g: ArchGeo, level: str) -> list[tuple[Pt, Pt]]:
+    """The edges of the roofs over a storey on plan: the outline with the overhangs and the lines
+    where two planes meet. Pieces of one plane are merged, so no line runs inside a plane, and
+    straight runs are one segment, so a dash pattern runs on."""
+    by_plane: dict[tuple[float, float, float], list[Polygon]] = {}
+    for _, f, poly in roof_pieces(g, level):
+        by_plane.setdefault((round(f.a, 6), round(f.b, 6), round(f.c, 4)), []).append(poly)
+    edges = unary_union([unary_union(ps).boundary for ps in by_plane.values()])
+    merged = shapely.line_merge(edges)  # pyright: ignore[reportUnknownMemberType]
+    out: list[tuple[Pt, Pt]] = []
+    for ln in getattr(merged, "geoms", [merged]):
+        pts = list(ln.simplify(1e-6).coords)
+        out += [((a[0], a[1]), (b[0], b[1])) for a, b in pairwise(pts) if a != b]
+    return out
 
 
 def sheet_plan(d: Derived, level: str, stand: Stand | None = None) -> Drawing | None:

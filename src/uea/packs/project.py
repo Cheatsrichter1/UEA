@@ -13,11 +13,16 @@ class Project(Element):
     pack: ClassVar[str] = "project"
     doc: ClassVar[str] = (
         'The project, one per project: project <name> "title" site=DE-HE postcode=64283 ground=-0.3'
+        " north=12"
     )
     site: Annotated[str | None, F("country and state as ISO 3166-2, e.g. DE-HE")] = None
     postcode: Annotated[str | None, F("postcode")] = None
     ground: Annotated[
         float | None, F("terrain height relative to ±0.00, the ground storey's FFL", unit="m")
+    ] = None
+    north: Annotated[
+        float | None,
+        F("true north, clockwise from the plan's +y axis; plans get a north arrow", unit="°"),
     ] = None
 
 

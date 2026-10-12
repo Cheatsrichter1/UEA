@@ -19,12 +19,14 @@ from shapely.ops import unary_union
 
 from uea.derive import Derived
 from uea.export.drawing import Drawing
-from uea.export.paper import L_ROOF, L_VIEW, Chain, Stand, uniq
+from uea.export.paper import L_ROOF, L_VIEW, Chain, Stand, compass_de, uniq
 from uea.export.section import EPS, Face, Mark, SectionSheet, lines_of
 from uea.packs.arch.geometry import SectionGeo, WallGeo, roof_pieces
 
 SIDES = ("north", "east", "south", "west")
 DE = {"north": "Nord", "east": "Ost", "south": "Süd", "west": "West"}
+FACES = {"north": 0.0, "east": 90.0, "south": 180.0, "west": 270.0}
+"""The way each side of the plan faces, clockwise from the plan's +y axis."""
 LOOK: dict[str, tuple[Literal["x", "y"], Literal["n", "s", "e", "w"]]] = {
     "south": ("y", "n"),
     "north": ("y", "s"),
@@ -59,6 +61,11 @@ class _Elevation(SectionSheet):
         sc = SectionGeo(side, axis, coord + sign * STAND_OFF, look)
         super().__init__(d, sc, stand, f"Ansicht {DE[side]}")
         self.name = DE[side]
+        if self.north is not None:
+            # the side of the plan faces this way on the compass
+            self.name = compass_de(FACES[side] - self.north)
+            self.heading = f"Ansicht {self.name}"
+            self.dw.title = f"{self.project}: {self.heading}"
 
     @property
     def label(self) -> str | None:

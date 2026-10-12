@@ -219,7 +219,9 @@ class InstallPlan(PlanSheet):
             return None
         legend = self.legend_of()
         need = dict.fromkeys("SNWE", 8.0)
-        self.dw.sheet = fit_sheet(bbox, need, strip=legend.strip, fits=FITS_INSTALL)
+        self.dw.sheet = fit_sheet(
+            bbox, need, strip=legend.strip, fits=FITS_INSTALL, extra=self.north_room
+        )
         self.cut_all = unary_union([w.poly for w in self.live])
         self.stair_zone = unary_union(
             [s.poly.buffer(self.sh.m(5.0)) for s in self.g.stairs.values() if s.level == self.level]
@@ -234,6 +236,7 @@ class InstallPlan(PlanSheet):
             self.device(mt)
         self.draw_legend(legend)
         self.caption(bbox, need)
+        self.north_arrow()
         nr = f"E-{self.g.level_order().index(self.level) + 1:02d}"
         self.title_block(self.heading, "Symbole vereinfacht, in Anlehnung an DIN EN 60617", nr)
         return self.dw

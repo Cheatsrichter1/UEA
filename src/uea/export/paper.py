@@ -6,6 +6,7 @@ Lengths are chosen in mm on paper and turned into plan metres by the sheet's sca
 are built on `Paper`.
 """
 
+import math
 from dataclasses import dataclass
 from itertools import pairwise
 
@@ -13,7 +14,7 @@ from shapely.geometry import Polygon
 
 from uea import __version__
 from uea.derive import Derived
-from uea.export.drawing import Drawing, Line, Pen, Poly, Pt, Sheet, Text
+from uea.export.drawing import Circle, Drawing, Line, Pen, Poly, Pt, Sheet, Text
 
 PAPER = {"A3": (420.0, 297.0), "A2": (594.0, 420.0), "A1": (841.0, 594.0), "A0": (1189.0, 841.0)}
 FITS = (
@@ -58,6 +59,7 @@ L_ROOF = "A-DACH"
 L_TERRAIN = "A-GELAENDE"
 L_VIEW = "A-ANSICHT"
 L_CUT = "A-SCHNITT"
+L_NORTH = "A-NORDPFEIL"
 LAYER_COLORS = {
     L_LB: "#000000",
     L_NLB: "#404040",
@@ -76,6 +78,7 @@ LAYER_COLORS = {
     L_BLOCK: "#000000",
     L_SLAB: "#000000",
     L_ROOF: "#802020",
+    L_NORTH: "#000000",
     L_TERRAIN: "#706030",
     L_VIEW: "#606060",
     L_CUT: "#c00000",
@@ -91,6 +94,14 @@ BLOCK_W, BLOCK_H = 185.0, 55.0
 DIM_FIRST, DIM_STEP, DIM_TEXT = 10.0, 8.0, 2.0
 BUBBLE_R = 4.0
 CAPTION = 14.0
+NORTH_BOX = 24.0
+"""Height in mm of the band above the title block (and its legend) that holds the north arrow."""
+COMPASS_DE = ("Nord", "Nordost", "Ost", "Südost", "Süd", "Südwest", "West", "Nordwest")
+
+
+def compass_de(azimuth: float) -> str:
+    """The nearest of the eight compass points, in German, of a direction clockwise from north."""
+    return COMPASS_DE[round((azimuth % 360.0) / 45.0) % 8]
 
 
 def de(v: float, nd: int = 2) -> str:
@@ -251,7 +262,38 @@ class Paper:
         self.stand = stand
         proj = self.m.of_kind("project")
         self.project = (proj[0].label or proj[0].id) if proj else "UEA"
+        north = getattr(proj[0], "north", None) if proj else None
+        self.north: float | None = north
+        """True north, clockwise from the plan's +y axis in degrees; none if not given."""
         self.dw = Drawing(f"{self.project}: {title}")
+
+    @property
+    def north_room(self) -> float:
+        """Paper the north arrow needs above the title block, in mm, for `fit_sheet(extra=)`."""
+        return NORTH_BOX if self.north is not None else 0.0
+
+    def north_arrow(self, layer: str = L_NORTH) -> None:
+        """The north arrow in the band above the right end of the title block."""
+        if self.north is None:
+            return
+        sh = self.sh
+        _, y0, x1, _ = frame(sh.paper)
+        r = 7.0
+        cx, cy = x1 - NORTH_BOX / 2, y0 + BLOCK_H + NORTH_BOX / 2 - 1.5
+        t = math.radians(self.north)
+        ux, uy = math.sin(t), math.cos(t)
+        px, py = -uy, ux
+
+        def at(a: float, b: float) -> Pt:
+            return sh.pt(cx + a * ux + b * px, cy + a * uy + b * py)
+
+        pen = self.pen(0.25)
+        self.dw.add(Circle(sh.pt(cx, cy), sh.m(r), pen, None, layer))
+        tip, tail = at(r, 0.0), at(-r * 0.6, 0.0)
+        self.dw.add(Poly([tip, at(-r * 0.6, r * 0.42), tail], BLACK, pen, layer))
+        self.dw.add(Poly([tip, tail, at(-r * 0.6, -r * 0.42)], "#ffffff", pen, layer))
+        lx, ly = at(r + 3.2, 0.0)
+        self.dw.add(Text((lx, ly - sh.m(1.2)), "N", sh.m(3.0), BLACK, "middle", True, layer))
 
     @property
     def sh(self) -> Sheet:
