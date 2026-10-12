@@ -118,6 +118,7 @@ Buildings first: architecture, electrical, plumbing, heating, ventilation, light
 
 | File | Content |
 |---|---|
+| [`docs/wiki/`](docs/wiki/README.md) | A quick way in: getting started, concepts, code map, contributing |
 | `VISION.md` | What UEA is, why, and what it is not |
 | `CHANGELOG.md` | What each release contains |
 | `ARCHITECTURE.md` | How it is built: core, domain packs, file format, CLI, calculators, exports |

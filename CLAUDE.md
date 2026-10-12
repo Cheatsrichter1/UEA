@@ -14,6 +14,7 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `ROADMAP.md` | Phases up to the Einfamilienhaus demo, open questions |
 | `FUTURE.md` | Ideas beyond the first scope. Not planned. |
 | `CHANGELOG.md` | What each release contains; add an entry with every release |
+| `docs/wiki/` | A quick way in: getting started, concepts, code map, contributing; points to the files above |
 | `docs/decisions/` | One file per major decision, with alternatives and reasons |
 | `docs/prototype/` | Hand-written example projects that test the draft format; Haus Müller is the reference EFH |
 | `docs/validation/` | Validation report of each `norm` calculator |
