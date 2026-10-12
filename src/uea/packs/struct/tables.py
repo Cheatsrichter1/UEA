@@ -54,6 +54,10 @@ FACTOR_NAMES = (
     "gamma-s",
     "fyk",
     "d1",
+    "crdc",
+    "vmin",
+    "rho-min-ft",
+    "rho-min",
 )
 FACTORS = Spec(
     "struct-factors",
@@ -69,8 +73,10 @@ FACTORS = Spec(
     " uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of"
     " masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc"
     " of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the"
-    " distance of the reinforcement's axis from the face of a slab, m. Each calculation needs"
-    " the rows it uses.",
+    " distance of the reinforcement's axis from the face of a slab, m; crdc: C_Rd,c and vmin:"
+    " the factor of v_min = vmin · k^1.5 · √f_ck of a slab without shear reinforcement;"
+    " rho-min-ft and rho-min: a_s,min = max(rho-min-ft · f_ctm / f_yk, rho-min) · b · d. Each"
+    " calculation needs the rows it uses.",
 )
 LIMITS = Spec(
     "struct-limits",
@@ -82,14 +88,16 @@ LIMITS = Spec(
             "name",
             "text",
             "which limit",
-            ("building-height", "span", "qk", "clear-height", "xi", "deflection"),
+            ("building-height", "span", "qk", "clear-height", "xi", "deflection", "ld", "ld-span"),
         ),
         Col("value", "num", "its value"),
     ),
     ("name",),
     "building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and"
     " clear-height (m): the conditions of the simplified method for masonry; xi: the largest"
-    " x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam.",
+    " x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam"
+    " or a rafter; ld and ld-span: the slenderness of a slab, l/d ≤ ld and ≤ ld-span / l (l in"
+    " m).",
 )
 SNOW = Spec(
     "snow-shape",
@@ -204,4 +212,63 @@ LINTEL = Spec(
     ("type", "t", "span"),
     "UEA takes, for each opening, the first type in the table's order that carries the load"
     " over the span in a wall of that thickness.",
+)
+
+TIMBER = Spec(
+    "timber",
+    "Strength classes of solid and glued laminated timber",
+    "DIN EN 338, DIN EN 14080; DIN EN 1995-1-1 with NA (k_mod, γ_M, k_cr, β_c)",
+    (
+        Col("material", "text", "the strength class, as a rafter names it: C24, GL24h, ..."),
+        Col("fmk", "num", "bending strength f_m,k, N/mm²"),
+        Col("fc0k", "num", "compression strength along the grain f_c,0,k, N/mm²"),
+        Col("fvk", "num", "shear strength f_v,k, N/mm²"),
+        Col("e0mean", "num", "mean modulus of elasticity E_0,mean, N/mm²"),
+        Col("e005", "num", "5 % modulus of elasticity E_0,05, N/mm²"),
+        Col("kmod", "num", "k_mod for the roof's load duration and service class"),
+        Col("gamma", "num", "γ_M"),
+        Col("kcr", "num", "k_cr for the shear of cracked members"),
+        Col("betac", "num", "β_c, the straightness factor for buckling"),
+    ),
+    ("material",),
+    "One row for each strength class the rafters and collar beams use.",
+)
+COLUMN_SECTION = Spec(
+    "column-section",
+    "Sections of columns",
+    "the manufacturer's tables or DIN EN 10365 (steel); DIN EN 1993-1-1, 6.3.1 (buckling curves)",
+    (
+        Col("name", "text", "the section, as the column names it"),
+        Col("material", "text", "a material of the beam-material table"),
+        Col("a", "num", "area A, cm²"),
+        Col("imin", "num", "the smaller second moment of area, cm⁴"),
+        Col("alpha", "num", "imperfection factor α of its buckling curve about that axis"),
+        Col("g", "num", "weight, kN/m"),
+    ),
+    ("name",),
+    "One row for each section the columns use.",
+)
+WIND_WALL = Spec(
+    "wind-wall",
+    "External pressure coefficients of the walls",
+    "DIN EN 1991-1-4, 7.2.2 and Tabelle 7.1, with NA",
+    (
+        Col("upto", "num", "h/d up to"),
+        Col("d", "num", "c_pe,10 of zone D, the wall the wind blows on", sign="zero"),
+        Col("e", "num", "c_pe,10 of zone E, the wall on the lee side, negative", sign="any"),
+    ),
+    ("upto",),
+    "For the horizontal wind on the building (bracing): rows by h/d, the first that covers it.",
+)
+MASONRY_SHEAR = Spec(
+    "masonry-shear",
+    "Shear strength of masonry",
+    "DIN EN 1996-1-1, 3.6.2, with NA",
+    (
+        Col("material", "text", "the core material of a wall, as its build-up names it"),
+        Col("fvk0", "num", "initial shear strength f_vk0, N/mm²"),
+        Col("fvlt", "num", "the limit of f_vk, N/mm²"),
+    ),
+    ("material",),
+    "For the bracing walls: f_vk = min(f_vk0 + 0.4 · σ_d, f_vlt).",
 )

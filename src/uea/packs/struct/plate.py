@@ -26,6 +26,10 @@ MESH = 0.5
 ON_AXIS = 1e-6
 MERGE = 0.1
 """Grid lines closer than this are one line (m)."""
+CORNER = 0.75
+"""The shear is read this far from the corners of the supports (m): where two supports meet or
+one ends, a plate concentrates its corner forces, which the shear check does not take."""
+
 NU = 0.2
 """Poisson's ratio of uncracked concrete, DIN EN 1992-1-1, 3.1.3(4)."""
 
@@ -43,6 +47,20 @@ class Moments:
     elements: int = 0
     held: int = 0
     """Nodes held on a support."""
+    shear: float = 0.0
+    """The largest line reaction of a support away from its corners, kN/m: the shear at the
+    support (an interior support's from both sides, on the safe side)."""
+    at_shear: tuple[float, float] | None = None
+
+    def envelope(self, o: "Moments") -> None:
+        """Take the larger of each value of another case."""
+        for key in ("bottom_x", "bottom_y", "top_x", "top_y"):
+            if getattr(o, key) > getattr(self, key):
+                setattr(self, key, getattr(o, key))
+                if key in o.at:
+                    self.at[key] = o.at[key]
+        if o.shear > self.shear:
+            self.shear, self.at_shear = o.shear, o.at_shear
 
 
 def lines(lo: float, hi: float, marks: list[tuple[float, int]]) -> list[float]:
@@ -113,6 +131,10 @@ def _axis(g: ArchGeo, s: Support) -> BaseGeometry:
     return shapely.LineString(_ends(g, s))
 
 
+Points = list[tuple[float, float, float]]
+"""Point loads (x, y, kN), downward."""
+
+
 def analyse(
     g: ArchGeo,
     net: BaseGeometry,
@@ -120,10 +142,23 @@ def analyse(
     t: float,
     e: float,
     load: Callable[[float, float], float],
-    points: list[tuple[float, float, float]],
+    points: Points,
 ) -> Moments:
     """The design moments of a slab of thickness t (m) and modulus e (kN/m²) under the design
     area load `load(x, y)` (kN/m², downward) and point loads (x, y, kN)."""
+    return solve(g, net, supports, t, e, {"ULS": (load, points)})["ULS"]
+
+
+def solve(
+    g: ArchGeo,
+    net: BaseGeometry,
+    supports: list[Support],
+    t: float,
+    e: float,
+    cases: dict[str, tuple[Callable[[float, float], float], Points]],
+) -> dict[str, Moments]:
+    """The design moments and shear forces of a slab of thickness t (m) and modulus e (kN/m²)
+    under each case: a design area load (x, y) → kN/m² downward, and point loads."""
     net = region(g, net, supports)
     x0, y0, x1, y1 = net.bounds
     mx, my = _marks(g, net, supports)
@@ -151,7 +186,8 @@ def analyse(
             model.add_quad(
                 name, node(i, j), node(i + 1, j), node(i + 1, j + 1), node(i, j + 1), t, "c"
             )
-            model.add_quad_surface_pressure(name, -load(cx, cy), "D")
+            for case, (load, _) in cases.items():
+                model.add_quad_surface_pressure(name, -load(cx, cy), case)
             quads[name] = (cx, cy)
     if not quads:
         raise ValueError("the slab has no area to analyse")
@@ -166,25 +202,58 @@ def analyse(
     other = next((k for k in held if gx[k[0]] != gx[first[0]]), held[1])
     for k in held:
         model.def_support(used[k], k == first, k in (first, other), True, False, False, False)
-    for x, y, f in points:
-        best = min(used, key=lambda k: (gx[k[0]] - x) ** 2 + (gy[k[1]] - y) ** 2)
-        model.add_node_load(used[best], "FZ", -f, "D")
-    model.add_load_combo("ULS", {"D": 1.0})
+    for case, (_, points) in cases.items():
+        for x, y, f in points:
+            best = min(used, key=lambda k: (gx[k[0]] - x) ** 2 + (gy[k[1]] - y) ** 2)
+            model.add_node_load(used[best], "FZ", -f, case)
+        model.add_load_combo(case, {case: 1.0})
     try:
         model.analyze_linear(check_stability=False, check_statics=False)
     except Exception as ex:  # a singular plate: it is not held
         raise ValueError(f"the plate cannot be solved ({type(ex).__name__}): is it held?") from None
-    out = Moments(elements=len(quads), held=len(held))
-    for name, (cx, cy) in quads.items():
-        m = model.quads[name].moment(0.0, 0.0, True, "ULS")
-        mxx, myy, mxy = -float(m[0][0]), -float(m[1][0]), abs(float(m[2][0]))
-        for key, v in (
-            ("bottom_x", mxx + mxy),
-            ("bottom_y", myy + mxy),
-            ("top_x", -mxx + mxy),
-            ("top_y", -myy + mxy),
-        ):
-            if v > getattr(out, key):
-                setattr(out, key, v)
-                out.at[key] = (cx, cy)
+    corners: list[SPoint] = []
+    for i, a in enumerate(axes):
+        corners += [SPoint(c) for c in shapely.get_coordinates(a)[[0, -1]]]
+        for b in axes[i + 1 :]:
+            hit = a.intersection(b)
+            corners += [SPoint(c) for c in shapely.get_coordinates(hit)]
+    # each support's held nodes in order along it, with the length each stands for
+    along: list[list[tuple[str, float, SPoint]]] = []
+    for a in axes:
+        on = sorted(
+            (
+                (used[k], float(a.project(SPoint(gx[k[0]], gy[k[1]]))), SPoint(gx[k[0]], gy[k[1]]))
+                for k in held
+                if a.distance(SPoint(gx[k[0]], gy[k[1]])) <= ON_AXIS
+            ),
+            key=lambda x: x[1],
+        )
+        along.append(on)
+    out: dict[str, Moments] = {}
+    for case in cases:
+        res = out[case] = Moments(elements=len(quads), held=len(held))
+        for name, (cx, cy) in quads.items():
+            quad = model.quads[name]
+            m = quad.moment(0.0, 0.0, True, case)
+            mxx, myy, mxy = -float(m[0][0]), -float(m[1][0]), abs(float(m[2][0]))
+            for key, v in (
+                ("bottom_x", mxx + mxy),
+                ("bottom_y", myy + mxy),
+                ("top_x", -mxx + mxy),
+                ("top_y", -myy + mxy),
+            ):
+                if v > getattr(res, key):
+                    setattr(res, key, v)
+                    res.at[key] = (cx, cy)
+        for on in along:
+            for i, (nm, s_at, pt) in enumerate(on):
+                if any(c.distance(pt) < CORNER for c in corners):
+                    continue
+                lo = (s_at - on[i - 1][1]) / 2 if i > 0 else 0.0
+                hi = (on[i + 1][1] - s_at) / 2 if i + 1 < len(on) else 0.0
+                if lo + hi <= 0:
+                    continue
+                r = float(model.nodes[nm].RxnFZ[case]) / (lo + hi)
+                if r > res.shear:
+                    res.shear, res.at_shear = r, (pt.x, pt.y)
     return out

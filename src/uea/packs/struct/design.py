@@ -4,10 +4,12 @@ strip footings and the holes in load-bearing members, as one calculation to sign
 A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved as follows:
 
     roof     the loads on the walls under its eaves and the uplift at the eaves (loads)
-    slab     a plate on the solver (plate.py) under γ_G·g + γ_Q·q of the rooms on it; design
-             moments m ± |m_xy| (Wood-Armer) at the elements' middles; per direction and face
-             μ = m / (d²·f_cd), ω = 1 − √(1 − 2μ), a_s = ω·d·f_cd / f_yd, x/d = ω / λ ≤ xi
-             (rectangular stress block, λ = 0.8, η = 1, DIN EN 1992-1-1, 3.1.7(3))
+    slab     a plate on the solver (plate.py) under γ_G·g + γ_Q·q of the rooms on it, all rooms
+             and alternate rooms loaded; design moments m ± |m_xy| (Wood-Armer) at the
+             elements' middles; per direction and face μ = m / (d²·f_cd), ω = 1 − √(1 − 2μ),
+             a_s = ω·d·f_cd / f_yd, x/d = ω / λ ≤ xi (rectangular stress block, λ = 0.8, η = 1,
+             DIN EN 1992-1-1, 3.1.7(3)), at least a_s,min (9.2.1.1); shear v_Ed ≤ v_Rd,c
+             (6.2.2); slenderness l/d ≤ min(ld, ld-span / l) (7.4.2 with NA)
     beam     a continuous beam on the solver: M_Ed ≤ W·k_mod·f_k/γ_M, V_Ed ≤ A_v·k_mod·f_v,k/γ_M,
              the deflection under the characteristic loads ≤ L/n
     wall     DIN EN 1996-3, 4.2.2: N_Ed ≤ N_Rd = Φ·f_d·t per metre of the wall without its
@@ -23,6 +25,7 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+import shapely
 from shapely.geometry import LineString
 from shapely.geometry import Point as SPoint
 from shapely.geometry.base import BaseGeometry
@@ -51,7 +54,7 @@ from uea.packs.struct.loads import (
     VERSION as LOADS_VERSION,
 )
 from uea.packs.struct.model import Support, slab_supports
-from uea.packs.struct.plate import MESH, Moments, analyse
+from uea.packs.struct.plate import MESH, Moments, solve
 from uea.packs.struct.positions import Pos, positions
 from uea.packs.struct.tables import (
     BEAM_MATERIAL,
@@ -226,15 +229,19 @@ class Design:
         fcd = f.value("alpha-cc") * fck / f.value("gamma-c") * 1000
         fyd = f.value("fyk") / f.value("gamma-s") * 1000
         xi_max = f.limit("xi")
-        m = analyse(
-            self.g,
-            sl.net,
-            sup,
-            t,
-            ecm * 1000,
-            _area_load(f, load),
-            [(x, y, f.design(a)) for x, y, a in load.points],
-        )
+        points = [(x, y, f.design(a)) for x, y, a in load.points]
+        cases = {
+            name: (_area_load(f, load, rooms), points) for name, rooms in _patterns(load).items()
+        }
+        each = solve(self.g, sl.net, sup, t, ecm * 1000, cases)
+        m = Moments()
+        for got in each.values():
+            m.envelope(got)
+            m.elements, m.held = got.elements, got.held
+        # the minimum reinforcement, DIN EN 1992-1-1, 9.3.1.1 with 9.2.1.1 (9.1N); f_ctm by
+        # Tabelle 3.1 for f_ck ≤ 50
+        fctm = 0.30 * fck ** (2 / 3)
+        as_min = max(f.value("rho-min-ft") * fctm / f.value("fyk"), f.value("rho-min")) * dd * 1e4
         rows: list[list[str]] = []
         ok = True
         worst = 0.0
@@ -253,6 +260,8 @@ class Design:
                 need[key] = math.inf
                 continue
             xi, a_s = got
+            if key.startswith("bottom"):
+                a_s = max(a_s, as_min)
             good = xi <= xi_max + 1e-9
             ok = ok and good
             worst = max(worst, xi / xi_max)
@@ -269,21 +278,50 @@ class Design:
                     ("ok" if good else "zu groß") + where,
                 ]
             )
+        # shear without shear reinforcement, DIN EN 1992-1-1, 6.2.2 (6.2a, 6.2b), with ρ_l of
+        # the minimum reinforcement (on the safe side)
+        k = min(1 + math.sqrt(0.2 / dd), 2.0)
+        rho_l = min(as_min / (dd * 1e4), 0.02)
+        v_c = f.value("crdc") * k * (100 * rho_l * fck) ** (1 / 3)
+        v_min = f.value("vmin") * k**1.5 * math.sqrt(fck)
+        v_rd = max(v_c, v_min) * dd * 1000
+        eta_v = m.shear / v_rd
+        ok = ok and eta_v <= 1 + 1e-9
+        # the slenderness instead of a deflection calculation, DIN EN 1992-1-1/NA, 7.4.2
+        l_i = field_span(self.g, sl.net, sup)
+        lim = min(f.limit("ld"), f.limit("ld-span") / l_i) if l_i > 0 else math.inf
+        eta_l = (l_i / dd) / lim if l_i > 0 else 0.0
+        ok = ok and eta_l <= 1 + 1e-9
+        eta = max(worst, eta_v, eta_l)
         line = (
             f"{p.no} {p.id} slab h {t:.2f}: a_s bottom x {need['bottom_x']:.2f} y"
             f" {need['bottom_y']:.2f}, top x {need['top_x']:.2f} y {need['top_y']:.2f} cm²/m,"
-            f" x/d {worst * xi_max:.2f} ≤ {xi_max:g} {'ok' if ok else 'NOT OK'}"
+            f" x/d {worst * xi_max:.2f} ≤ {xi_max:g}, v_Ed {m.shear:.1f}/v_Rd,c {v_rd:.1f} kN/m,"
+            f" l/d {l_i / dd:.1f} ≤ {lim:.1f} {'ok' if ok else 'NOT OK'}"
         )
         md = [
             *_slab_md(sl.id, t, dd, mat, fck, fcd, fyd, m, sup),
+            f"Lastfälle: {', '.join(PATTERN_DE.get(k, k) for k in cases)}; je Wert der"
+            " ungünstigste.",
             "",
             md_table(
                 ["Bewehrung", "m_Ed kNm/m", "μ_Ed", "x/d", "erf. a_s cm²/m", ""],
                 rows,
                 right=(1, 2, 3, 4),
             ),
+            "",
+            f"Mindestbewehrung unten: a_s,min = max({de(f.value('rho-min-ft'), 2)} · f_ctm / f_yk,"
+            f" {de(f.value('rho-min'), 4)}) · b · d = {de(as_min, 2)} cm²/m (f_ctm ="
+            f" {de(fctm, 2)} N/mm²).",
+            f"Querkraft ohne Querkraftbewehrung: v_Ed = {de(m.shear, 1)} kN/m"
+            + (f" bei x {de(m.at_shear[0], 2)}, y {de(m.at_shear[1], 2)}" if m.at_shear else "")
+            + f"; k = {de(k, 3)}, ρ_l = {de(rho_l, 4)}, v_Rd,c = max({de(v_c, 3)}, v_min ="
+            f" {de(v_min, 3)}) N/mm² · d = {de(v_rd, 1)} kN/m; η = {de(eta_v, 2)}.",
+            f"Biegeschlankheit: größte kürzere Stützweite eines Feldes l = {de(l_i, 2)} m,"
+            f" l/d = {de(l_i / dd, 1)} ≤ min({de(f.limit('ld'), 0)},"
+            f" {de(f.limit('ld-span'), 0)}/l) = {de(lim, 1)}; η = {de(eta_l, 2)}.",
         ]
-        return Proof(p, ok, worst, line, md)
+        return Proof(p, ok, eta, line, md)
 
     # ---------- beam ----------
 
@@ -537,7 +575,38 @@ def _combos(f: Factors, cases: dict[str, Case]) -> dict[str, dict[str, float]]:
     return out
 
 
-def _area_load(f: Factors, s: SlabLoad) -> Callable[[float, float], float]:
+PATTERN_DE = {
+    "all": "Nutzlast überall",
+    "odd": "Nutzlast feldweise (Räume der einen Gruppe)",
+    "even": "Nutzlast feldweise (Räume der anderen Gruppe)",
+}
+
+
+def _patterns(s: SlabLoad) -> dict[str, set[str] | None]:
+    """The load cases of a slab: the imposed load on every room, and on alternate rooms (two
+    groups of rooms, neighbours across a wall in different groups as far as two groups allow;
+    rooms that meet at a corner are not neighbours)."""
+    rooms = sorted(s.room_loads, key=lambda r: natural(r.id))
+    group: dict[str, int] = {}
+    for r in rooms:
+        near = {
+            group[o.id]
+            for o in rooms
+            if o.id in group and r.poly.buffer(0.6).intersection(o.poly).area > 0.1
+        }
+        group[r.id] = 0 if 0 not in near else (1 if 1 not in near else 0)
+    odd = {k for k, v in group.items() if v == 0}
+    even = {k for k, v in group.items() if v == 1}
+    out: dict[str, set[str] | None] = {"all": None}
+    if odd and even:
+        out["odd"], out["even"] = odd, even
+    return out
+
+
+def _area_load(
+    f: Factors, s: SlabLoad, loaded: set[str] | None = None
+) -> Callable[[float, float], float]:
+    """γ_G·g everywhere and γ_Q·q on the rooms loaded (all if None)."""
     gg, gq = f.value("gamma-g"), f.value("gamma-q")
     rooms = s.room_loads
 
@@ -546,10 +615,38 @@ def _area_load(f: Factors, s: SlabLoad) -> Callable[[float, float], float]:
         q = gg * s.g_slab
         for r in rooms:
             if r.poly.contains(p):
-                return q + gg * r.g + gq * (r.q + s.partition)
+                on = loaded is None or r.id in loaded
+                return q + gg * r.g + (gq * (r.q + s.partition) if on else 0.0)
         return q
 
     return load
+
+
+def field_span(g: ArchGeo, net: BaseGeometry, supports: list[Support]) -> float:
+    """The largest of the fields' shorter spans: from points 0.5 m apart in the fields (not over
+    a wall that carries the slab), the distance between the support axes on either side, across
+    x and across y, the shorter of the two."""
+    axes = [_axis(g, s) for s in supports]
+    over = shapely.union_all([s.shape for s in supports if s.kind == "wall"])  # pyright: ignore[reportUnknownMemberType]
+    net = net.difference(over)
+    x0, y0, x1, y1 = net.bounds
+    out = 0.0
+    x = x0 + 0.25
+    while x < x1:
+        y = y0 + 0.25
+        while y < y1:
+            if net.contains(SPoint(x, y)):
+                spans: list[float] = []
+                for u in ((1.0, 0.0), (0.0, 1.0)):
+                    a = _ray(axes, (x, y), u)
+                    b = _ray(axes, (x, y), (-u[0], -u[1]))
+                    if a is not None and b is not None:
+                        spans.append(a + b)
+                if spans:
+                    out = max(out, min(spans))
+            y += 0.5
+        x += 0.5
+    return out
 
 
 def _wall_openings(g: ArchGeo, wall: str) -> list[OpeningGeo]:
@@ -733,8 +830,9 @@ def report(d: Derived, des: Design) -> str:
         "",
         "- Dachtragwerk (Sparren, Pfetten, Kehlbalken) und seine Verankerung im Einzelnen.",
         "- Aussteifung des Gebäudes und Horizontallasten aus Wind.",
-        "- Decken: Mindest- und Robustheitsbewehrung, Querkraft, Durchstanzen, Begrenzung der"
-        " Verformung und der Rissbreite; Lastanordnung feldweise; Bodenplatte.",
+        "- Decken: Robustheitsbewehrung, Begrenzung der Rissbreite, Verformung über die"
+        " Biegeschlankheit hinaus; Durchstanzen entfällt, die Decken sind linienförmig gelagert;"
+        " Bodenplatte.",
         "- Wände: Teilflächenpressung unter Sturz- und Trägerauflagern, Wände unter der obersten"
         " Decke (Φ3), Kellerwände mit Erddruck.",
         "- Fundamente: Grundbruch, Setzungen und Bemessung des Betons; Frosttiefe.",

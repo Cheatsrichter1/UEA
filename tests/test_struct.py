@@ -52,13 +52,15 @@ IMPOSED_T = (
 PARTS = "upto,qk\n4,0.7\n6,1.1\n"
 FAC = (
     "name,value\ngamma-g,1.3\ngamma-q,1.4\ngamma-g-inf,0.9\ngamma-m,1.6\nzeta,0.8\nrho2,0.7\n"
-    "gamma-c,1.6\nalpha-cc,0.8\ngamma-s,1.2\nfyk,480\nd1,0.03\n"
+    "gamma-c,1.6\nalpha-cc,0.8\ngamma-s,1.2\nfyk,480\nd1,0.03\ncrdc,0.12\nvmin,0.04\n"
+    "rho-min-ft,0.25\nrho-min,0.0012\n"
 )
 PSI_T = "action,psi0\nimposed,0.65\nsnow,0.45\nwind,0.55\n"
 SNOW_T = "pitch,mu1\n0,0.7\n30,0.7\n60,0\n"
 WIND_T = "pitch,pressure,suction\n0,0,-0.6\n30,0.4,-0.4\n45,0.6,-0.2\n"
 LIMITS_T = (
     "name,value\nbuilding-height,18\nspan,8\nqk,4.5\nclear-height,2.8\nxi,0.4\ndeflection,250\n"
+    "ld,33\nld-span,145\n"
 )
 MASONRY_T = "material,fk\nmw,4\nks,9.5\nziegel-t9,3.2\n"
 END_T = "upto,phi\n5,0.75\n8,0.45\n"
@@ -220,7 +222,9 @@ def test_on_the_command_line(sh: Shell, tables: None) -> None:
     code, out = sh("help", "struct")
     assert "calc struct: the Statische Berechnung" in out and "beam " in out
     code, out = sh("calc", "struct", "soil=150")
-    assert code == 0 and "2.01 sl2 slab h 0.20" in out and "3.01 w1 EG base" in out, out
+    # the box's slab spans 7.7 m with 0.2 m: too slender (test_slab_checks), so the result fails
+    assert code == 1 and "2.01 sl2 slab h 0.20" in out and "3.01 w1 EG base" in out, out
+    assert "l/d 45.3 ≤ 18.8 NOT OK" in out
     code, out = sh("export", "pdf", "struct")
     assert code == 0 and "struct.pdf A4" in out, out
     code, out = sh("export", "svg", "struct:EG")
@@ -344,12 +348,27 @@ def navier(q: float, a: float, b: float, nu: float = 0.2) -> tuple[float, float]
     return mx, my
 
 
+def edge_shear(q: float, a: float, b: float, nu: float = 0.2) -> float:
+    """The support's line reaction (Kirchhoff's effective shear V_y = Q_y + ∂M_xy/∂x) in the
+    middle of the edge y = b of a simply supported rectangle a x b under q (series)."""
+    out = 0.0
+    for m in range(1, 201, 2):
+        for n in range(1, 201, 2):
+            am, bn = m * math.pi / a, n * math.pi / b
+            w = 16 * q / (math.pi**2 * m * n) / (am**2 + bn**2) ** 2
+            out += w * math.sin(am * a / 2) * (bn**3 + (2 - nu) * am**2 * bn)
+    return out
+
+
 def test_plate() -> None:
     # sl2 on the axes of w1..w4: a 9.7 x 7.7 rectangle, under 12 kN/m² everywhere
     d, _ = derive_text(HOUSE)
     sl = d.arch.slabs["sl2"]
     m = analyse(d.arch, sl.net, slab_supports(d.arch, sl), 0.2, 30e6, lambda x, y: 12.0, [])
     mx, my = navier(12.0, 9.7, 7.7)
+    # the shear: the line reaction in the middle of the long edge, within 1 % of the series
+    assert m.shear == pytest.approx(edge_shear(12.0, 9.7, 7.7), rel=0.01)
+    assert m.at_shear == pytest.approx((5.0, 7.85))
     # the plate ends at the exterior walls' axes; at the elements' middles: within 1 %, and
     # m_x + |m_xy| peaks off the middle, toward the corners
     assert m.bottom_y == pytest.approx(my, rel=0.01)
@@ -366,6 +385,46 @@ def test_bending_and_slenderness() -> None:
     assert bending(300, 0.17, 14000, 400000)[1] is None
     # h_ef / t = 6.3: 0.85 - 0.0011 · 39.69 = 0.806341
     assert slenderness(6.3) == pytest.approx(0.806341)
+
+
+def test_slab_checks(tables: None) -> None:
+    d, _ = derive_text(HOUSE)
+    o = run(STRUCT, d, None)
+    line = next(x for x in o.lines if " sl2 slab" in x)
+    # d = 0.2 - 0.03; f_ctm = 0.3 · 28^(2/3); a_s,min = max(0.25 · f_ctm / 480, 0.0012) · d
+    dd = 0.17
+    fctm = 0.3 * 28 ** (2 / 3)
+    as_min = max(0.25 * fctm / 480, 0.0012) * dd * 1e4
+    assert as_min == pytest.approx(2.449, abs=1e-3)
+    # shear: k = min(1 + √(200/170), 2) = 2, ρ_l = a_s,min / (b d); v_Rd,c the larger of
+    # 0.12 · k · (100 ρ_l f_ck)^(1/3) and v_min = 0.04 · k^1.5 · √28, times d
+    rho = as_min / (dd * 1e4)
+    v_c = 0.12 * 2 * (100 * rho * 28) ** (1 / 3)
+    v_min = 0.04 * 2**1.5 * math.sqrt(28)
+    assert v_min > v_c
+    assert f"/v_Rd,c {v_min * dd * 1000:.1f} kN/m" in line
+    # slenderness: the field 9.7 x 7.7 between the axes, l = 7.7; l/d = 45.3 against
+    # min(33, 145 / 7.7) = 18.8: too slender
+    assert f"l/d {7.7 / dd:.1f} ≤ {145 / 7.7:.1f} NOT OK" in line
+    # the plate is loaded in three cases: every room, and alternate rooms (r1 alone here: the
+    # pattern needs two groups, so one case)
+    assert "Lastfälle: Nutzlast überall;" in o.report
+
+
+def test_load_patterns() -> None:
+    from uea.packs.struct.design import _patterns  # pyright: ignore[reportPrivateUsage]
+    from uea.packs.struct.loads import RoomLoad, SlabLoad
+
+    box = __import__("shapely").box
+    rooms = [
+        RoomLoad("r1", box(0, 0, 4, 4), 1, 2),
+        RoomLoad("r2", box(4.2, 0, 8, 4), 1, 2),
+        RoomLoad("r3", box(0, 4.2, 4, 8), 1, 2),
+        RoomLoad("r4", box(4.2, 4.2, 8, 8), 1, 2),
+    ]
+    s = SlabLoad("sl", "OG", 64, 5, 0, 0, 0, 0, room_loads=rooms)
+    # a checkerboard: r1 and r4 against r2 and r3
+    assert _patterns(s) == {"all": None, "odd": {"r1", "r4"}, "even": {"r2", "r3"}}
 
 
 def test_walls_and_lintels(tables: None) -> None:
