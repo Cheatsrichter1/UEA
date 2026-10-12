@@ -164,6 +164,7 @@ class Result:
 def builtin() -> dict[str, Calculator]:
     from uea.packs.arch.wofl import WOFL
     from uea.packs.elec.cable import CABLE
+    from uea.packs.elec.equip import EQUIP
     from uea.packs.elec.vdrop import VDROP
     from uea.packs.heat.heatload import HEATLOAD
     from uea.packs.heat.hydronic import HYDRONIC
@@ -181,6 +182,7 @@ def builtin() -> dict[str, Calculator]:
             WOFL,
             CABLE,
             VDROP,
+            EQUIP,
             UVALUE,
             HEATLOAD,
             HYDRONIC,

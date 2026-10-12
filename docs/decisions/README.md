@@ -44,6 +44,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0038 | [Ventilation, phase 7](0038-ventilation.md) | Accepted (phase 7 built) |
 | 0039 | [Openings without a fill](0039-openings-without-a-fill.md) | Accepted (built) |
 | 0040 | [Structure, phase 8](0040-structure.md) | Proposed (slices 8a to 8d built, not reviewed) |
+| 0041 | [Minimum electrical equipment of a room](0041-minimum-equipment.md) | Proposed |
 
 Template:
 

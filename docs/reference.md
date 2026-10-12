@@ -1076,6 +1076,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `wofl` | norm | 0.1.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
+| `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
 | `hydronic` | norm | 0.1.1 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
@@ -1105,6 +1106,13 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `cos` | float | 1.0 | power factor of the load, more than 0 and at most 1 |
 | `demand` | float | 1.0 | share of In taken as the current of a circuit with sockets, more than 0 and at most 1 |
 | `current` | str | auto | auto: declared load if the circuit has no socket, else In times demand; in: always In (auto / in) |
+
+### `equip` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `grade` | str | required | the equipment grade the client chose, as your table names it |
+| `combos` | str | one | a socket or data frame with several outlets counts as one, or each outlet counts (one / each) |
 
 ### `heatload` settings
 
@@ -1227,6 +1235,22 @@ One row for copper (cables NYM, NYY, ...) and one for aluminium (cables starting
 | `lambda` | num > 0 | reactance of the cable per length, mΩ/m |
 
 One row for each: material.
+
+#### `elec-minimum`: Minimum electrical equipment of a room (DIN 18015-2)
+
+One row per use, grade and area range. A use with no rows is not checked.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use as UEA names it: living, kitchen, bedroom, ... |
+| `grade` | text | equipment grade as the office's table names it, e.g. 1, 2, 3 |
+| `upto` | num > 0 | finished floor area up to, m²; the last row of a use covers any area |
+| `sock` | num ≥ 0 | socket outlets |
+| `light` | num ≥ 0 | lighting outlets |
+| `data` | num ≥ 0 | communication outlets (telephone, data, TV) |
+| `conn` | num ≥ 0 | dedicated connections (cooker, washing machine, ...) |
+
+One row for each: use, grade, upto.
 
 #### `material`: Thermal conductivity of building materials (DIN 4108-4, DIN EN ISO 10456, or the manufacturer's declared design value)
 

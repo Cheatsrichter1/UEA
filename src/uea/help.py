@@ -183,6 +183,10 @@ uea calc cable method=B2 [scope] [insulation=PVC temp=<C> group=<n> arrangement=
 uea calc vdrop limit=<%> [scope] [reserve=1.2 cos=1 demand=1 current=auto|in]
                         voltage drop from the board to the farthest device (norm; table
                         conductor). Length: the derived cable length (uea get c1) times reserve
+uea calc equip grade=<g> [scope] [combos=one|each]
+                        each room's sockets, lighting, data outlets and connections against its
+                        minimum (DIN 18015-2, norm; table elec-minimum by use, grade and area).
+                        Scope: a storey or a room. A waiver of W-ELEC-010 on a room accepts it
 uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
