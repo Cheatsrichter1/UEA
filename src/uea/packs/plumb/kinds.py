@@ -2,10 +2,11 @@
 connection (decision 0035).
 
 A fixture stands on a wall face or in a room. The drinking water comes from the meter, the hot
-water from a storage tank of the heating that heats drinking water; risers carry both up through
-the storeys. The waste water runs to a stack (Fallleitung) or straight to the sewer connection.
-The pipes between them are derived, not written. The types carry the pipe systems' sizes and
-values from the manufacturer; the catalogue values in examples are placeholders, not design data.
+water from a storage tank of the heating that heats drinking water, kept warm by a circulation;
+risers carry both up through the storeys. The waste water runs to a stack (Fallleitung) or
+straight to the sewer connection. The pipes between them are derived, not written. The types
+carry the pipe systems' sizes and values from the manufacturer; the catalogue values in examples
+are placeholders, not design data.
 """
 
 from typing import Annotated, ClassVar, Literal, Self
@@ -234,6 +235,27 @@ class Sewer(Element):
     ] = None
 
 
+class Recirc(Element):
+    kind: ClassVar[str] = "recirc"
+    pack: ClassVar[str] = "plumb"
+    prefix: ClassVar[str | None] = "zk"
+    positional: ClassVar[tuple[str, ...]] = ("tank",)
+    doc: ClassVar[str] = (
+        "A hot-water circulation (Zirkulation) of a tank that heats drinking water: recirc zk1"
+        " t1. Its pipe runs back beside the tank's hot-water pipes, all but the branches that"
+        " end at a single fixture (Einzelzuleitungen)."
+        " Flows, sizes and the pump: uea calc recirc."
+    )
+    tank: Annotated[Ref, F("the storage tank", targets=("tank",))]
+    type: Annotated[
+        Ref | None,
+        F(
+            "pipe system of the circulation; the default pipe type if left out",
+            targets=("type:pipe",),
+        ),
+    ] = None
+
+
 KINDS: tuple[type[Element], ...] = (
     PipeType,
     DrainType,
@@ -242,4 +264,5 @@ KINDS: tuple[type[Element], ...] = (
     Riser,
     Stack,
     Sewer,
+    Recirc,
 )

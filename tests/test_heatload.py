@@ -282,7 +282,7 @@ def test_heatload_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 0, out
     code, out = sh("calc", "heatload", "tb=0.05", "n50=3", "shielding=moderate")
     assert code == 0, out
-    assert out.splitlines()[0].startswith("norm heatload 0.2.0 · Heizlast raumweise · all")
+    assert out.splitlines()[0].startswith("norm heatload 0.3.0 · Heizlast raumweise · all")
     assert "report: out/heatload.md" in out
     md = (sh.root / "out" / "heatload.md").read_text()
     assert "# Heizlast: Box" in md and "| Normtabellen |" in md

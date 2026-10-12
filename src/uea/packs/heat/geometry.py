@@ -67,7 +67,8 @@ class HeatGeo:
     """What each generator, tank and manifold supplies, in id order."""
     loops: dict[str, Loops] = field(default_factory=dict[str, Loops])
     output: dict[str, float] = field(default_factory=dict[str, float])
-    """Heat output of each emitter at the design temperatures, W (from its type)."""
+    """Heat output of each emitter at the design temperatures, W, where its type gives it (w=,
+    q=); a type with DIN EN 442 or 1264 values gets its output from the calculators."""
     emitters: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
     """The emitters of each room."""
     too_far: list[str] = field(default_factory=list[str])
@@ -122,7 +123,8 @@ def derive_heat(d: Derived) -> None:
         t = heat_type(m, el, RadType, "rad")
         mt = h.at.get(el.id)
         if t is not None:
-            h.output[el.id] = t.w
+            if t.w is not None:
+                h.output[el.id] = t.w
             if mt is not None and t.length:
                 mt.width = t.length
         if mt is not None and mt.room is not None:
@@ -131,7 +133,7 @@ def derive_heat(d: Derived) -> None:
         assert isinstance(el, Ufh)
         lp = h.loops.get(el.id)
         t = heat_type(m, el, UfhType, "ufh")
-        if lp is not None and t is not None:
+        if lp is not None and t is not None and t.q is not None:
             h.output[el.id] = t.q * lp.area
         h.emitters.setdefault(el.room.id, []).append(el.id)
     for lst in h.emitters.values():

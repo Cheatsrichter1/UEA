@@ -170,6 +170,7 @@ def builtin() -> dict[str, Calculator]:
     from uea.packs.heat.hydronic import HYDRONIC
     from uea.packs.heat.uvalue import UVALUE
     from uea.packs.plumb.drain import DRAIN
+    from uea.packs.plumb.recirc import RECIRC
     from uea.packs.plumb.water import WATER
     from uea.packs.struct.design import STRUCT
     from uea.packs.struct.loads import LOADS
@@ -188,6 +189,7 @@ def builtin() -> dict[str, Calculator]:
             HYDRONIC,
             WATER,
             DRAIN,
+            RECIRC,
             AIRFLOW,
             DUCTS,
             LOADS,

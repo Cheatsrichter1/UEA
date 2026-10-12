@@ -151,7 +151,9 @@ storeys (each riser and stack through a hole in the slab); hot water from the ne
 heat.uea whose type is dhw; waste water from each fixture to its stack (to=, else the nearest on
 its storey) or the sewer connection, down the stack and under the floor to the sewer. Each
 network is the shortest tree over the rectilinear distances, a lower bound like the cables. uea
-get shows each fixture's way. Pipe sizes: uea calc water and uea calc drain (help calc).
+get shows each fixture's way. recirc <tank> keeps the hot water warm: its pipe runs back beside
+the hot-water pipes up to the branches to single fixtures. Pipe sizes: uea calc water, uea calc
+drain, uea calc recirc (help calc).
 """
 
 VENT_NOTES = """\
@@ -190,10 +192,13 @@ uea calc equip grade=<g> [scope] [combos=one|each]
 uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
-                  [groundwater=deep|shallow te=<C> tme=<C>]
+                  [groundwater=deep|shallow te=<C> tme=<C> flow=<C> spread=<K> floor=<C>
+                  bathfloor=<C>]
                         Heizlast room by room (norm). tb: thermal bridge surcharge. Scope: a
                         storey or a room. Room temperatures by use and theta_e by postcode come
-                        from the office's tables (uea data)
+                        from the office's tables (uea data). flow, spread: the system's design
+                        temperatures, for emitter types of DIN EN 442 (wn= n=) or 1264 (kh=);
+                        floor: the highest floor surface temperature of underfloor heating
 uea calc water [building=residential]
                         drinking-water pipe sizes and each fixture's pressure (norm). Flows by
                         fixture, the peak flow and vmax from the office's tables; the supply
@@ -201,9 +206,14 @@ uea calc water [building=residential]
 uea calc drain slope=<%> [building=residential]
                         waste-water pipe sizes and the branch lengths (norm); slope: the pipes
                         under the building
-uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s>
+uea calc recirc loss=<W/m> dt=<K> dead=<l> [building=residential]
+                        the hot-water circulation (norm): flows from the pipes' heat loss and
+                        the temperature drop, circulation pipe sizes, the pump head and each
+                        end's valve; dead: the most water a branch without circulation holds
+uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s> [flow=<C>]
                         heating pipe sizes and the hydraulic balance on each room's Heizlast
-                        (norm): valve and kv per circuit, throttles, pump heads
+                        (norm): valve and kv per circuit, throttles, pump heads; a manifold's
+                        own flow= spread= and its mixing valve (mix: needs the system's flow=)
 uea calc airflow n50=<1/h> insulation=high|low
                         the dwelling's air flows (DIN 1946-6, norm), whether a ventilation
                         measure is needed, each room's flow against the units in vent.uea

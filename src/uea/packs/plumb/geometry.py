@@ -9,6 +9,8 @@ the rectilinear distances, so a pipe runs along x, y and z, and its length is a 
   reaches joins the nearest pipe directly.
 - Hot water: from each tank that heats drinking water to the fixtures that take hot water and
   have it as their nearest such tank, the same way.
+- Circulation: beside the hot-water sections back to the tank (`recirc`), all but the branches
+  that end at a fixture and serve only it.
 - Waste water: each fixture runs to its stack (Fallleitung) on its storey or to the sewer
   connection: to=, else the nearest in plan. The fixtures on one stack and storey form a tree to
   it (the branches, Anschlussleitungen); the stack runs down to its foot; the feet run to the
@@ -28,7 +30,7 @@ from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import TankType
 from uea.packs.mount import Mounted, Mounts
 from uea.packs.net import Crossing, Net, Node, finish, gap, grow, node_of, through, vertical
-from uea.packs.plumb.kinds import OUTLET_Z, Meter, Riser, San, Sewer, Stack
+from uea.packs.plumb.kinds import OUTLET_Z, Meter, Recirc, Riser, San, Sewer, Stack
 
 PLACED = ("meter", "riser", "stack", "sewer", "san")
 
@@ -51,6 +53,8 @@ class PlumbGeo:
     """Fixtures whose waste water has nowhere to go, and why."""
     crossings: list[Crossing] = field(default_factory=list[Crossing])
     """Where the pipes pass the slabs (decision 0039)."""
+    recirc: dict[str, Net] = field(default_factory=dict[str, Net])
+    """By tank: the hot-water sections its circulation runs beside (decision 0042)."""
 
 
 def derive_plumb(d: Derived) -> None:
@@ -90,6 +94,11 @@ def derive_plumb(d: Derived) -> None:
         if ends:
             p.hot[t] = supply(d, node[t], ends, risers)
     p.drain = drainage(d, [el for el in fixtures if el.drains], node)
+    for el in m.of_kind("recirc"):
+        assert isinstance(el, Recirc)
+        hot = p.hot.get(el.tank.id)
+        if hot is not None and el.tank.id not in p.recirc:
+            p.recirc[el.tank.id] = circulated(hot)
     for net in (p.cold, *p.hot.values(), p.drain):
         if net is not None:
             p.crossings += through(d, net)
@@ -166,6 +175,12 @@ def supply(d: Derived, root: Node, ends: list[Node], risers: list[Node]) -> Net:
     grow(net, done, list(done), [e.id for e in ends], "pipe")
     finish(net, {e.id for e in ends})
     return net
+
+
+def circulated(hot: Net) -> Net:
+    """The part of a hot-water tree a circulation keeps warm: every section but the branches that
+    end at a fixture and serve only it (Einzelzuleitungen)."""
+    return Net(hot.root, hot.nodes, [s for s in hot.sections if s.serves != [s.b]])
 
 
 def drainage(d: Derived, fixtures: list[San], node: dict[str, Node]) -> Net | None:

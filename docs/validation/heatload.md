@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `heatload` 0.2.0, kind `norm` |
+| Calculator | `heatload` 0.3.0, kind `norm` |
 | Standard | DIN EN 12831-1:2017-09 with the national supplement DIN/TS 12831-1:2020-04 |
 | Code | `src/uea/packs/heat/heatload.py`; surfaces from `envelope.py`, U-values from `thermal.py` (`docs/validation/uvalue.md`) |
 | Tests | `tests/test_heatload.py` |
@@ -12,7 +12,7 @@ All numbers of the standards come from the office's tables or are the planner's 
 
 ## What it computes
 
-For each heated room: the transmission heat loss Φ_T, the ventilation heat loss Φ_V and the design heat load Φ_HL = Φ_T + Φ_V, with every surface listed. For the whole project, the building's heat load. Once `heat.uea` has emitters, each heated room's emitters against its load and the generators against the building's (`docs/decisions/0034-heating-elements.md`): their output is the manufacturer's, from the type, not calculated per DIN EN 1264 or DIN EN 442; a shortfall makes the result fail. The record is `out/heatload.json`, the report for humans `out/heatload.md`.
+For each heated room: the transmission heat loss Φ_T, the ventilation heat loss Φ_V and the design heat load Φ_HL = Φ_T + Φ_V, with every surface listed. For the whole project, the building's heat load. Once `heat.uea` has emitters, each heated room's emitters against its load and the generators against the building's (`docs/decisions/0034-heating-elements.md`): their output is the type's at the design temperatures (`w=`, `q=`), or, for types with the manufacturer's test values, calculated per DIN EN 442-2 (radiators, `wn=` and `n=`) and DIN EN 1264-2 (underfloor heating, `kh=`) at the circuit's temperatures (the manifold's `flow=`/`spread=`, else the settings `flow=` and `spread=`); a shortfall makes the result fail. With `floor=` (and `bathfloor=` for baths and WCs), an underfloor heating whose mean floor surface temperature is above the limit fails too (`docs/decisions/0042-heating-and-hot-water-details.md`). The record is `out/heatload.json`, the report for humans `out/heatload.md`.
 
 ## Formulas as implemented
 
@@ -66,6 +66,7 @@ Synthetic tables of our own (`tests/test_heatload.py`): θ_e −10 °C, θ_m,e 1
 | `test_an_unheated_room_and_the_terrain` | r2 an unheated storage room at 5 °C, terrain 0.5 m above the FFL | to r2: U + 0.05, f = 0.5; the west wall 7.4 × 0.5 m² to the ground with f = 1.45 × 10/30, 7.4 × 2.5 m² to outside air |
 | `test_settings_and_tables_are_checked` | missing settings, tables, postcode, room use; n50 0; an unknown shielding; `te=`/`tme=` given | stops and names what is missing; with `te`/`tme`, no table `outdoor` needed |
 | `test_a_window_without_a_u_value` | window type without `uw=` | stops and names the window and its type |
+| `test_radiator_and_floor_at_their_temperatures` (`tests/test_emitters.py`) | radiator wn 1000 W, n 1.3 in r2 at 18 °C; underfloor kh 6 in r1 at 20 °C; system 55/45 | Φ = 1000 · (Δθ/Δθ_n)^1.3 with Δθ = 10/ln(37/27), Δθ_n = 10/ln(55/45); q = 6 · 10/ln(35/25); θ_F,m = 20 + (q/8.92)^(1/1.1); with floor=29 it fails; without temperatures no output |
 | `test_the_envelope_of_haus_mueller` | the reference house | no unknown neighbours; floors cover every room; the kitchen's outside walls are its two shell lengths × 2.875 m |
 
 ## Changes
@@ -74,3 +75,4 @@ Synthetic tables of our own (`tests/test_heatload.py`): θ_e −10 °C, θ_m,e 1
 |---|---|
 | 0.1.0 | First version |
 | 0.2.0 | Emitters and generators against the loads (`test_emitters_against_the_heat_load` in `tests/test_heat.py`) |
+| 0.3.0 | Emitter output per DIN EN 442-2 and DIN EN 1264-2 at the circuit's temperatures, the floor surface temperature against `floor=` (decision 0042) |

@@ -30,12 +30,13 @@ from uea.calc import Calculator, Env, Output, Param, de, md_table
 from uea.calc.data import Col, Spec
 from uea.derive import Derived
 from uea.packs.arch.kinds import Room, RoomUse
+from uea.packs.heat import emitters
 from uea.packs.heat.envelope import PART_DE, Surface, envelope, terrain
 from uea.packs.heat.geometry import generator_kw
 from uea.packs.heat.thermal import MATERIAL, SURFACE, Thermal
 from uea.packs.project import Project
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 NORM = "DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04"
 USES: tuple[str, ...] = RoomUse.__args__  # type: ignore[attr-defined]
 
@@ -113,6 +114,29 @@ PARAMS = (
     Param("groundwater", str, "deep", "groundwater under the building", ("deep", "shallow")),
     Param("te", float, None, "θ_e in °C instead of the table outdoor", optional=True),
     Param("tme", float, None, "θ_m,e in °C instead of the table outdoor", optional=True),
+    Param(
+        "flow",
+        float,
+        None,
+        "the system's design flow temperature, °C; with spread=, emitters of DIN EN 442 or 1264"
+        " values give their output at it",
+        optional=True,
+    ),
+    Param("spread", float, None, "the system's design spread, K", optional=True),
+    Param(
+        "floor",
+        float,
+        None,
+        "the highest mean floor surface temperature, °C; underfloor heating above it fails",
+        optional=True,
+    ),
+    Param(
+        "bathfloor",
+        float,
+        None,
+        "the same in baths and WCs, °C; floor= if left out",
+        optional=True,
+    ),
 )
 
 
@@ -331,11 +355,30 @@ def building(loads: list[RoomLoad]) -> tuple[float, float]:
     return t, sum(r.phi_v for r in loads)
 
 
-def cover(d: Derived, r: RoomLoad) -> tuple[dict[str, float], float]:
+def outputs(d: Derived, r: RoomLoad, env: Env) -> dict[str, emitters.Out]:
+    """The output of each emitter of a room at its circuit's temperatures (`emitters.py`)."""
+    flow, spread = env.param("flow"), env.param("spread")
+    return {k: emitters.output(d, k, r.ti, flow, spread) for k in d.heat.emitters.get(r.id, [])}
+
+
+def cover(d: Derived, r: RoomLoad, env: Env) -> tuple[dict[str, float], float]:
     """The emitters of a room with their output, and how far they fall short of its load."""
-    h = d.heat
-    em = {k: h.output.get(k, 0.0) for k in h.emitters.get(r.id, [])}
+    em = {k: o.w for k, o in outputs(d, r, env).items()}
     return em, max(r.phi - sum(em.values()), 0.0)
+
+
+def too_warm(d: Derived, r: RoomLoad, env: Env) -> dict[str, tuple[float, float]]:
+    """The underfloor heatings of a room whose floor is warmer than the limit: (θ_F,m, limit)."""
+    limit = env.param("floor")
+    if r.use in ("bath", "wc") and env.param("bathfloor") is not None:
+        limit = env.param("bathfloor")
+    if limit is None:
+        return {}
+    return {
+        k: (o.floor, limit)
+        for k, o in outputs(d, r, env).items()
+        if o.floor is not None and o.floor > limit + 1e-9
+    }
 
 
 def run(d: Derived, scope: str | None, env: Env) -> Output:
@@ -356,12 +399,18 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
         line = f"{r.id}{name} {r.ti:g} °C: {r.phi:.0f} W (T {r.phi_t:.0f}, V {r.phi_v:.0f})"
         rooms[r.id] = _data(r)
         if covering:
-            em, gap = cover(d, r)
+            em, gap = cover(d, r, env)
             got = ", ".join(f"{k} {w:.0f} W" for k, w in em.items()) or "no emitter"
             line += f" · {got}" + (f", short {gap:.0f} W" if gap > 0.5 else "")
-            short = short or gap > 0.5
+            warm = too_warm(d, r, env)
+            for k, (tf, lim) in warm.items():
+                line += f", {k} floor {tf:.1f} °C > {lim:g}"
+            short = short or gap > 0.5 or bool(warm)
             rooms[r.id]["emitters"] = {k: round(w, 1) for k, w in em.items()}
             rooms[r.id]["short"] = round(gap, 1)
+            floors = {k: round(o.floor, 2) for k, o in outputs(d, r, env).items() if o.floor}
+            if floors:
+                rooms[r.id]["floor"] = floors
         lines.append(line)
     data: dict[str, object] = {"te": clim.te, "tme": clim.tme, "rooms": rooms}
     if scope is None:
@@ -387,7 +436,7 @@ def run(d: Derived, scope: str | None, env: Env) -> Output:
         }
     return Output(
         lines=lines,
-        report=report(d, shown, loads, tab, scope),
+        report=report(d, shown, loads, tab, scope, env),
         data=data,
         inputs={"rooms": [r.id for r in shown], "climate": clim.where},
         ok=not short,
@@ -432,6 +481,7 @@ def report(
     loads: list[RoomLoad],
     tab: Tables,
     scope: str | None,
+    env: Env,
 ) -> str:
     proj = d.model.of_kind("project")
     title = proj[0].label or proj[0].id if proj else "Projekt"
@@ -453,7 +503,7 @@ def report(
             de(r.phi / r.area, 0) if r.area else "–",
         ]
         if covering:
-            em, gap = cover(d, r)
+            em, gap = cover(d, r, env)
             row += [de(sum(em.values()), 0), f"**{de(gap, 0)}**" if gap > 0.5 else "–"]
         body.append(row)
     out = [
@@ -536,8 +586,11 @@ def report(
         " Luftvolumenstrom des Gebäudes; Gebäudeheizlast ohne Abminderung der Infiltration.",
         "- Keine Wiederaufheizleistung, keine mechanische Lüftung, keine Nachbargebäude.",
         "- Heizflächen: Leistung nach Herstellerangabe im Typ (Fußbodenheizung q mal Fläche,"
-        " Heizkörper w) bei den Auslegungstemperaturen des Systems; nicht nach DIN EN 1264"
-        " oder DIN EN 442 berechnet.",
+        " Heizkörper w) bei den Auslegungstemperaturen des Systems, oder aus den Prüfwerten des"
+        " Herstellers bei den Temperaturen des Heizkreises: Heizkörper Φ = Φ_n · (Δθ/Δθ_n)^n"
+        " nach DIN EN 442-2, Fußbodenheizung q = K_H · Δθ_H nach DIN EN 1264-2, jeweils mit der"
+        " logarithmischen Übertemperatur; die mittlere Oberflächentemperatur des Fußbodens aus"
+        " der Basiskennlinie. Randzonen und die Wärmeabgabe nach unten sind nicht abgebildet.",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"
         " fachkundigen Person.",

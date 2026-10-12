@@ -652,28 +652,31 @@ Manifold type (Heizkreisverteiler): type HKV-10 man outlets=10 w=0.55.
 
 #### `type … ufh`
 
-Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
+Underfloor heating type (Fußbodenheizung): type FBH-15 ufh spacing=0.15 q=60 max=100 pipe=16x2 k=0.007. q: heat output per m² at the system's design temperatures and the floor covering, from the manufacturer; or kh: the equivalent heat transmission coefficient K_H for the floor covering (DIN EN 1264-2), and the calculators take q = K_H · Δθ_H at the circuit's temperatures. max: the longest loop, connection lines included; pipe, k: the loop's pipe and its roughness, for uea calc hydronic.
 
 `type <name> ufh`
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
 | spacing | `spacing=` | m | pipe spacing (required) |
-| q | `q=` | W/m² | heat output per floor area (required) |
+| q | `q=` | W/m² | heat output per floor area |
 | max | `max=` | m | longest loop, with its connection lines (required) |
+| kh | `kh=` | W/(m²K) | equivalent heat transmission coefficient K_H |
 | pipe | `pipe=` | mm | the loop's pipe, outer diameter x wall |
 | k | `k=` | mm | roughness of the loop's pipe |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … rad`
 
-Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's design temperatures, from the manufacturer.
+Radiator type: type HK-22 rad w=1100 length=1 height=0.6. w: heat output at the system's design temperatures, from the manufacturer; or wn= and n=: the standard output at 75/65/20 °C and the radiator exponent (DIN EN 442), and the calculators take the output at the circuit's temperatures.
 
 `type <name> rad`
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
-| w | `w=` | W | heat output at the design temperatures (required) |
+| w | `w=` | W | heat output at the design temperatures |
+| wn | `wn=` | W | standard output at 75/65/20 °C |
+| n | `n=` |  | radiator exponent n |
 | length | `length=` | m | length |
 | height | `height=` | m | height |
 | default | flag `default` | | used by elements of its kind without type= |
@@ -722,7 +725,7 @@ A storage tank (or a heat pump's indoor unit with one) in a room: tank t1 r3 at=
 
 #### `man`
 
-A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6.
+A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man hv1 ni1 t1, man hv2 w12.n g1 x=w15+0.5 z=0.6. flow= and spread= its circuits' design temperatures if not the system's; mix: a mixing valve with its own pump in front of it (Mischerkreis), for circuits colder than the system.
 
 `man <id> <host> <src>` · ids `hv1`, `hv2`, … assigned by UEA
 
@@ -736,6 +739,9 @@ A manifold (Heizkreisverteiler) in a niche, or on a wall face like a device: man
 | z | `z=` | m | height of its centre above the FFL |
 | type | `type=` |  | manifold type; default if left out |
 | via | `via=` |  | slab holes or voids its pipes change storey through |
+| flow | `flow=` | °C | design flow temperature of its circuits |
+| spread | `spread=` | K | design spread of its circuits |
+| mix | flag `mix` | | a mixing valve and pump in front of it |
 
 #### `ufh`
 
@@ -770,7 +776,7 @@ A radiator (Heizkörper) on a wall face: rad hk1 w1 hv1 x=f1. z= its centre, 0.4
 
 Types: `type … pipe`, `type … drain`.
 
-Kinds: `san`, `meter`, `riser`, `stack`, `sewer`.
+Kinds: `san`, `meter`, `riser`, `stack`, `sewer`, `recirc`.
 
 #### `type … pipe`
 
@@ -864,6 +870,17 @@ Where the waste water leaves the building for the public sewer (an inspection ch
 | level | positional |  | storey whose floor the pipes run under |
 | at | `at=` | m | plan point x,y (required) |
 | type | `type=` |  | drain pipe system; the default drain type if left out |
+
+#### `recirc`
+
+A hot-water circulation (Zirkulation) of a tank that heats drinking water: recirc zk1 t1. Its pipe runs back beside the tank's hot-water pipes, all but the branches that end at a single fixture (Einzelzuleitungen). Flows, sizes and the pump: uea calc recirc.
+
+`recirc <id> <tank>` · ids `zk1`, `zk2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| tank | positional |  | the storage tank |
+| type | `type=` |  | pipe system of the circulation; the default pipe type if left out |
 
 ### Ventilation (`vent.uea`)
 
@@ -1058,6 +1075,7 @@ E is an error, W a warning.
 | W-PLUMB-004 | riser or stack that nothing runs through |
 | W-PLUMB-005 | a second meter or sewer connection; the first one serves |
 | W-PLUMB-006 | pipe that passes a slab with no hole for it |
+| W-PLUMB-007 | circulation of a tank with no hot-water pipe but single branches |
 | E-VENT-002 | unit or terminal on a wall without a usable face, or outdoor or exhaust air in a room |
 | W-VENT-001 | ventilation unit without a type, and none of its kind is marked default |
 | W-VENT-002 | push-pull unit without a matching pair |
@@ -1078,10 +1096,11 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
-| `heatload` | norm | 0.2.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
-| `hydronic` | norm | 0.1.1 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
+| `heatload` | norm | 0.3.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
+| `hydronic` | norm | 0.2.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
+| `recirc` | norm | 0.1.0 | DIN 1988-300:2012-05, Kurzverfahren der Zirkulation | Zirkulation |
 | `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
 | `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
 | `loads` | norm | 0.2.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
@@ -1124,6 +1143,10 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
+| `flow` | float |  | the system's design flow temperature, °C; with spread=, emitters of DIN EN 442 or 1264 values give their output at it |
+| `spread` | float |  | the system's design spread, K |
+| `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
+| `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
 
 ### `hydronic` settings
 
@@ -1135,7 +1158,10 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `groundwater` | str | deep | groundwater under the building (deep / shallow) |
 | `te` | float |  | θ_e in °C instead of the table outdoor |
 | `tme` | float |  | θ_m,e in °C instead of the table outdoor |
-| `spread` | float | required | design spread between flow and return, K |
+| `flow` | float |  | the system's design flow temperature, °C; with spread=, emitters of DIN EN 442 or 1264 values give their output at it |
+| `spread` | float |  | the system's design spread, K |
+| `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
+| `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
 | `vmax` | float | required | the highest velocity in the heating pipes, m/s |
 
 ### `water` settings
@@ -1150,6 +1176,15 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|
 | `slope` | float | required | slope of the pipes under the building, % |
 | `building` | str | residential | building use, a row of the table drain-k |
+
+### `recirc` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `building` | str | residential | building use, a row of the table peak-flow |
+| `loss` | float | required | heat loss of the insulated hot-water pipes, W/m |
+| `dt` | float | required | the temperature drop the hot water may have to the far end, K |
+| `dead` | float | required | the most water a pipe without circulation may hold, l |
 
 ### `airflow` settings
 

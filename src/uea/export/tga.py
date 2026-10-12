@@ -30,7 +30,7 @@ from uea.export.install import FITS_INSTALL, ROW, InstallPlan, ghost
 from uea.export.paper import BLACK, BLOCK_H, BLOCK_W, Stand, de, fit_sheet, frame, poly_item
 from uea.export.symbols import Ink, Spot
 from uea.packs.heat.geometry import heat_type
-from uea.packs.heat.kinds import GenType, RadType, Ufh
+from uea.packs.heat.kinds import GenType, Ufh
 from uea.packs.mount import Mounted
 from uea.packs.net import Net
 from uea.packs.plumb.geometry import nets
@@ -50,6 +50,7 @@ S_NODE = "S-ANSCHLUSS"
 S_COLD = "S-TRINKWASSER-KALT"
 S_HOT = "S-TRINKWASSER-WARM"
 S_WASTE = "S-ABWASSER"
+S_CIRC = "S-ZIRKULATION"
 S_LABEL = "S-BESCHRIFTUNG"
 S_LEGEND = "S-LEGENDE"
 L_UNIT = "L-GERAET"
@@ -66,6 +67,7 @@ BLUE = "#1f5fbf"
 COLD = "#2ca02c"
 HOT = "#ff7f0e"
 WASTE = "#8c564b"
+CIRC = "#9467bd"
 AIR = {"oda": "#2ca02c", "sup": "#1f77b4", "ext": "#d4a017", "eha": "#8c564b"}
 AIR_LAYER = {"oda": L_ODA, "sup": L_SUP, "ext": L_ETA, "eha": L_EHA}
 AIR_OFF = {"oda": 1.05, "sup": 0.35, "ext": -0.35, "eha": -1.05}
@@ -85,6 +87,7 @@ TGA_LAYER_COLORS = {
     S_COLD: COLD,
     S_HOT: HOT,
     S_WASTE: WASTE,
+    S_CIRC: CIRC,
     S_LABEL: BLACK,
     S_LEGEND: BLACK,
     L_UNIT: "#1f77b4",
@@ -130,6 +133,7 @@ PLUMB_KEYS = {
     "tank": "Speicher mit Trinkwassererwärmung",
     "cold": "Trinkwasser kalt (PWC)",
     "hot": "Trinkwasser warm (PWH)",
+    "circ": "Zirkulation (PWH-C)",
     "waste": "Schmutzwasser",
 }
 VENT_KEYS = {
@@ -292,8 +296,8 @@ class TgaPlan(InstallPlan):
             for k in range(1, 6):
                 a = -w + 2 * w * k / 6
                 ink.line(a, 0.4, a, 1.6, 0.13)
-            t = heat_type(self.m, el, RadType, "rad")
-            label = f"{mt.id} {t.w:.0f} W" if t is not None else mt.id
+            w = self.d.heat.output.get(mt.id)
+            label = f"{mt.id} {w:.0f} W" if w is not None else mt.id
             reach = 1.6
         elif mt.kind == "gen":
             ink.layer = H_GEN
@@ -322,6 +326,8 @@ class TgaPlan(InstallPlan):
             nets.append((p.cold, COLD, S_COLD, 0.0, ()))
         for net in p.hot.values():
             nets.append((net, HOT, S_HOT, 0.7, ()))
+        for net in p.recirc.values():
+            nets.append((net, CIRC, S_CIRC, 1.4, (1.2, 0.6)))
         if p.drain is not None:
             nets.append((p.drain, WASTE, S_WASTE, -0.7, (2.0, 1.0)))
         for net, color, layer, off, dash in nets:
@@ -456,7 +462,7 @@ class TgaPlan(InstallPlan):
         for key in keys:
             if key in kinds or (key == "ufh" and self.ufh) or (key == "link" and self.ufh):
                 out.append(key)
-            if key in ("cold", "hot", "waste") and self._has(key):
+            if key in ("cold", "hot", "circ", "waste") and self._has(key):
                 out.append(key)
             if key in ("flow", "ret") and self._heat_pipes():
                 out.append(key)
@@ -488,7 +494,12 @@ class TgaPlan(InstallPlan):
 
     def _has(self, key: str) -> bool:
         p = self.d.plumb
-        nets = {"cold": [p.cold], "hot": list(p.hot.values()), "waste": [p.drain]}[key]
+        nets = {
+            "cold": [p.cold],
+            "hot": list(p.hot.values()),
+            "circ": list(p.recirc.values()),
+            "waste": [p.drain],
+        }[key]
         return any(
             n is not None and any(n.nodes[s.b].level == self.level for s in n.sections)
             for n in nets
@@ -546,8 +557,12 @@ class TgaPlan(InstallPlan):
             pen = Pen(AIR[key], sh.m(0.5))
             self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
         else:
-            color = {"cold": COLD, "hot": HOT, "waste": WASTE, "flow": RED, "ret": BLUE}[key]
+            color = {"cold": COLD, "hot": HOT, "circ": CIRC, "waste": WASTE, "flow": RED}.get(
+                key, BLUE
+            )
             dash = (sh.m(2.0), sh.m(1.0)) if key in ("waste", "ret") else ()
+            if key == "circ":
+                dash = (sh.m(1.2), sh.m(0.6))
             pen = Pen(color, sh.m(0.35), dash)
             self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
 

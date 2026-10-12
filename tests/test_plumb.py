@@ -20,7 +20,7 @@ from tests.conftest import BOX, PROTOTYPE, Shell, derive_text
 from tests.test_calc_elec import install, run
 from tests.test_elec import found
 from uea.derive import Derived, Report
-from uea.packs.hydraulics import friction, full, geodetic, gravity, wetted
+from uea.packs.hydraulics import CP, RHO, friction, full, geodetic, gravity, wetted
 from uea.packs.net import Net
 from uea.packs.pipes import Bores
 from uea.packs.plumb.drain import (
@@ -31,6 +31,7 @@ from uea.packs.plumb.drain import (
     DRAIN_STACK,
     FIXTURE_DRAIN,
 )
+from uea.packs.plumb.recirc import RECIRC
 from uea.packs.plumb.views import describe
 from uea.packs.plumb.water import FIXTURE_FLOW, PEAK_FLOW, WATER, WATER_FACTORS, peak
 
@@ -416,3 +417,45 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 0 and "report: out/water.md" in out, out
     code, out = sh("calc", "drain", "slope=1")
     assert code == 1 and "too long" in out
+
+
+# ---------- circulation ----------
+
+
+def test_circulation(tmp_path: Path) -> None:
+    tables(tmp_path)
+    d, rep = plumb("recirc zk1 t1\n")
+    assert [i.code for i in rep.issues if i.code == "W-PLUMB-007"] == []
+    # the riser is circulated; the branches t1>sa1 and sr1:OG>sa2 end at one fixture each
+    assert [s.name for s in d.plumb.recirc["t1"].sections] == ["t1>sr1:EG", "sr1:EG>sr1:OG"]
+    o = run(RECIRC, d, None, loss=10, dt=5, dead=3)
+    assert o.ok
+    lp = o.data["loops"]["zk1"]  # type: ignore[index]
+    rho_c = RHO["hot"] * CP
+    legs = {x["b"]: x for x in lp["legs"]}
+    # the riser loses 10 · 2.9 W; the pipe to it carries that and its own 10 · 8
+    assert legs["sr1:OG"]["loss"] == pytest.approx(29)
+    assert legs["sr1:EG"]["loss"] == pytest.approx(109)
+    assert legs["sr1:OG"]["q"] == pytest.approx(29 / (rho_c * 5), rel=1e-4)
+    assert lp["flow"] == pytest.approx(109 / (rho_c * 5), rel=1e-4)
+    # the circulation pipe: the smallest within 2 m/s; one bend on t1>sr1:EG, a tee up the riser
+    q1 = 109 / (rho_c * 5)
+    assert legs["sr1:EG"]["circ"] == "16x2"
+    f = full(q1, 12, 0.007, "hot")
+    assert legs["sr1:EG"]["dp_circ"] == pytest.approx(f.r * 8.0 + 1 * f.dyn, abs=1e-3)
+    # one end: its loss is the pump head
+    total = sum(x["dp_hot"] + x["dp_circ"] for x in lp["legs"])
+    assert lp["head"] == pytest.approx(total, abs=0.01) and lp["index"] == "sr1:OG"
+    # the branches without circulation hold π · d_i² / 4 · l (16x2, d_i 12 mm)
+    dead = lp["dead"]
+    assert dead["sa1"]["length"] == pytest.approx(8.7)
+    assert dead["sa2"]["length"] == pytest.approx(10.1)
+    assert dead["sa2"]["litres"] == pytest.approx(math.pi * 0.012**2 / 4 * 10.1 * 1000, rel=1e-3)
+    o = run(RECIRC, d, None, loss=10, dt=5, dead=1)
+    assert not o.ok
+    assert any(x.startswith("sa2: 1.14 l in 10.1 m without circulation > 1 l") for x in o.lines)
+
+
+def test_circulation_needs_pipes_to_circulate() -> None:
+    _, rep = plumb("recirc zk1 t1\n", PLUMB.replace("san sa2 r2 shower at=E-1,N-1\n", ""))
+    assert ("W-PLUMB-007", "zk1") in [(i.code, i.el) for i in rep.issues]

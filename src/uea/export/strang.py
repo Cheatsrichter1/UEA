@@ -17,7 +17,7 @@ from uea.export.drawing import Drawing, Line
 from uea.export.paper import BLOCK_H, GREY, Stand, frame
 from uea.export.schema import Diagram
 from uea.export.tables import USE_DE
-from uea.export.tga import COLD, FIXTURE_DE, HOT, WASTE
+from uea.export.tga import CIRC, COLD, FIXTURE_DE, HOT, WASTE
 from uea.packs.net import Net
 from uea.packs.plumb.kinds import San
 
@@ -92,6 +92,16 @@ class Strang(Diagram):
     def y_hot(self, lv: str) -> float:
         return self.top(lv) + 17.0
 
+    def y_circ(self, lv: str) -> float:
+        return self.top(lv) + 20.0
+
+    def circ_at(self, node: str) -> bool:
+        """Whether a circulation runs to this node of a hot-water net."""
+        return any(
+            node in {x for s in n.sections for x in (s.a, s.b)}
+            for n in self.d.plumb.recirc.values()
+        )
+
     def y_waste(self, lv: str) -> float:
         return self.top(lv) + BAND - 6.0
 
@@ -159,6 +169,10 @@ class Strang(Diagram):
                     ys = [y_of(lv) for lv in lvs]
                     self.line(x + dx, min(ys), x + dx, max(ys), color, 0.6)
                 on += lvs
+            lvs = [lv for lv in self.levels if self.circ_at(f"{r}:{lv}")]
+            if len(lvs) > 1:
+                ys = [self.y_circ(lv) for lv in lvs]
+                self.line(x + 8.0, min(ys), x + 8.0, max(ys), CIRC, 0.5, (1.2, 0.6))
             if on:
                 y = min(self.top(lv) for lv in on) + 4.0
                 self.say(x + 2.0, y, r, 1.6, bold=True)
@@ -174,6 +188,7 @@ class Strang(Diagram):
         yc, yh, yt = self.y_cold(lv), self.y_hot(lv), self.top(lv)
         cold: list[float] = []
         hot: list[float] = []
+        circ: list[float] = []
         if self.meter is not None and p.at[self.meter].level == lv:
             cold.append(X_SRC + 24.0)
         for r, x in self.x_riser.items():
@@ -181,6 +196,8 @@ class Strang(Diagram):
                 cold.append(x)
             if any(f"{r}:{lv}" in n.nodes for n in p.hot.values()):
                 hot.append(x + 4.0)
+            if self.circ_at(f"{r}:{lv}"):
+                circ.append(x + 8.0)
         for t in self.tanks:
             if self.d.heat.at[t].level != lv:
                 continue
@@ -190,6 +207,12 @@ class Strang(Diagram):
                 cold.append(x + 6.0)
             self.line(x + TANK_W - 6.0, yt + 22.0, x + TANK_W - 6.0, yh, HOT, 0.35)
             hot.append(x + TANK_W - 6.0)
+            if t in p.recirc and p.recirc[t].sections:
+                yz = self.y_circ(lv)
+                self.line(
+                    x + TANK_W - 10.0, yt + 22.0, x + TANK_W - 10.0, yz, CIRC, 0.35, (1.2, 0.6)
+                )
+                circ.append(x + TANK_W - 10.0)
         for k in self.fixtures[lv]:
             el = self.m[k]
             assert isinstance(el, San)
@@ -212,6 +235,8 @@ class Strang(Diagram):
             self.line(min(cold), yc, max(cold), yc, COLD, 0.6)
         if len(hot) > 1:
             self.line(min(hot), yh, max(hot), yh, HOT, 0.6)
+        if len(circ) > 1:
+            self.line(min(circ), self.y_circ(lv), max(circ), self.y_circ(lv), CIRC, 0.5, (1.2, 0.6))
 
     def waste(self, lv: str) -> None:
         p = self.d.plumb
@@ -254,6 +279,7 @@ class Strang(Diagram):
         items = (
             (COLD, "Trinkwasser kalt (PWC)", ()),
             (HOT, "Trinkwasser warm (PWH)", ()),
+            (CIRC, "Zirkulation (PWH-C)", (1.2, 0.6)),
             (WASTE, "Schmutzwasser, Fall- und Grundleitung", DASH),
         )
         for k, (color, txt, dash) in enumerate(items):
@@ -264,7 +290,8 @@ class Strang(Diagram):
         notes = [
             "Leitungen abgeleitet: je Netz der kürzeste Baum über die rechtwinkligen Abstände.",
             "Nennweiten: uea calc water und uea calc drain mit den Tabellen des Büros.",
-            "Nicht dargestellt: Armaturen, Zirkulation, Sicherungseinrichtungen, Nebenlüftungen.",
+            "Zirkulation bis an die Einzelzuleitungen: uea calc recirc.",
+            "Nicht dargestellt: Armaturen, Sicherungseinrichtungen, Nebenlüftungen.",
         ]
         for k, t in enumerate(notes):
             self.text(sh.pt(x + 82.0, y - k * 4.4 - 0.8), t, 1.8, S_SCHEMA, anchor="start",
