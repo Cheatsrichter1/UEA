@@ -404,7 +404,35 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 
 ### Structure (`struct.uea`)
 
-Kinds: .
+Kinds: `beam`, `load`.
+
+#### `beam`
+
+A beam (Unterzug) under the slab of a storey: beam bm1 OG HEB-160 a=w6,w1+1 b=w6,w5. It carries that slab and the walls of the storey that stand on it, and rests on the load-bearing walls of the storey below that it crosses. section: a row of the office's beam-section table.
+
+`beam <id> <level> <section>` · ids `bm1`, `bm2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey whose slab it carries |
+| section | positional |  | section, a name in the office's beam-section table |
+| a | `a=` |  | start of its axis, a point x,y (required) |
+| b | `b=` |  | end of its axis, a point x,y (required) |
+
+#### `load`
+
+A load on the slab of a storey: load lo1 OG g=3 at=w4+0.5,w5+0.5 "Pufferspeicher 300 l" (a point load, kN), or a=/b= for a line load (kN/m). g permanent, q imposed, characteristic.
+
+`load <id> <level>` · ids `lo1`, `lo2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey whose slab carries it |
+| g | `g=` | kN or kN/m | permanent part, characteristic |
+| q | `q=` | kN or kN/m | imposed part, characteristic |
+| at | `at=` |  | a point load: where it stands |
+| a | `a=` |  | a line load: the start of its line |
+| b | `b=` |  | a line load: the end of its line |
 
 ### Luminaires (`light.uea`)
 
@@ -1000,6 +1028,8 @@ E is an error, W a warning.
 | W-ARCH-060 | section outside the building (it cuts no wall) |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
+| W-STRUCT-003 | beam that rests on fewer than two load-bearing walls |
+| W-STRUCT-004 | hole in a slab over the wall that carries the slab |
 | E-LIGHT-002 | luminaire on a wall without a usable face |
 | E-ELEC-001 | device outside its host wall |
 | E-ELEC-002 | device on a wall without a usable face |
@@ -1052,7 +1082,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 | `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
 | `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
-| `loads` | norm | 0.1.0 | DIN EN 1991-1-1:2010-12 mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
+| `loads` | norm | 0.2.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
+| `struct` | norm | 0.1.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
 
 ### `cable` settings
 
@@ -1131,6 +1162,16 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
 | `soil` | float |  | design resistance of the soil σ_R,d under strip footings, kN/m², from the geotechnical report |
+| `sk` | float |  | characteristic snow load on the ground s_k at the site, kN/m² (DIN EN 1991-1-3/NA, the snow load zone and the altitude); needed with a roof |
+| `qp` | float |  | peak velocity pressure q_p at the roof's height, kN/m² (DIN EN 1991-1-4/NA, the wind zone and the terrain); needed with a roof |
+
+### `struct` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `soil` | float |  | design resistance of the soil σ_R,d under strip footings, kN/m², from the geotechnical report |
+| `sk` | float |  | characteristic snow load on the ground s_k at the site, kN/m² (DIN EN 1991-1-3/NA, the snow load zone and the altitude); needed with a roof |
+| `qp` | float |  | peak velocity pressure q_p at the roof's height, kN/m² (DIN EN 1991-1-4/NA, the wind zone and the terrain); needed with a roof |
 
 ### Norm tables
 
@@ -1392,7 +1433,7 @@ One row for each: name.
 
 #### `unit-weight`: Unit weights of building materials (DIN EN 1991-1-1, Anhang A, or the manufacturer)
 
-One row for each material the load-bearing walls, slabs, floors and partitions name.
+One row for each material the load-bearing walls, slabs, floors, partitions and roofs name. A layer of rafters with insulation between them: the weight of both, smeared over the layer.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -1414,7 +1455,7 @@ One row for each: use.
 
 #### `partition-load`: Surcharge for light partitions (DIN EN 1991-1-1, 6.3.1.2(8), with NA)
 
-A partition heavier than the last row is a line load, which this calculator does not take.
+A partition heavier than the last row is a line load on its slab.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -1423,16 +1464,138 @@ A partition heavier than the last row is a line load, which this calculator does
 
 One row for each: upto.
 
-#### `struct-factors`: Partial factors (DIN EN 1990/NA, Tabelle NA.A.1.2(B))
+#### `struct-factors`: Partial factors and design settings (DIN EN 1990/NA, Tabelle NA.A.1.2(B); DIN EN 1996-1-1/NA, 2.4.3, 3.7.1; DIN EN 1996-3/NA, 4.2.2.3; DIN EN 1992-1-1/NA, 2.4.2.4, 3.1.6, 3.2)
 
-γ_G for the permanent, γ_Q for the imposed actions.
+gamma-g, gamma-q: γ_G and γ_Q; gamma-g-inf: γ_G of a favourable permanent action (the uplift of a roof); gamma-m: γ_M of the masonry; zeta: ζ for the long-term strength of masonry; rho2: ρ_2 of a wall held by slabs at both ends; gamma-c, alpha-cc: γ_C and α_cc of concrete; gamma-s: γ_S and fyk: f_yk (N/mm²) of the reinforcing steel; d1: the distance of the reinforcement's axis from the face of a slab, m. Each calculation needs the rows it uses.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `name` | text | which factor (one of gamma-g, gamma-q) |
+| `name` | text | which value (one of gamma-g, gamma-q, gamma-g-inf, gamma-m, zeta, rho2, gamma-c, alpha-cc, gamma-s, fyk, d1) |
 | `value` | num > 0 | its value |
 
 One row for each: name.
+
+#### `struct-psi`: Combination factors ψ0 (DIN EN 1990/NA, Tabelle NA.A.1.1)
+
+imposed: the imposed loads of the rooms (category A); snow at the site's altitude; wind.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `action` | text | variable action (one of imposed, snow, wind) |
+| `psi0` | num ≥ 0 | ψ0 |
+
+One row for each: action.
+
+#### `snow-shape`: Snow load shape coefficient μ1 of a roof by its pitch (DIN EN 1991-1-3, 5.3.2 and Tabelle 5.2, with NA)
+
+Rows from 0° up to the steepest pitch of the project; between rows UEA interpolates.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `pitch` | num ≥ 0 | roof pitch, ° |
+| `mu1` | num ≥ 0 | shape coefficient μ1 |
+
+One row for each: pitch.
+
+#### `wind-roof`: External pressure coefficients of a roof by its pitch (DIN EN 1991-1-4, 7.2.3 to 7.2.6, with NA)
+
+The coefficients the office takes for the load of a roof plane on the walls under its eaves (its choice of zone, e.g. H); between rows UEA interpolates.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `pitch` | num ≥ 0 | roof pitch, ° |
+| `pressure` | num ≥ 0 | c_pe,10 for pressure on the roof (0 if none) |
+| `suction` | num | c_pe,10 for suction, negative |
+
+One row for each: pitch.
+
+#### `beam-section`: Sections of beams (the manufacturer's tables or DIN EN 10365 (steel), DIN EN 14080 (glued laminated timber))
+
+One row for each section the beams name.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | the section, as the beam names it |
+| `material` | text | a material of the beam-material table |
+| `w` | num > 0 | section modulus W_y, cm³ |
+| `i` | num > 0 | second moment of area I_y, cm⁴ |
+| `av` | num > 0 | shear area A_v, cm² |
+| `g` | num > 0 | weight, kN/m |
+
+One row for each: name.
+
+#### `struct-limits`: Limits of the methods (DIN EN 1996-3/NA, 4.2.1.1; DIN EN 1992-1-1/NA, 5.4(NA.5); DIN EN 1990/NA, A.1.4 with the office's choice of deflection limit)
+
+building-height (m), span (the largest span of the slabs on a wall, m), qk (kN/m²) and clear-height (m): the conditions of the simplified method for masonry; xi: the largest x/d of a slab without a check of its rotation; deflection: n of the limit L/n of a beam.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `name` | text | which limit (one of building-height, span, qk, clear-height, xi, deflection) |
+| `value` | num > 0 | its value |
+
+One row for each: name.
+
+#### `masonry`: Characteristic compressive strength of masonry (DIN EN 1996-1-1/NA, NA.D, or the national technical approval of the unit)
+
+One row for each material the cores of the load-bearing walls name.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the material of a wall's core layer |
+| `fk` | num > 0 | f_k of the unit with its mortar, N/mm² |
+
+One row for each: material.
+
+#### `masonry-end`: Reduction factor Φ2 of a wall at the end support of a slab (DIN EN 1996-3/NA, 4.2.2.3)
+
+For the strength class of the project's masonry; a span longer than the last row is outside the table.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | span of the slab l_f up to, m |
+| `phi` | num > 0 | Φ2 |
+
+One row for each: upto.
+
+#### `concrete`: Concrete of slabs (DIN EN 1992-1-1, Tabelle 3.1, for the strength class the office specifies)
+
+One row for each material the cores of the slabs name.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the material of a slab's core layer |
+| `fck` | num > 0 | f_ck, N/mm² |
+| `ecm` | num > 0 | E_cm, N/mm² |
+
+One row for each: material.
+
+#### `lintel`: Lintels over openings in load-bearing walls (the manufacturer's load tables (allgemeine bauaufsichtliche Zulassung))
+
+UEA takes, for each opening, the first type in the table's order that carries the load over the span in a wall of that thickness.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `type` | text | the lintel, for the report |
+| `t` | num > 0 | the thickness of wall core it is for, m |
+| `span` | num > 0 | clear span up to, m |
+| `qrd` | num > 0 | design load it carries at that span, kN/m |
+
+One row for each: type, t, span.
+
+#### `beam-material`: Strengths of the materials of beams (DIN EN 1993-1-1/NA (steel), DIN EN 1995-1-1/NA and DIN EN 14080 (timber))
+
+f_d = k_mod · f_k / γ_M for bending and shear.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `material` | text | the material, as the beam-section table names it |
+| `fk` | num > 0 | bending strength f_y or f_m,k, N/mm² |
+| `fvk` | num > 0 | shear strength f_y/√3 or f_v,k, N/mm² |
+| `e` | num > 0 | modulus of elasticity, N/mm² |
+| `gamma` | num > 0 | partial factor γ_M |
+| `kmod` | num > 0 | k_mod for the load duration of the design (1 for steel) |
+
+One row for each: material.
 
 ## Exports
 

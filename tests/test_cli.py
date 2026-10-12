@@ -199,11 +199,13 @@ def test_export_sheets(sh: Shell) -> None:
     assert code == 0 and out.strip() == "p/out/plan-EG.pdf A3 1:100"
     assert (out_dir / "plan-EG.pdf").read_bytes().startswith(b"%PDF")
     code, out = sh("export", "dxf")
-    # the OG of the test project has no walls; then the four elevations
+    # the OG of the test project has no walls; then the four elevations and the Positionsplan
+    # of the EG's load-bearing walls
     assert code == 0 and out.splitlines() == [
         "p/out/plan-EG.dxf A3 1:100",
         "OG: no walls, nothing to draw",
         *(f"p/out/elevation-{side}.dxf A3 1:100" for side in ("north", "east", "south", "west")),
+        "p/out/struct-EG.dxf A3 1:50",
     ]
     assert (out_dir / "plan-EG.dxf").read_text().startswith("  0\nSECTION")
     code, out = sh("export", "svg", "EG")
@@ -239,6 +241,7 @@ def test_export_sections(sh: Shell) -> None:
     assert code == 1 and out.strip() == (
         "unknown level, section or side 'B'. Levels: EG OG. Sections: A."
         " Sides: north east south west."
+        " Structure: struct:<level> (Positionsplan); struct after uea calc struct."
     )
     # a cut that meets no wall is a warning, and there is nothing to draw
     assert sh("apply", "--by", "t", "-m", "cut", stdin="+ section B x=50\n")[0] == 0
@@ -311,9 +314,13 @@ def test_export_electrical_sheets(sh: Shell) -> None:
     assert code == 1 and "unknown level or board 'XX'. Levels: EG OG. Boards: b1" in out
     code, out = sh("export", "pdf", "elec:EG")
     assert code == 0
-    # with no name, the electrical sheets follow the rest
+    # with no name, the electrical sheets follow the rest, the Positionsplan last
     code, out = sh("export", "dxf")
-    assert out.splitlines()[-2:] == ["p/out/elec-EG.dxf A3 1:50", "p/out/board-b1.dxf A3 o. M."]
+    assert out.splitlines()[-3:] == [
+        "p/out/elec-EG.dxf A3 1:50",
+        "p/out/board-b1.dxf A3 o. M.",
+        "p/out/struct-EG.dxf A3 1:50",
+    ]
 
 
 def test_outside_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -152,6 +152,16 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
         "imposed-load",
         "partition-load",
         "struct-factors",
+        "struct-psi",
+        "snow-shape",
+        "wind-roof",
+        "beam-section",
+        "struct-limits",
+        "masonry",
+        "masonry-end",
+        "concrete",
+        "lintel",
+        "beam-material",
         "folder:",
     ]
     code, out = sh("data", "show", "conductor")

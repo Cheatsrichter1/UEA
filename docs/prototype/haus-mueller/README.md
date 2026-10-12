@@ -19,14 +19,27 @@ Two full storeys and a cold Spitzboden under a 25° Satteldach. Masonry, 36,5 cm
 
 Floor areas between finished wall surfaces. Not the Wohnfläche: WoFlV deductions (stair, hole) are a calculator's job.
 
-Electrical: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 switches, 20 luminaires, 3 data outlets, 5 Rauchwarnmelder, feeds for the heat pump, the indoor unit and four fans.
+Electrical: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 switches, 20 luminaires, 3 data outlets, 5 Rauchwarnmelder, feeds for the heat pump, the indoor unit and the ventilation unit.
 
 ![EG](exports/grundriss-EG.png)
 ![OG](exports/grundriss-OG.png)
 
 ## Exports
 
-Everything in `exports/` is generated from the `.uea` files by a throwaway script outside the repository. These are not UEA exports; they show what the model must be able to deliver. Drawings are SVG with a PNG copy; labels are German, because German offices read them.
+Drawings are SVG with a PNG copy; labels are German, because German offices read them.
+
+**Drawn by UEA.** The services sheets and the Positionspläne come from UEA itself: `uea export svg <name>` and `uea export png <name>` on a copy of these files without the two `illum` lines (their pack is not built yet). The PDF of the same sheet is `uea export pdf <name>`. Pipe and duct sizes are in the calculation reports, not on the plans. Holes (`docs/decisions/0039-openings-without-a-fill.md`) show on every floor plan: KB a core drilling, DD a hole through a slab, dashed when it is in the slab above.
+
+| Export | Name | Content |
+|---|---|---|
+| [Heizung EG](exports/heizung-EG.png), [OG](exports/heizung-OG.png) | `heat:EG`, `heat:OG` | Heat pump, indoor unit, manifolds in their niches, FBH zones per room with their outputs, the towel radiator, the derived flow and return pipes through ho4 |
+| [Heizungsschema](exports/heizungsschema.png) | `heat:schema` | Heizungs- und Trinkwasserschema: heat pump, indoor unit with the tank, both manifolds with their loops per room (`docs/decisions/0036-heating-and-plumbing-sheets.md`) |
+| [Sanitär EG](exports/sanitaer-EG.png), [OG](exports/sanitaer-OG.png) | `plumb:EG`, `plumb:OG` | Water meter, riser and stack, fixtures, the derived drinking-water and waste pipes, the sewer connection |
+| [Strangschema](exports/strangschema.png) | `plumb:schema` | The riser diagram: meter, tank, riser, the fixtures per storey, the stack vented over the roof, the sewer |
+| [Lüftung EG](exports/lueftung-EG.png), [OG](exports/lueftung-OG.png) | `vent:EG`, `vent:OG` | The central unit lg1 in the HWR, outdoor and exhaust air through the core drillings ho1 and ho2, supply and extract terminals, the derived ducts up through ho3 |
+| [Positionsplan EG](exports/positionsplan-EG.png), [OG](exports/positionsplan-OG.png), [DB](exports/positionsplan-DB.png) | `struct:EG`, `struct:OG`, `struct:DB` | The positions of the Statische Berechnung (`docs/decisions/0040-structure.md`): load-bearing walls in blue with their numbers, the lintels over their openings in red, the slab over the storey, the roof and its eaves on the Spitzboden, and the strip footings beside the EG's walls (3.02 · 4.01) |
+
+**Not UEA exports.** The other files are generated from the `.uea` files by a throwaway script outside the repository; they show what the model must be able to deliver.
 
 | Export | Content |
 |---|---|
@@ -34,7 +47,6 @@ Everything in `exports/` is generated from the `.uea` files by a throwaway scrip
 | [Ansichten](exports/ansichten.png) | North, east, south and west elevations, with heights from the roof geometry (ridge +8.10, eaves +6.12) |
 | [Elektro EG](exports/elektro-EG.png), [OG](exports/elektro-OG.png) | Installationspläne with simplified DIN EN 60617 symbols, circuits and switching lines. Aus-, Serien-, Wechsel- and Kreuzschaltung are derived from how many switches control each luminaire |
 | [Verteilungsplan](exports/verteilung-b1.png) | Single-line diagram of b1 and its Belegung (6 rows of 12 TE). The phase assignment is derived |
-| [Heizungsschema](exports/heizungsschema.png) | Heat pump, indoor unit, manifolds with FBH loops per room, drinking-water fixtures. UEA now draws it itself: `uea export pdf heat:schema` (`docs/decisions/0036-heating-and-plumbing-sheets.md`) |
 | [Lichtberechnung r2](exports/lichtberechnung-r2.md) | A `custom` calculation, not norm-compliant: point-by-point direct light plus an indirect estimate, two variants against the targets in `light.uea` |
 
 ## Files

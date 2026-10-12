@@ -1,53 +1,144 @@
 # 0040: Structure, phase 8
 
-Status: Proposed for the phase; slice 8a built (for the user's veto, and for the review of the licensed engineer the phase needs)
-Date: 2026-10-11
+Status: Proposed; slices 8a to 8d built, none reviewed (for the user's veto, and for the review of the licensed engineer the phase needs)
+Date: 2026-10-11, slices 8b to 8d 2026-10-12
 
 ## Context
 
-Phase 8 (`ROADMAP.md`) is the structure: load-bearing elements, loads, frame analysis on an open-source solver. Its "done when" is that a licensed engineer reviews the validation. The engineer partner is not available yet, so this decision plans the phase and builds the slice that needs the least engineering judgment: what the architecture already says about the load path, and the characteristic loads and their way down to the foundation. Everything else waits for the engineer's review of this slice.
+Phase 8 (`ROADMAP.md`) is the structure: load-bearing elements, loads, frame analysis on an open-source solver. Its "done when" is that a licensed engineer reviews the validation. The architecture carries most of what the structure starts from: which walls are load-bearing (`lb`), their build-ups, the slabs and their build-ups, the floor build-ups and uses of the rooms, the roof, the openings and holes. The Haftung for the structure lies with the Tragwerksplaner and, for the check, the Prüfingenieur (`VISION.md`). UEA computes, and the engineer decides and signs, as with every `norm` calculator.
 
-The architecture carries most of what the structure starts from: which walls are load-bearing (`lb`), their build-ups, the slabs and their build-ups, the floor build-ups and uses of the rooms, the openings and holes in them. The Haftung for the structure lies with the Tragwerksplaner and, for the check, the Prüfingenieur (`VISION.md`). UEA computes and the engineer decides and signs, as with every `norm` calculator.
+The plan was to build slice 8a and wait for the engineer's review before the next. The engineer is away; on 2026-10-12 the user decided to build 8b to 8d now. All four slices are unreviewed, and the review covers them together (`docs/validation/loads.md`, `docs/validation/struct.md`).
 
 ## Decision
 
-**The phase in four slices:**
+**The phase in four slices, all built:**
 
 | Slice | Content |
 |---|---|
-| 8a (built) | The load path from the architecture and its checks; `uea calc loads`: dead and imposed loads of the slabs, the walls' own weight, light partitions, the takedown to the foundation, the line loads on the strip footings |
-| 8b | The roof (its own weight, snow per DIN EN 1991-1-3 and wind per DIN EN 1991-1-4 by the office's zone tables) on the walls under its eaves; point and line loads and beams as elements of `struct.uea`; the lintels over the openings in load-bearing walls, derived |
-| 8c | Member design: masonry walls (DIN EN 1996-3, the simplified method), lintels and beams, slabs; frames and continuous beams on an open-source solver (candidates below) |
-| 8d | The Positionsplan per storey and the Statische Berechnung as one A4 PDF to sign; the approval of holes in load-bearing members |
+| 8a | The load path from the architecture and its checks; `uea calc loads`: dead and imposed loads of the slabs, the walls' own weight, light partitions, the takedown to the foundation, the line loads on the strip footings |
+| 8b | The roof's own weight, snow and wind on the walls under its eaves; beams and point and line loads as elements of `struct.uea`; heavy partitions as line loads; combinations with ψ0 |
+| 8c | `uea calc struct`: slabs as plates and beams as continuous beams on the solver PyNite, masonry walls (DIN EN 1996-3, simplified), lintels from the manufacturer's table, strip footings |
+| 8d | The Positionsplan per storey (`uea export pdf struct:<level>`) and the Statische Berechnung as one A4 PDF to sign (`uea export pdf struct`), with the holes in load-bearing members listed for the engineer |
 
-**Slice 8a.**
+**The load path** (`packs/struct/model.py`). A slab rests on the load-bearing walls of the storey below that its outline covers and on the beams under it. A load-bearing wall stands on the load-bearing walls of the storey below whose cores its core overlaps, and on the beams of its storey that run inside its core between their bearings. A beam rests on the load-bearing walls of the storey below that it crosses. The lowest storey stands on the foundation, its slab on the ground.
 
-- **The pack `struct`** has no elements of its own yet: the load-bearing walls and the slabs are the architect's. It holds the checks and the calculator. `uea help struct` says so.
-- **The load path** (`packs/struct/model.py`): a slab rests on the load-bearing walls of the storey below that its outline covers; a load-bearing wall stands on the load-bearing walls of the storey below whose cores its core overlaps, each taking the share of the overlap. The lowest storey stands on the foundation, its slab on the ground.
-- **Checks:** `W-STRUCT-001`, a load-bearing wall that stands on no load-bearing wall below (its load would go into the slab); `W-STRUCT-002`, a slab with no load-bearing wall under it. They need no tables, so they are checks.
-- **`uea calc loads [soil=<kN/m²>]`**, a `norm` calculator (DIN EN 1991-1-1, DIN EN 1990), not yet reviewed:
-  - A slab: G = its area · Σ t·γ of its layers + Σ over the rooms on it of their area · Σ t·γ of their floor build-up. Q = Σ over the rooms of their area · (q_k of their use + the partition surcharge).
-  - A light partition (not load-bearing): its weight per metre, Σ t·γ · its net elevation area / its length, selects the surcharge from the office's table; the largest on a storey is added to the imposed load of its slab. A heavier partition is a line load, which 8a does not take: the result fails and names it.
-  - The share of each wall: every point of the slab goes to its nearest load-bearing wall below, which divides a rectangular field along its 45° bisectors (the Lasteinzugsflächen of a slab supported on all sides), on a grid of 5 cm. A wall takes G and Q in proportion to its area.
-  - A load-bearing wall: its own weight, Σ t·γ · its net elevation area; from the top storey down each wall passes what it carries to the walls it stands on.
-  - The footings: under each wall of the lowest storey n_k = (G + Q) / L and n_d = (γ_G · G + γ_Q · Q) / L; with `soil=`, the design resistance of the soil from the geotechnical report, the width b ≥ n_d / σ_R,d.
-  - **Tables from the office:** `unit-weight` (γ by material, DIN EN 1991-1-1 Anhang A or the manufacturer), `imposed-load` (q_k by room use, DIN EN 1991-1-1/NA), `partition-load` (the surcharge by the partition's weight per metre), `struct-factors` (γ_G, γ_Q, DIN EN 1990/NA). None of the standard's values are in the repository (`0008`).
-  - The record is `out/loads.json`, the report `out/loads.md`, and `uea export pdf loads` sets it on A4 to sign.
+**`struct.uea`** (`packs/struct/kinds.py`) holds what the architecture does not give:
 
-**Solver candidates for 8c** (licences checked against `CLAUDE.md`): PyNite (MIT; 3D frames and plates, in Python) is the first candidate. anaStruct (GPL-3) and Code_Aster (GPL) could only run as a separate process. OpenSeesPy needs a licence check before it is considered. The choice is 8c's, with the engineer.
+- `beam bm1 OG S-160 a=… b=…`: a beam (Unterzug) under the slab of a storey. It carries that slab and the walls of the storey that stand on it.
+- `load lo1 OG g= q= at=…`: a point load, or with `a=`/`b=` a line load, on the slab of a storey. A buffer tank or a heavy partition the agent writes is an example.
+- Sections and strengths are rows of the office's tables (`beam-section`, `beam-material`), not types in the model, because their values are catalogue and norm data.
+
+**Checks** need no tables:
+
+- `W-STRUCT-001`: a load-bearing wall on nothing below.
+- `W-STRUCT-002`: a slab on no wall.
+- `W-STRUCT-003`: a beam on fewer than two walls.
+- `W-STRUCT-004`: a hole in a slab over the wall that carries it, where the slab has no bearing; the fix asks for a trimmer (Auswechslung).
+
+**`uea calc loads [soil= sk= qp=]`** (version 0.2.0):
+
+- **Slabs, shares, takedown:** as in 8a. Every point of a slab goes to its nearest support, a wall or a beam (the 45° rule in a rectangle), on a 5 cm grid.
+- **The roof** rests on its eaves. Each roof plane bears on the eaves line it falls to, as a couple roof (Sparrendach) does.
+  - On plan: g = Σ t·γ / cos α, s = μ1(α)·s_k and w = c_pe(α)·q_p, with μ1 and c_pe interpolated by pitch in the office's tables `snow-shape` and `wind-roof`.
+  - s_k and q_p are the planner's settings for the site, like the soil's resistance.
+  - An eaves line rests on the load-bearing walls along it, on the roof's storey or else on the storey below (under the slab's edge).
+  - The uplift at the eaves, γ_G,inf·G + γ_Q·W_suction per metre, says where the rafters need anchoring.
+- **Point and line loads**, and partitions heavier than the table, go to the nearest support of their slab. Before, a heavy partition failed the calculation.
+- **A beam's reactions** come from the solver per action and pass to its walls.
+- **Combination** per DIN EN 1990, 6.10: γ_G·G + γ_Q·(Q_k,1 + Σ ψ0,i·Q_k,i), with the leading action that gives the most. ψ0 comes from the office's `struct-psi`.
+
+**`uea calc struct [soil= sk= qp=]`**, the Statische Berechnung (`packs/struct/design.py`). Every position (`positions.py`) is proved:
+
+- **Slab:** a plate on PyNite (`plate.py`).
+  - **Mesh:** rectangular elements of at most 0.5 m on a grid through every support axis and the corners of the slab, its voids and its holes.
+  - **Supports:** vertical, along the axes of the walls and beams under it.
+  - **Edges:** the plate ends at the axes of the exterior walls. The strip over their outer half stiffens the plate's edge in twisting and lowers the field moments by a few per cent, so leaving it off is on the safe side.
+  - **Loads:** γ_G·(slab + the room's floor) + γ_Q·(the room's q + the partition surcharge), room by room, and the point loads.
+  - **Design moments:** m ± |m_xy| (Wood-Armer) at the elements' middles, which stands for the moment at the face of a support.
+  - **Reinforcement:** a_s per direction and face with the rectangular stress block: μ = m/(d²·f_cd), ω = 1 − √(1 − 2μ), a_s = ω·d·f_cd/f_yd, and x/d = ω/0.8 against the office's limit.
+- **Beam:** a continuous beam on PyNite.
+  - M_Ed ≤ W·k_mod·f_k/γ_M and V_Ed ≤ A_v·k_mod·f_v,k/γ_M.
+  - The characteristic deflection ≤ L/n.
+- **Masonry wall:** DIN EN 1996-3, 4.2.2, N_Ed ≤ Φ·f_d·t per metre of the wall without its openings.
+  - f_d = ζ·f_k/γ_M.
+  - Φ1 = 0.85 − 0.0011·(h_ef/t)², with h_ef = ρ2·h under a slab (ρ2 from the office) and h under a roof.
+  - At the end support of a slab, Φ = min(Φ1, Φ2) with Φ2 by the span l_f from the office's `masonry-end`.
+  - l_f is the shorter of the field's two spans.
+  - The conditions of the simplified method (clear height, span, imposed load, building height) come from the office's `struct-limits`.
+- **Lintel** over every door, window and rectangular hole in a load-bearing wall (a core drilling needs none).
+  - The load is the wall's load at its top per metre plus the masonry over the opening, with no arching.
+  - It is checked against the manufacturer's table `lintel`. The first type in the table's order that carries the load over the span in a wall of that thickness is taken.
+- **Strip footing:** b ≥ n_d/σ_R,d.
+- **Roof:** its loads on the eaves and the uplift.
+- **Holes:** every hole in a load-bearing wall or a slab is listed with how the calculation takes it. A slab hole is left out of the plate model. A wall hole shortens the wall and gets a lintel unless it is round. Approving a hole is the engineer's, by signing the Statische Berechnung that lists it; UEA approves nothing.
+
+**The positions** are derived from the model, so the Positionsplan and the calculation always agree. They are grouped by storey from the top. Group k holds:
+
+- the roofs on the k-th storey from the top;
+- the slab above it and its beams;
+- its load-bearing walls and the lintels over their openings.
+
+The last group holds the strip footings. Numbers read `2.07`. A position is drawn on the plan of the storey it is in, so a slab and its beams appear on the plan of the storey below them.
+
+**The sheets.** `uea export pdf struct:<level>` is the Positionsplan. It shows the floor plan in grey, the load-bearing walls in blue, the lintels in red, the beams dash-dotted and the eaves dashed, each with its number, at 1:50. `uea export pdf struct` sets `out/struct.md` on A4. That file holds the position list, the loads, each position's proof, the holes, what is not proved, and an empty signature block. The bare name is the calculation, and the plans take a level, so the two never clash.
+
+**The solver: PyNite** (MIT), an optional extra (`pip install 'uea[struct]'`) like IfcOpenShell.
+
+- **Why PyNite:** it is in Python, has plates and frames, and its licence and its dependencies (NumPy, SciPy, Matplotlib, PrettyTable) are Apache-compatible.
+- **Without it:** `struct` stops and names it.
+- **Accuracy:** the tests hold it to closed-form results. A simply supported plate is within 1 % of Navier's series; continuous beams match qL²/8, 1.25 qL and 5qL⁴/384EI.
+- **Speed:** each plate is held in its plane only as far as a rigid body needs, so the solver computes reactions only at the supports. Haus Müller's two slabs take about 6 s.
+- **Not chosen:** anaStruct (GPL-3) and Code_Aster (GPL) could only run as a separate process; OpenSeesPy was not checked.
+
+**Tables from the office**, none of the standards' values in the repository (`0008`):
+
+- From 8a: `unit-weight`, `imposed-load`, `partition-load`, `struct-factors`. `struct-factors` now also has γ_G,inf, γ_M, ζ and ρ2 of masonry, γ_C and α_cc, and γ_S, f_yk and d1.
+- New in 8b to 8d: `struct-psi`, `snow-shape`, `wind-roof`, `struct-limits`, `masonry`, `masonry-end`, `concrete`, `lintel`, `beam-section` and `beam-material`.
 
 ## Alternatives
 
-- **Wait for the engineer before building anything.** The load path and the loads are the input to every later slice, need the least judgment, and can be reviewed on their own; starting with them gives the engineer something concrete to review.
-- **Elements for supports and loads in `struct.uea` now.** For the Einfamilienhaus the supports are the load-bearing walls the architect already marks. Elements come with 8b, where loads that the architecture does not give (a heavy tank, a beam) need them.
-- **The shares by the walls' lengths, or by halves of each span.** Lengths ignore where the slab spans; halves of spans need the span directions, which a two-way slab does not have. The nearest-wall partition gives the 45° rule in a rectangle and a sensible split in an L-shaped field, with no input from the agent.
-- **Shares from a plate analysis of each slab.** That is 8c's solver, with the engineer; for the takedown to the foundation the tributary areas are the usual first estimate.
-- **Load combinations with ψ factors now.** 8a gives characteristic G and Q and the one design value of the footings; the combinations come with the member design.
+- **Wait for the engineer before 8b.** That was the plan. The user chose to build on, so the review now covers four slices at once. The slices stay separate in the code and the reports, so the engineer can review them in order.
+- **A purlin roof (Pfettendach) by default.** It needs purlins and their supports, which the model does not have. The couple roof needs nothing more than the architecture gives. A purlin is a beam the agent can write.
+- **Elements for supports and loads in `struct.uea` for every member.** For the Einfamilienhaus the supports are the walls the architect marks, so only beams and loads are elements; the rest is derived.
+- **The slab's moments from tables (Czerny and others).** Those tables are licensed and cover rectangles only. A plate model covers any outline, its holes and point loads, with no tables.
+- **Our own plate element.** A small one would be faster, but a published, tested solver is easier to trust and to review.
+- **The full plate including the strips over the exterior walls.** It gives smaller field moments, as computed above, so it is left off to stay on the safe side.
+- **Arching over openings (the 60° triangle).** It lowers lintel loads. It needs the wall over the opening to be high and whole enough, a judgment left to the engineer; without it UEA is on the safe side.
+- **Approving holes in the model, with a waiver by struct.** A waiver would look like an approval nobody gave. The engineer approves by signing the calculation that lists every hole.
 
 ## Consequences
 
-- Haus Müller's load path is clean: the OG walls stand on the EG's, the gable walls of the Spitzboden on the OG's west and east walls, both slabs on load-bearing walls. With tables of our own, `uea calc loads` carries every wall and slab to the footings without losing a kilonewton (tested).
-- Tested by hand in `tests/test_struct.py`: the two checks; a slab's G and Q; the 45° shares of a 10 × 8 box within the grid's 0.2 m²; the walls' own weight; the takedown from the OG to the EG; n_d and the footing width; a partition's surcharge, and one too heavy; a material missing from the table; Haus Müller; the command line and the PDF.
-- The validation report is `docs/validation/loads.md`.
-- The help lists `struct` among the topics and `loads` among the calculators (a few lines more; the bench could not be rerun here).
-- Open in 8a: loads per room instead of per slab (a bathroom's heavier floor spread over the whole slab now), continuity over interior supports, cantilevers and free edges, walls on a slab (they fail `W-STRUCT-001`), walls on the ground slab (left out), the approval of holes in load-bearing walls and slabs (`0039`), the standard's worked examples as a private test suite, and the review.
+- **Haus Müller**, with synthetic tables of our own (`tests/test_struct.py`):
+  - The load path is clean.
+  - The roof rests on the OG's eaves walls under the slab of the Spitzboden.
+  - Every kilonewton of walls, slabs and roof reaches the footings.
+  - Every position is proved: 2 slabs, 12 walls, 20 lintels and 5 footings.
+  - The six holes of the services are listed.
+- **Tested by hand:**
+  - the roof's loads and uplift;
+  - the combination with ψ0;
+  - a point load;
+  - a beam under an OG wall (reactions and moment);
+  - the beam solver against closed forms;
+  - the plate against Navier;
+  - the reinforcement formula and Φ1;
+  - a wall with Φ2 and a lintel;
+  - the positions;
+  - the two new checks;
+  - the command line with the Positionsplan and the PDF.
+- **Validation reports:** `docs/validation/loads.md` (0.2.0) and `docs/validation/struct.md`.
+- **Help:** it gains `struct`'s kinds, `uea calc struct` and the Positionsplan. These are a few lines more; the bench could not be rerun here.
+- **Not proved**, listed in the Statische Berechnung:
+  - the roof's timber (rafters, purlins, collar beams) and its anchoring in detail;
+  - the bracing and horizontal wind;
+  - for slabs: minimum and robustness reinforcement, shear, punching, deflection and cracks, and pattern loading;
+  - the ground slab;
+  - partial-area compression under bearings;
+  - Φ3 under the top slab;
+  - basement walls with earth pressure;
+  - the geotechnical checks of the footings.
+- **Open:**
+  - columns;
+  - a beam's own deflection in the slab model;
+  - the standard's worked examples as a private test suite;
+  - the review.
