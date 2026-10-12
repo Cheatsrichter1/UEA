@@ -40,12 +40,13 @@ A project is a folder, usually a git repository. Each discipline has its own fil
 ```
 haus-mueller/
   project.uea     project data, site, levels, grids (shared by all disciplines)
-  arch.uea        architecture: build-ups, walls, slabs, roofs, stairs, openings, rooms, finishes
-  struct.uea      structural: beams and loads; the load path itself is the architecture's (lb walls, slabs)
+  arch.uea        architecture: build-ups, walls, slabs, roofs, stairs, openings, rooms, finishes,
+                  shafts, pre-walls and installation zones
+  struct.uea      structural: beams, columns, rafters and loads; the load path itself is the architecture's (lb walls, slabs)
   elec.uea        electrical: devices, circuits, distribution boards, cables, feeds
-  plumb.uea       plumbing: fixtures, meter, risers, stacks, sewer connection; pipes derived
-  heat.uea        heating: heat generators, tanks, manifolds, emitters; pipe networks later
-  vent.uea        ventilation: units, ducts, outlets
+  plumb.uea       plumbing: fixtures, meter, risers, stacks, sewer connection, circulation; pipes derived
+  heat.uea        heating: heat generators, tanks, manifolds with their mixers, emitters; pipes derived
+  vent.uea        ventilation: units, terminals, inlets, overflow openings; ducts derived
   light.uea       Lighting: luminaires; after v1 also lighting design and requirements
   issues.uea      requests between disciplines and waivers (shared, §5)
   calc/           project-specific calculators written by agents (custom)
@@ -239,7 +240,7 @@ A calculator is a small typed Python module with declared inputs and outputs:
 - **`norm` calculators** ship with a pack. Each implements one method of one standard (for example Heizlast per DIN EN 12831-1), cites its clauses, and is tested against hand-computed cases with our own data. Each has a validation report a Prüfingenieur could read.
 - **Norm tables** a method needs (for example current-carrying capacities or Norm-Außentemperaturen) are supplied by the office from its own licensed copy (`uea data add`). They stay outside the repo and the project; the standard's worked examples run locally against them (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **`custom` calculators** are written by agents for a project (for example "lighting at 1.5 × the norm level") and live in the project's `calc/` folder: a module `calc/<name>.py` that defines `CALCULATOR = Calculator(...)`. UEA runs it as `custom`, whatever it declares.
-- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables. The electrical ones are `cable` (cable against its breaker) and `vdrop` (voltage drop). The heating ones are `uvalue` (U-values per DIN EN ISO 6946), `heatload` (Heizlast per DIN EN 12831-1, `docs/decisions/0033-u-values-and-heizlast.md`) and `hydronic` (heating pipes and the hydraulic balance on the Heizlast, `0037-heating-pipes-and-strangschema.md`). The plumbing ones are `water` (drinking-water pipes per DIN 1988-300) and `drain` (waste-water pipes per DIN 1986-100, `docs/decisions/0035-plumbing.md`). The ventilation ones are `airflow` (the Lüftungskonzept and room flows per DIN 1946-6) and `ducts` (duct sizes and fan pressure, `0038-ventilation.md`). The structural ones are `loads` (actions per DIN EN 1991 with snow and wind, and their takedown to the foundation) and `struct` (the Statische Berechnung: slabs and beams on the solver PyNite, masonry walls per DIN EN 1996-3, lintels, footings, `0040-structure.md`).
+- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables. The electrical ones are `cable` (cable against its breaker), `vdrop` (voltage drop) and `equip` (the minimum equipment of a room, `0041-minimum-equipment.md`). The heating ones are `uvalue` (U-values per DIN EN ISO 6946), `heatload` (Heizlast per DIN EN 12831-1, `docs/decisions/0033-u-values-and-heizlast.md`) and `hydronic` (heating pipes and the hydraulic balance on the Heizlast, `0037-heating-pipes-and-strangschema.md`). The plumbing ones are `water` (drinking-water pipes per DIN 1988-300), `drain` (waste-water pipes per DIN 1986-100, `docs/decisions/0035-plumbing.md`) and `recirc` (the hot-water circulation, `0042-heating-and-hot-water-details.md`). The ventilation ones are `airflow` (the Lüftungskonzept and room flows per DIN 1946-6) and `ducts` (duct sizes and fan pressure, `0038-ventilation.md`). The structural ones are `loads` (actions per DIN EN 1991 with snow and wind, and their takedown to the foundation) and `struct` (the Statische Berechnung: slabs, beams and rafters on the solver PyNite, columns, masonry walls per DIN EN 1996-3 with the bracing against wind, lintels, footings, `0040-structure.md`, `0044-structure-completion.md`).
 
 Every result records the calculator, its kind (`norm` or `custom`), its version, its inputs and settings (`name=value` after the scope), the norm tables it used with edition and file hash, and the model state it ran on. A `custom` result is never presented as norm-compliant. Results are derived, not stored in the model. The norm tables are the office's: it installs each from its own licensed copy as a CSV file with `uea data add`, they live on the machine outside the project, and a calculator without its table stops and names it (`docs/decisions/0028-norm-tables-and-electrical-calculators.md`). `uea calc` writes a report for humans (`out/<name>.md`, in German) and the record (`out/<name>.json`).
 
@@ -287,7 +288,7 @@ The IFC GlobalId of each element is kept in the history entry of the import, wit
 | Packaging and tooling | uv, ruff, pytest |
 | Geometry | Shapely |
 | Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl, ezdxf, reportlab; Blender and DWG converters as separate processes |
-| Structural solver | PyNite (MIT, optional extra `uea[struct]`): plates and continuous beams (`0040-structure.md`) |
+| Structural solver | PyNite (MIT, optional extra `uea[struct]`): plates, continuous beams and plane frames (`0040-structure.md`, `0044-structure-completion.md`) |
 | Licence | Apache-2.0 |
 
 Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) comes in only for measured hot paths, behind the same API (`docs/decisions/0003-python.md`).
