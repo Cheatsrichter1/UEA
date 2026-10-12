@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is built too, also unreviewed: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent run of the whole house end to end is prepared, not yet run. See `ROADMAP.md`.
+**Status:** release 0.1.0 is a first preview for agents and developers (`CHANGELOG.md`). The core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is built too, also unreviewed: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent run of the whole house end to end is prepared, not yet run. See `ROADMAP.md`.
 
 ## Why
 
@@ -73,12 +73,14 @@ What a complete build costs an agent, from the brief to the exports: with conven
 
 ## Try it
 
-Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/). Install the release as a command, with the IFC and structural extras:
 
 ```bash
-uv sync --all-extras
-uv run uea help
+uv tool install "uea[ifc,struct] @ git+https://github.com/Cheatsrichter1/UEA@v0.1.0"
+uea help
 ```
+
+Or work from a clone: `uv sync --all-extras`, then `uv run uea help`.
 
 An agent's first steps look like this:
 
@@ -117,6 +119,7 @@ Buildings first: architecture, electrical, plumbing, heating, ventilation, light
 | File | Content |
 |---|---|
 | `VISION.md` | What UEA is, why, and what it is not |
+| `CHANGELOG.md` | What each release contains |
 | `ARCHITECTURE.md` | How it is built: core, domain packs, file format, CLI, calculators, exports |
 | `ROADMAP.md` | Phases up to the Einfamilienhaus demo |
 | `FUTURE.md` | Ideas beyond the first scope |
