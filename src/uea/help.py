@@ -165,11 +165,13 @@ through a hole in the wall. Ask arch for them with a request.
 """
 
 STRUCT_NOTES = """\
-No elements of its own yet: the load path is the architecture's. A slab rests on the
-load-bearing walls (lb) of the storey below; a load-bearing wall stands on those of the storey
-below its core overlaps. The checks say where the path breaks. Loads, their takedown and the
-line loads on the footings: uea calc loads (help calc). The design of the members and the
-signature are the Tragwerksplaner's.
+The load path is the architecture's: a slab rests on the load-bearing walls (lb) of the storey
+below, a load-bearing wall on those of the storey below its core overlaps. struct.uea adds what
+the architecture does not give: beams where a wall or a slab has no wall under it, and point or
+line loads the rooms' uses do not cover. Sections and strengths are rows of the office's tables.
+The roof rests on the walls under its eaves. uea calc loads: the loads and their takedown; uea
+calc struct: the Statische Berechnung, every position proved (help calc); uea export pdf
+struct:<level>: the Positionsplan. The signature is the Tragwerksplaner's.
 """
 
 CALC = """\
@@ -203,10 +205,15 @@ uea calc airflow n50=<1/h> insulation=high|low
                         measure is needed, each room's flow against the units in vent.uea
 uea calc ducts n50= insulation= vmax=<m/s>
                         duct sizes of the central units and each side's fan pressure (norm)
-uea calc loads [soil=<kN/m²>]
-                        the loads of the slabs and walls, their takedown to the foundation and
-                        the line loads on the footings (DIN EN 1991-1-1, norm); soil= the
-                        soil's design resistance gives each footing's width
+uea calc loads [soil=<kN/m²> sk=<kN/m²> qp=<kN/m²>]
+                        the loads of the slabs, roofs, beams and walls, their takedown to the
+                        foundation and the line loads on the footings (DIN EN 1991, norm); sk,
+                        qp: the site's snow load and wind pressure, needed with a roof; soil=
+                        the soil's design resistance gives each footing's width
+uea calc struct [soil= sk= qp=]
+                        the Statische Berechnung (norm): slabs as plates and beams on the solver
+                        PyNite (pip install 'uea[struct]'), masonry walls (DIN EN 1996-3),
+                        lintels from the office's table, footings; one line per position
 Scope of cable and vdrop: a circuit, an RCD or a board. All if left out. Settings are
 name=value after the name.
 Norm tables come from the office's own licensed copies and are not in UEA: uea data lists them,
@@ -227,9 +234,10 @@ uea export pdf|dxf [name] [-o f]    sheets for humans, A3 1:100 or larger: a flo
                                     Heating: heat (all), heat:<level>, heat:schema (the
                                     Heizungs- und Trinkwasserschema). Plumbing: plumb,
                                     plumb:<level> (fixtures and the derived pipes), plumb:schema
-                                    (the Strangschema). Ventilation: vent, vent:<level>
+                                    (the Strangschema). Ventilation: vent, vent:<level>.
+                                    Structure: struct:<level> (the Positionsplan)
 uea export pdf <result>             a calculation report to sign: out/<result>.md on A4 (e.g.
-                                    heatload); refused if the model changed since uea calc
+                                    heatload, struct); refused if the model changed since uea calc
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
                                     quantities, electrical, emitters, manifolds, fixtures, pipes,
                                     ventilation units, air terminals, ducts

@@ -49,6 +49,7 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     electrical, heating and plumbing sheets."""
     from uea.export.elevation import SIDES
     from uea.export.paper import Stand
+    from uea.export.positionsplan import struct_levels
     from uea.export.schema import Schema
     from uea.export.tga import tga_levels
 
@@ -67,6 +68,7 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     if plumbing:
         plumbing.append(("strang", "plumb"))
     venting = [("vent", lv) for lv in tga_levels(d, "vent")]
+    structure = [("struct", lv) for lv in struct_levels(d)]
     if scope is None or scope == "all":
         return [
             *(("plan", lv) for lv in levels),
@@ -76,6 +78,7 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
             *heating,
             *plumbing,
             *venting,
+            *structure,
         ]
     if scope == "elec":
         return electrical or "nothing electrical to draw yet"
@@ -86,6 +89,12 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         return [("schema", "heat")] if has_schema else "no heating and no water to draw yet"
     if scope == "plumb:schema":
         return [("strang", "plumb")] if plumbing else "no plumbing to draw yet"
+    if scope.startswith("struct:"):
+        rest = scope.removeprefix("struct:")
+        if rest not in levels:
+            return f"unknown level {rest!r}. Levels: {' '.join(levels)}"
+        on = [lv for _, lv in structure]
+        return [("struct", rest)] if rest in on else f"no load-bearing members on {rest}"
     if scope.startswith(("heat:", "plumb:", "vent:")):
         pack, _, rest = scope.partition(":")
         on = {
@@ -121,6 +130,8 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         more += " Plumbing: plumb, plumb:<level>, plumb:schema."
     if venting:
         more += " Ventilation: vent, vent:<level>."
+    if structure:
+        more += " Structure: struct:<level> (Positionsplan); struct after uea calc struct."
     return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
 
 
@@ -134,6 +145,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     from uea.export.install import ELEC_LAYER_COLORS, sheet_install
     from uea.export.paper import LAYER_COLORS, Stand
     from uea.export.pdf import to_pdf
+    from uea.export.positionsplan import STRUCT_LAYER_COLORS, sheet_positions
     from uea.export.schema import H_SCHEMA, sheet_schema
     from uea.export.section import sheet_section
     from uea.export.sheet import sheet_plan
@@ -162,6 +174,8 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_board(d, key, stand)
         elif kind in ("heat", "plumb", "vent"):
             dw = sheet_tga(d, key, kind, stand)
+        elif kind == "struct":
+            dw = sheet_positions(d, key, stand)
         elif kind == "schema":
             dw = sheet_schema(d, stand)
         elif kind == "strang":
@@ -188,6 +202,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
                 **LAYER_COLORS,
                 **ELEC_LAYER_COLORS,
                 **TGA_LAYER_COLORS,
+                **STRUCT_LAYER_COLORS,
                 H_SCHEMA: "#000000",
                 S_SCHEMA: "#000000",
             }

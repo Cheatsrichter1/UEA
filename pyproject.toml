@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ifc = ["ifcopenshell>=0.8"]
+struct = ["PyNiteFEA>=3.2"]
 
 [project.scripts]
 uea = "uea.cli:main"

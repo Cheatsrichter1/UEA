@@ -28,7 +28,7 @@ Electrical: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 swit
 
 Drawings are SVG with a PNG copy; labels are German, because German offices read them.
 
-**Drawn by UEA.** The services sheets come from UEA itself: `uea export svg <name>` and `uea export png <name>` on a copy of these files without the two `illum` lines (their pack is not built yet). The PDF of the same sheet is `uea export pdf <name>`. Pipe and duct sizes are in the calculation reports, not on the plans. Holes (`docs/decisions/0039-openings-without-a-fill.md`) show on every floor plan: KB a core drilling, DD a hole through a slab, dashed when it is in the slab above.
+**Drawn by UEA.** The services sheets and the Positionspläne come from UEA itself: `uea export svg <name>` and `uea export png <name>` on a copy of these files without the two `illum` lines (their pack is not built yet). The PDF of the same sheet is `uea export pdf <name>`. Pipe and duct sizes are in the calculation reports, not on the plans. Holes (`docs/decisions/0039-openings-without-a-fill.md`) show on every floor plan: KB a core drilling, DD a hole through a slab, dashed when it is in the slab above.
 
 | Export | Name | Content |
 |---|---|---|
@@ -37,6 +37,7 @@ Drawings are SVG with a PNG copy; labels are German, because German offices read
 | [Sanitär EG](exports/sanitaer-EG.png), [OG](exports/sanitaer-OG.png) | `plumb:EG`, `plumb:OG` | Water meter, riser and stack, fixtures, the derived drinking-water and waste pipes, the sewer connection |
 | [Strangschema](exports/strangschema.png) | `plumb:schema` | The riser diagram: meter, tank, riser, the fixtures per storey, the stack vented over the roof, the sewer |
 | [Lüftung EG](exports/lueftung-EG.png), [OG](exports/lueftung-OG.png) | `vent:EG`, `vent:OG` | The central unit lg1 in the HWR, outdoor and exhaust air through the core drillings ho1 and ho2, supply and extract terminals, the derived ducts up through ho3 |
+| [Positionsplan EG](exports/positionsplan-EG.png), [OG](exports/positionsplan-OG.png), [DB](exports/positionsplan-DB.png) | `struct:EG`, `struct:OG`, `struct:DB` | The positions of the Statische Berechnung (`docs/decisions/0040-structure.md`): load-bearing walls in blue with their numbers, the lintels over their openings in red, the slab over the storey, the roof and its eaves on the Spitzboden, and the strip footings beside the EG's walls (3.02 · 4.01) |
 
 **Not UEA exports.** The other files are generated from the `.uea` files by a throwaway script outside the repository; they show what the model must be able to deliver.
 
