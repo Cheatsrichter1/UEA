@@ -16,7 +16,7 @@ from uea.derive import Derived, GeoError, Unresolved
 from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Crossing, Net, finish, gap, grow, node_of, routed, through
+from uea.packs.net import Crossing, Net, Zoned, finish, gap, grow, node_of, routed, through
 from uea.packs.vent.kinds import (
     ROLES,
     Ahu,
@@ -112,7 +112,7 @@ def derive_vent(d: Derived) -> None:
             unit = m[u]
             assert isinstance(unit, Ahu)
             via = unit.via.refs() if unit.via else ()
-            grow(net, {u}, [u], ends, "duct", routed(d, via))
+            grow(net, {u}, [u], ends, "duct", Zoned(d, routed(d, via)))
             finish(net, set(ends))
             v.crossings += through(d, net, via)
             v.ducts[(u, role)] = net

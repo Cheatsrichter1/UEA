@@ -226,6 +226,39 @@ def describe(d: Derived, el: Element) -> list[str]:
     if el.kind == "grid":
         users = m.referrers(el.id)
         return [f"used by {ids(users)}" if users else "unused"]
+    if el.kind == "shaft" and el.id in g.shafts:
+        sh = g.shafts[el.id]
+        x0, y0, x1, y1 = sh.poly.bounds
+        return [
+            f"x {iv(x0, x1)} y {iv(y0, y1)} = {ar(sh.poly.area)} m² | {sh.level}..{sh.to}"
+            f" | opens {ids(sh.slabs) or 'no slab'}"
+        ]
+    if el.kind == "prewall" and el.id in g.prewalls:
+        pw = g.prewalls[el.id]
+        w = g.walls[pw.wall]
+        on = sorted(
+            (
+                k
+                for k, mt in {**d.mounts, **getattr(getattr(d, "plumb", None), "at", {})}.items()
+                if mt.wall == pw.wall
+                and mt.face == pw.side
+                and pw.lo - 1e-6 <= mt.s <= pw.hi + 1e-6
+                and pw.z0 - 1e-6 <= mt.z <= pw.z1 + 1e-6
+            ),
+            key=natural,
+        )
+        return [
+            f"{w.id} {w.along} {iv(pw.lo, pw.hi)} | d {ln(pw.depth)} h {ln(pw.z1 - pw.z0)}"
+            f" | {ar(pw.poly.area)} m²" + (f" | carries {ids(on)}" if on else "")
+        ]
+    if el.kind == "zone" and el.id in g.zones:
+        zg = g.zones[el.id]
+        length = abs(zg.a[0] - zg.b[0]) + abs(zg.a[1] - zg.b[1])
+        lv = g.levels[zg.level]
+        return [
+            f"a {ln(zg.a[0])},{ln(zg.a[1])} b {ln(zg.b[0])},{ln(zg.b[1])} z {ln(zg.z - lv.z)}"
+            f" | {ln(length)} m"
+        ]
     return []
 
 

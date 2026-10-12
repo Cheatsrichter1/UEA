@@ -43,4 +43,4 @@ The prototype only derived the routes roughly (`docs/prototype/haus-mueller/READ
 - A switch is fed from the board like any device. A real lighting circuit runs the supply to the luminaire and a switch loop to the switch; the lengths differ by less than a run.
 - Boards fed from other boards are still open (several boards, the feeder to the sub-board is not a circuit).
 - The cable is not drawn on the installation plan. The derived runs are in the sheets and in `uea get`; drawing them (lightly, behind the symbols) can come with the zones.
-- Open: shafts and chases, the declared length of a circuit that leaves the model, the place of a `feed` to ventilation and plumbing, the zones as drawn bands.
+- Open: the declared length of a circuit that leaves the model, the place of a `feed` to ventilation and plumbing. Shafts and installation zones the cables follow came with `0045-shafts-prewalls-zones.md`.

@@ -26,7 +26,7 @@ from shapely.ops import nearest_points, unary_union
 from uea.core.registry import natural
 from uea.derive import Derived
 from uea.export.drawing import Drawing, Line, Pen, Pt
-from uea.export.install import FITS_INSTALL, ROW, InstallPlan, ghost
+from uea.export.install import E_ZONE, FITS_INSTALL, ROW, InstallPlan, ghost
 from uea.export.paper import BLACK, BLOCK_H, BLOCK_W, Stand, de, fit_sheet, frame, poly_item
 from uea.export.symbols import Ink, Spot
 from uea.packs.heat.geometry import heat_type
@@ -73,6 +73,7 @@ AIR_LAYER = {"oda": L_ODA, "sup": L_SUP, "ext": L_ETA, "eha": L_EHA}
 AIR_OFF = {"oda": 1.05, "sup": 0.35, "ext": -0.35, "eha": -1.05}
 AIR_MARK = {"oda": "AU", "sup": "ZU", "ext": "AB", "eha": "FO"}
 TGA_LAYER_COLORS = {
+    E_ZONE: "#8a8a8a",
     H_UFH: RED,
     H_MAN: RED,
     H_RAD: RED,
@@ -195,6 +196,7 @@ class TgaPlan(InstallPlan):
         self.walls_and_openings()
         self.stairs_and_voids()
         ghost(self.dw.items[start:])
+        self.zones()
         self.names()
         if self.pack == "heat":
             self.links()
@@ -357,6 +359,11 @@ class TgaPlan(InstallPlan):
                 (b.point[0] + o, a.point[1] + o),
                 (b.point[0] + o, b.point[1] + o),
             ]
+            if s.path:
+                # along the installation zones: to them square, then along them
+                pts = []
+                for p, q in pairwise(s.path):
+                    pts += [(p[0] + o, p[1] + o), (q[0] + o, p[1] + o), (q[0] + o, q[1] + o)]
             for u, v in pairwise(pts):
                 if abs(u[0] - v[0]) + abs(u[1] - v[1]) > 1e-6:
                     self.dw.add(Line(u, v, pen, layer))

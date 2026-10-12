@@ -13,8 +13,10 @@ implemented and cited freely. Clauses implemented here:
 - §4 Nr. 1 and 2: parts with a clear height of 2 m or more count fully, from 1 m to under
   2 m half, under 1 m not at all.
 - A void in the floor (stair hole) is no floor area (§3 Abs. 1).
+- §3 Abs. 3 Nr. 1: a pre-wall installation (Vormauerung) higher than 1.5 m on more than 0.1 m²
+  does not count. An installation shaft is not part of a room's finished outline at all.
 
-Not covered yet: §3 Abs. 3 Nr. 1 (chimneys, pillars, Vormauerungen), §4 Nr. 3 and 4
+Not covered yet: chimneys and pillars of §3 Abs. 3 Nr. 1 (not in the model), §4 Nr. 3 and 4
 (Wintergärten, balconies, terraces). Rooms of those kinds are not in the model yet.
 """
 
@@ -29,7 +31,7 @@ from uea.geom import clean, union
 from uea.packs.arch.geometry import RoomGeo
 from uea.packs.arch.kinds import Niche, Room
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NORM = "WoFlV vom 25.11.2003"
 
 EXCLUDED: dict[str, str] = {
@@ -40,6 +42,8 @@ EXCLUDED: dict[str, str] = {
     "garage": "Garage, §2 Abs. 3 Nr. 1 g",
 }
 NICHE_MIN_DEPTH = 0.13
+PREWALL_H, PREWALL_A = 1.5, 0.1
+"""A Vormauerung higher than 1.5 m on more than 0.1 m² is no floor area (§3 Abs. 3 Nr. 1)."""
 
 
 @dataclass
@@ -95,6 +99,13 @@ def room_area(d: Derived, rg: RoomGeo) -> RoomArea:
         if a > 1e-6:
             ra.minus.append((f"Deckenöffnung {v.id}", a, "§3 Abs. 1"))
             cut.append(v.poly)
+    for pw in g.prewalls.values():
+        if pw.level != rg.level or pw.status == "demolish" or pw.z1 - pw.z0 <= PREWALL_H:
+            continue
+        a = pw.poly.intersection(rg.fin).area
+        if a > PREWALL_A:
+            ra.minus.append((f"Vormauerung {pw.id}", a, "§3 Abs. 3 Nr. 1"))
+            cut.append(pw.poly)
     net = clean(rg.fin.difference(union(cut))) if cut else rg.fin
     if not rg.ceiling:
         ra.no_ceiling = True
@@ -248,12 +259,15 @@ def _report(d: Derived, rooms: list[RoomArea], levels: dict[str, float], total: 
         "- §4 Nr. 1 und 2: lichte Höhe ≥ 2 m voll, 1 m bis unter 2 m zur Hälfte, unter 1 m nicht.",
         "- §2 Abs. 3 Nr. 1: Zubehörräume (Keller, Waschküche, Bodenraum, Heizungsraum, Garage)"
         " gehören nicht zur Wohnfläche; maßgeblich ist die Nutzung des Raums im Modell.",
+        "- §3 Abs. 3 Nr. 1: Vorwandinstallationen höher als 1,50 m mit mehr als 0,1 m²"
+        " Grundfläche bleiben außer Betracht; Installationsschächte gehören nicht zur"
+        " Fertigfläche des Raums.",
         "",
         "## Nicht abgedeckt",
         "",
-        "- §3 Abs. 3 Nr. 1 (Schornsteine, Vormauerungen, freistehende Pfeiler und Säulen) und"
-        " §4 Nr. 3 und 4 (Wintergärten, Schwimmbäder, Balkone, Loggien, Dachgärten, Terrassen):"
-        " solche Bauteile und Räume enthält das Modell noch nicht.",
+        "- §3 Abs. 3 Nr. 1 für Schornsteine, freistehende Pfeiler und Säulen und §4 Nr. 3 und 4"
+        " (Wintergärten, Schwimmbäder, Balkone, Loggien, Dachgärten, Terrassen): solche Bauteile"
+        " und Räume enthält das Modell noch nicht.",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"
         " fachkundigen Person.",

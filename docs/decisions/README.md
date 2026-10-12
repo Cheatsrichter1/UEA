@@ -48,6 +48,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0042 | [Emitter output, mixing circuits and the hot-water circulation](0042-heating-and-hot-water-details.md) | Proposed |
 | 0043 | [Inlets, overflow openings, terminal losses, heat recovery and ventilation in the IFC](0043-ventilation-details.md) | Proposed |
 | 0044 | [The rest of the structure: slab checks, rafters, columns, bracing](0044-structure-completion.md) | Proposed (built, not reviewed) |
+| 0045 | [Shafts, pre-wall installations and installation zones](0045-shafts-prewalls-zones.md) | Proposed |
 
 Template:
 

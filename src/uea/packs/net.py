@@ -7,13 +7,14 @@ a stack) where it stands, any other through the nearest of the holes or voids it
 (`via=`), which lengthens it by the detour.
 """
 
+import heapq
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import Literal
 
+from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as SPoint
-from shapely.geometry import Polygon
 
 from uea.core.issues import Issue
 from uea.core.registry import natural
@@ -49,6 +50,8 @@ class Section:
     """The fixtures and tanks beyond b: those it supplies, or whose waste water it carries."""
     via: list[str] = field(default_factory=list[str])
     """The slab holes it changes storey through."""
+    path: list[tuple[float, float]] | None = None
+    """Its way on plan along the installation zones, when it follows them (decision 0045)."""
 
     @property
     def bends(self) -> int:
@@ -108,7 +111,8 @@ def grow(
     kind: SectionKind,
     dist: Callable[[Node, Node], tuple[float, int]] = gap,
 ) -> None:
-    """Prim's algorithm: join each of left to the nearest node inside, ties to the lower id."""
+    """Prim's algorithm: join each of left to the nearest node inside, ties to the lower id. A
+    distance that follows the installation zones also gives the way (`Zoned.path`)."""
     inside = sorted(inside, key=natural)
     left = sorted(set(left) - done, key=natural)
     while left:
@@ -118,7 +122,10 @@ def grow(
             for v in left
         )
         (length, legs), _, _, u, v = best
-        net.sections.append(Section(u, v, length, legs, kind))
+        sec = Section(u, v, length, legs, kind)
+        if isinstance(dist, Zoned):
+            sec.path = dist.path(net.nodes[u], net.nodes[v])
+        net.sections.append(sec)
         inside.append(v)
         left.remove(v)
         done.add(v)
@@ -215,12 +222,18 @@ def _passes(d: Derived, a: Node, b: Node, via: Sequence[str]) -> list[Pass]:
             (h.id, h.poly) for h in g.holes.values() if h.host == sl.id and h.status != "demolish"
         ]
         here += [(v.id, v.poly) for v in g.voids.values() if v.slab == sl.id]
+        here += [
+            (sh.id, sh.poly)
+            for sh in g.shafts.values()
+            if sl.id in sh.slabs and sh.status != "demolish"
+        ]
         if upright:
             p = SPoint(a.point)
             hole = next((k for k, poly in here if poly.buffer(1e-6).covers(p)), None)
             out.append((sl.id, a.point, hole))
             continue
-        mine = [(k, _mid(poly)) for k, poly in here if k in via]
+        # the holes the network names, and every shaft (decision 0045)
+        mine = [(k, _mid(poly)) for k, poly in here if k in via or k in g.shafts]
         if not mine:
             out.append((sl.id, None, None))
             continue
@@ -285,3 +298,187 @@ def hole_users(d: Derived) -> dict[str, list[str]]:
         if h is not None:
             out.setdefault(h, set()).add(k)
     return {k: sorted(v, key=natural) for k, v in out.items()}
+
+
+# ---------- installation zones (decision 0045) ----------
+
+Pt = tuple[float, float]
+Key = tuple[float, float, float]
+
+
+@dataclass
+class _Seg:
+    a: Pt
+    b: Pt
+    z: float
+
+
+class Zoned:
+    """The distance between two nodes along the installation zones of their storey: straight
+    (rectilinear) to the nearest point of a zone, along the zones, and straight on to the other
+    node. Zones that cross or touch join; a zone at another height joins by the difference.
+    Nodes on different storeys, or on a storey without zones, keep the rectilinear distance of
+    `base`. The pre-wall installations are zones too, along their middle at half their height.
+    """
+
+    def __init__(self, d: Derived, base: Callable[[Node, Node], tuple[float, int]] = gap) -> None:
+        self.base = base
+        self.segs: dict[str, list[_Seg]] = {}
+        for zg in d.arch.zones.values():
+            self.segs.setdefault(zg.level, []).append(_Seg(zg.a, zg.b, zg.z))
+        for pw in d.arch.prewalls.values():
+            if pw.status == "demolish":
+                continue
+            w = d.arch.walls[pw.wall]
+            mid = pw.front - (pw.depth / 2 if pw.side == "hi" else -pw.depth / 2)
+            a, b = w.plan_point(pw.lo, mid), w.plan_point(pw.hi, mid)
+            self.segs.setdefault(pw.level, []).append(_Seg(a, b, (pw.z0 + pw.z1) / 2))
+        self.graphs = {lv: _graph(segs) for lv, segs in self.segs.items()}
+        """Per storey: the graph's edges, and each segment's nodes in order along it."""
+        self._memo: dict[tuple[str, str], tuple[float, int, list[Pt]] | None] = {}
+
+    def __call__(self, a: Node, b: Node) -> tuple[float, int]:
+        got = self._route(a, b)
+        if got is None:
+            return self.base(a, b)
+        return got[0], got[1]
+
+    def path(self, a: Node, b: Node) -> list[Pt] | None:
+        got = self._route(a, b)
+        return got[2] if got is not None else None
+
+    def _route(self, a: Node, b: Node) -> tuple[float, int, list[Pt]] | None:
+        if a.level != b.level or a.level not in self.segs:
+            return None
+        key = (a.id, b.id)
+        if key not in self._memo:
+            self._memo[key] = self._solve(a, b)
+        return self._memo[key]
+
+    def _solve(self, a: Node, b: Node) -> tuple[float, int, list[Pt]] | None:
+        segs = self.segs[a.level]
+        edges, along = self.graphs[a.level]
+        ea, eb = _enter(segs, a), _enter(segs, b)
+        # each entry joins the graph at the nodes of its segment on either side of it
+        extra: dict[Key, list[tuple[Key, float]]] = {}
+        for _, p, i in (ea, eb):
+            sg = segs[i]
+            line = LineString([sg.a, sg.b])
+            at = line.project(SPoint(p))
+            k = (p[0], p[1], sg.z)
+            keys = along[i]
+            before = [q for q in keys if line.project(SPoint(q[0], q[1])) <= at + EPS]
+            after = [q for q in keys if line.project(SPoint(q[0], q[1])) >= at - EPS]
+            for q in before[-1:] + after[:1]:
+                length = abs(p[0] - q[0]) + abs(p[1] - q[1])
+                extra.setdefault(k, []).append((q, length))
+                extra.setdefault(q, []).append((k, length))
+        pa, sa = ea[1], ea[2]
+        pb, sb = eb[1], eb[2]
+        ka, kb = (pa[0], pa[1], segs[sa].z), (pb[0], pb[1], segs[sb].z)
+        if sa == sb:
+            direct = abs(pa[0] - pb[0]) + abs(pa[1] - pb[1])
+            extra.setdefault(ka, []).append((kb, direct))
+            extra.setdefault(kb, []).append((ka, direct))
+        way = _dijkstra(edges, extra, ka, kb)
+        if way is None:
+            return None
+        length, keys = way
+        total = ea[0] + length + eb[0]
+        pts = [a.point, *[(k[0], k[1]) for k in keys], b.point]
+        clean: list[Pt] = []
+        for p in pts:
+            if not clean or abs(clean[-1][0] - p[0]) + abs(clean[-1][1] - p[1]) > EPS:
+                clean.append(p)
+        return total, len(clean) + 1, clean
+
+
+def _enter(segs: list[_Seg], n: Node) -> tuple[float, Pt, int]:
+    """The nearest point of the zones to a node, rectilinear in plan and in height, with the
+    index of its segment."""
+    best: tuple[float, Pt, int] | None = None
+    for i, sg in enumerate(segs):
+        line = LineString([sg.a, sg.b])
+        q = line.interpolate(line.project(SPoint(n.point)))
+        p = (float(q.x), float(q.y))
+        cost = abs(n.point[0] - p[0]) + abs(n.point[1] - p[1]) + abs(n.z - sg.z)
+        if best is None or cost < best[0] - EPS:
+            best = (cost, p, i)
+    assert best is not None
+    return best
+
+
+def _graph(
+    segs: list[_Seg],
+) -> tuple[dict[Key, list[tuple[Key, float]]], list[list[Key]]]:
+    """The zones as a graph: each split where another zone meets it, a zone at another height
+    joined by the difference."""
+    cuts: list[list[Pt]] = [[s.a, s.b] for s in segs]
+    joins: list[tuple[Key, Key]] = []
+    for i, si in enumerate(segs):
+        li = LineString([si.a, si.b])
+        for j in range(i + 1, len(segs)):
+            sj = segs[j]
+            hit = li.intersection(LineString([sj.a, sj.b]))
+            for c in _points(hit):
+                cuts[i].append(c)
+                cuts[j].append(c)
+                if abs(si.z - sj.z) > EPS:
+                    joins.append(((c[0], c[1], si.z), (c[0], c[1], sj.z)))
+    edges: dict[Key, list[tuple[Key, float]]] = {}
+    along: list[list[Key]] = []
+    for sg, pts in zip(segs, cuts, strict=True):
+        line = LineString([sg.a, sg.b])
+        ordered = sorted(
+            {(round(p[0], 6), round(p[1], 6)) for p in pts}, key=lambda p: line.project(SPoint(p))
+        )
+        along.append([(p[0], p[1], sg.z) for p in ordered])
+        for p, q in pairwise(ordered):
+            u, v = (p[0], p[1], sg.z), (q[0], q[1], sg.z)
+            length = abs(p[0] - q[0]) + abs(p[1] - q[1])
+            edges.setdefault(u, []).append((v, length))
+            edges.setdefault(v, []).append((u, length))
+    for u, v in joins:
+        u = (round(u[0], 6), round(u[1], 6), u[2])
+        v = (round(v[0], 6), round(v[1], 6), v[2])
+        edges.setdefault(u, []).append((v, abs(u[2] - v[2])))
+        edges.setdefault(v, []).append((u, abs(u[2] - v[2])))
+    return edges, along
+
+
+def _points(geom: object) -> list[Pt]:
+    if isinstance(geom, SPoint):
+        return [(float(geom.x), float(geom.y))]
+    if isinstance(geom, LineString):
+        return [(float(x), float(y)) for x, y in geom.coords]
+    out: list[Pt] = []
+    for part in getattr(geom, "geoms", []):
+        out += _points(part)
+    return out
+
+
+def _dijkstra(
+    edges: dict[Key, list[tuple[Key, float]]],
+    extra: dict[Key, list[tuple[Key, float]]],
+    start: Key,
+    goal: Key,
+) -> tuple[float, list[Key]] | None:
+    dist: dict[Key, float] = {start: 0.0}
+    prev: dict[Key, Key] = {}
+    heap: list[tuple[float, Key]] = [(0.0, start)]
+    while heap:
+        du, u = heapq.heappop(heap)
+        if u == goal:
+            way = [u]
+            while way[-1] in prev:
+                way.append(prev[way[-1]])
+            return du, way[::-1]
+        if du > dist.get(u, float("inf")) + EPS:
+            continue
+        for v, w in [*edges.get(u, []), *extra.get(u, [])]:
+            nd = du + w
+            if nd < dist.get(v, float("inf")) - EPS:
+                dist[v] = nd
+                prev[v] = u
+                heapq.heappush(heap, (nd, v))
+    return None

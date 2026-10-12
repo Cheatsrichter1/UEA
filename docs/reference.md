@@ -134,7 +134,7 @@ A grid line: x= for a line along y, y= for a line along x.
 
 Types: `type … wall`, `type … slab`, `type … floor`, `type … roof`, `type … win`, `type … door`.
 
-Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `hole`, `roof`, `stair`, `sep`, `room`, `section`.
+Kinds: `wall`, `door`, `win`, `niche`, `slab`, `void`, `hole`, `roof`, `stair`, `sep`, `room`, `section`, `shaft`, `prewall`, `zone`.
 
 #### `type … wall`
 
@@ -402,6 +402,49 @@ A section (Schnitt A-A): a vertical cut through the building at x= or y=. Name i
 | x | `x=` | m | x of a cut across x (the cut plane runs along y) |
 | y | `y=` | m | y of a cut across y (the cut plane runs along x) |
 | look | `look=` | `n` `s` `e` `w` | viewing direction: e or w for x=, n or s for y=; default e for x=, n for y= |
+
+#### `shaft`
+
+An installation shaft (Schacht) from a storey up through the storeys above: shaft sh1 EG 0.4x0.6 at=w4+0.5,w3-0.5 to=DB. It opens every slab it passes and is not floor area of the rooms it stands in; pipes, cables and ducts that change storey run through it.
+
+`shaft <id> <level> <size>` · ids `sh1`, `sh2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | its lowest storey |
+| size | positional | m | x by y |
+| at | `at=` | m | its centre (required) |
+| to | `to=` |  | its highest storey (required) |
+| status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
+
+#### `prewall`
+
+A pre-wall installation (Vorwandinstallation) in front of a wall face, d deep: prewall vw1 w9.n 1.6x1.2 x=w13+0.1 d=0.2 (width x height, its edge like an opening). Fixtures and devices on that face within it sit on its front; the pipes behind them run in it.
+
+`prewall <id> <host> <size>` · ids `vw1`, `vw2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall face, e.g. w9.n |
+| size | positional | m | structural opening width x height (Rohbaurichtmaß) |
+| x | `x=` | m | edge position along a wall running along x |
+| y | `y=` | m | edge position along a wall running along y |
+| s | `s=` | m | edge position along a wall in any direction, from its start a |
+| d | `d=` | m | depth in front of the wall's finished face (required) |
+| status | flag | `existing` `demolish` `temp` | status; new unless flagged existing (Bestand), demolish or temp |
+
+#### `zone`
+
+An installation zone (Installationszone, Trasse): a horizontal run on a storey that the pipes, cables and ducts of the storey follow: zone iz1 EG a=w4+0.3,w1+0.3 b=w2-0.3,w1+0.3 z=2.3. Zones that meet form one network; the networks reach them straight from their ends.
+
+`zone <id> <level>` · ids `iz1`, `iz2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| level | positional |  | storey |
+| a | `a=` | m | start, a point x,y (required) |
+| b | `b=` | m | end, a point x,y (required) |
+| z | `z=` | m | height above the FFL (required) |
 
 ### Structure (`struct.uea`)
 
@@ -1113,6 +1156,8 @@ E is an error, W a warning.
 | W-ARCH-050 | two default types in one category |
 | W-ARCH-051 | door or window without type and no default type |
 | W-ARCH-060 | section outside the building (it cuts no wall) |
+| E-ARCH-070 | shaft whose highest storey is not above its lowest |
+| E-ARCH-071 | installation zone without a length |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
 | W-STRUCT-003 | beam that rests on fewer than two load-bearing walls or columns |
@@ -1161,7 +1206,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|
-| `wofl` | norm | 0.1.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
+| `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |

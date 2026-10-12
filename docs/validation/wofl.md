@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Calculator | `wofl` 0.1.0, kind `norm` |
+| Calculator | `wofl` 0.2.0, kind `norm` |
 | Standard | Wohnflächenverordnung (WoFlV) of 25 November 2003 |
 | Code | `src/uea/packs/arch/wofl.py`; room outlines and heights from `src/uea/packs/arch/geometry.py` |
-| Tests | `tests/test_wofl.py`, `tests/test_prototype.py` |
+| Tests | `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` |
 | Review | **Not yet reviewed** by a licensed person |
 
 The WoFlV is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. It needs no office-supplied tables (`docs/decisions/0008-office-supplied-norm-data.md`).
@@ -21,6 +21,7 @@ The Wohnfläche of each room, each storey and the whole project, from the model.
 | §2 Abs. 3 Nr. 1 | Zubehörräume do not count | By room use: `cellar` (a), `laundry` (c), `attic` (d), `technical` (f), `garage` (g) are excluded. All other uses count. |
 | §3 Abs. 1 | Grundfläche from the lichte Maße, starting at the front edge of the Bekleidung | The room's finished outline: the region between the wall cores, minus every non-core layer of the walls (`docs/decisions/0015-rooms-and-finishes.md`). |
 | §3 Abs. 1 | (no floor, no Grundfläche) | Voids in the room's own slab (a stair hole) are deducted. |
+| §3 Abs. 3 Nr. 1 | Vormauerungen higher than 1.50 m on more than 0.1 m² do not count | A pre-wall installation (`prewall`) higher than 1.5 m: its footprint inside the finished outline, if more than 0.1 m², is deducted. An installation shaft (`shaft`) is not part of the finished outline (decision 0045). |
 | §3 Abs. 3 Nr. 2 | Stairs with more than three risers and their landings do not count | The stair footprint inside the finished outline is deducted on the storey it starts on. |
 | §3 Abs. 3 Nr. 3 | Türnischen do not count | Rooms end at the wall face; door reveals are never part of a room. |
 | §3 Abs. 3 Nr. 4 | Niches count only if they reach the floor and are deeper than 0.13 m | A niche with sill 0 and depth over 0.13 m adds width × depth, counted by its own height per §4. |
@@ -28,7 +29,7 @@ The Wohnfläche of each room, each storey and the whole project, from the model.
 
 ## Not implemented
 
-- §3 Abs. 3 Nr. 1: chimneys, Vormauerungen, freestanding pillars and columns. The model has no such elements yet.
+- §3 Abs. 3 Nr. 1: chimneys, freestanding pillars and columns. The model has no such elements yet. A shaft smaller than 0.1 m² would count by the rule; UEA always leaves a shaft out (on the safe side).
 - §4 Nr. 3 and 4: Wintergärten, Schwimmbäder, balconies, loggias, Dachgärten, terraces. The model has no such rooms yet.
 - §2 Abs. 3 Nr. 2: rooms that do not meet the Landesbauordnung. That is a judgement for the planner.
 
@@ -51,6 +52,7 @@ All expected values are computed by hand, with our own data.
 | `test_shallow_or_raised_niches_do_not_count` | niche 0.1 deep; niche from 0.3 m | +0 |
 | `test_heights_under_a_roof` | 45° gable, rafter underside 0.5 m at the eaves, room 9.38 wide, y 0.31–7.69 | full 5.0 × 9.38, half 2.0 × 9.38, under 1 m 0.38 × 9.38; Wohnfläche 56.28 m² |
 | `test_room_without_ceiling_stops` | living room with nothing above | error |
+| `test_a_prewall_carries_its_fixtures` | a pre-wall 1.6 m long, 0.2 deep, 1.2 m and 1.6 m high | 1.2 m: nothing deducted; 1.6 m: 0.32 m² deducted |
 | `test_wohnflaeche` (prototype) | Haus Müller | EG 71.7216 − 3.8415 = 67.8801 m², OG 70.8545 − 3.8415 = 67.0130 m², total 134.8931 m² |
 
 ## Changes
@@ -58,3 +60,4 @@ All expected values are computed by hand, with our own data.
 | Version | Change |
 |---|---|
 | 0.1.0 | First version |
+| 0.2.0 | Pre-wall installations higher than 1.5 m deducted; shafts out of the finished outline (decision 0045) |

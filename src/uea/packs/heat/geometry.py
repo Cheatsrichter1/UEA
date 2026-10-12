@@ -37,7 +37,7 @@ from uea.packs.heat.kinds import (
     UfhType,
 )
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Crossing, Net, Section, finish, gap, grow, node_of, routed, through
+from uea.packs.net import Crossing, Net, Section, Zoned, finish, grow, node_of, routed, through
 
 PLACED = ("gen", "tank", "man", "rad")
 
@@ -156,11 +156,14 @@ def _pipes(d: Derived) -> None:
         for k in ends:
             net.nodes[k] = node_of(h.at[k])
         if el.kind == "man":
+            zoned = Zoned(d)
             for k in ends:
-                length, legs = gap(net.nodes[root], net.nodes[k])
-                net.sections.append(Section(root, k, length, legs, "home", [k]))
+                length, legs = zoned(net.nodes[root], net.nodes[k])
+                sec = Section(root, k, length, legs, "home", [k])
+                sec.path = zoned.path(net.nodes[root], net.nodes[k])
+                net.sections.append(sec)
         else:
-            grow(net, {root}, [root], ends, "pipe", routed(d, via))
+            grow(net, {root}, [root], ends, "pipe", Zoned(d, routed(d, via)))
             finish(net, set(ends))
         h.crossings += through(d, net, via)
         h.nets[root] = net

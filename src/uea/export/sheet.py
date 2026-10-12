@@ -14,7 +14,7 @@ furniture.
 from itertools import pairwise
 
 import shapely
-from shapely.geometry import Polygon
+from shapely.geometry import LineString, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
@@ -29,6 +29,7 @@ from uea.export.paper import (
     L_FINISH,
     L_GRID,
     L_ROOF,
+    L_SHAFT,
     L_STAIR,
     L_TEXT,
     L_VOID,
@@ -347,6 +348,30 @@ class PlanSheet(Paper):
             x0, y0, x1, y1 = v.poly.bounds
             self.dw.add(Line((x0, y0), (x1, y1), thin, L_VOID))
             self.dw.add(Line((x0, y1), (x1, y0), thin, L_VOID))
+        # shafts: outlined with a cross on each storey they run through; pre-walls hatched
+        for sh in g.shafts_on(self.level):
+            pts, _ = ring(sh.poly)
+            self.dw.add(Poly(pts, None, edge, L_SHAFT))
+            x0, y0, x1, y1 = sh.poly.bounds
+            self.dw.add(Line((x0, y0), (x1, y1), thin, L_SHAFT))
+            self.dw.add(Line((x0, y1), (x1, y0), thin, L_SHAFT))
+            self.text(
+                ((x0 + x1) / 2, y1 + self.sh.m(1.0)), f"Schacht {sh.id}", 1.6, L_TEXT, color=GREY
+            )
+        for pw in g.prewalls.values():
+            if pw.level != self.level or pw.status == "demolish":
+                continue
+            pts, _ = ring(pw.poly)
+            self.dw.add(Poly(pts, "#e6e6e6", edge, L_SHAFT))
+            x0, y0, x1, y1 = pw.poly.bounds
+            step = self.sh.m(2.0)
+            k = x0 - (y1 - y0)
+            while k < x1:
+                ln_ = LineString([(k, y0), (k + (y1 - y0), y1)]).intersection(pw.poly)
+                if isinstance(ln_, LineString) and not ln_.is_empty:
+                    (ax, ay), (bx, by) = ln_.coords[0], ln_.coords[-1]
+                    self.dw.add(Line((ax, ay), (bx, by), thin, L_SHAFT))
+                k += step
         for s in g.stairs.values():
             if s.to == self.level:
                 self.dw.add(Poly(ring(s.poly)[0], None, dash, L_STAIR))

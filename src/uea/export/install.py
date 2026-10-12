@@ -57,6 +57,7 @@ E_BOARD = "E-VERTEILER"
 E_LINE = "E-SCHALTLINIE"
 E_LABEL = "E-BESCHRIFTUNG"
 E_LEGEND = "E-LEGENDE"
+E_ZONE = "E-INSTALLATIONSZONE"
 ELEC_LAYER_COLORS = {
     E_WALL: "#808080",
     E_DOOR: "#a08060",
@@ -73,6 +74,7 @@ ELEC_LAYER_COLORS = {
     E_LINE: "#888888",
     E_LABEL: "#000000",
     E_LEGEND: "#000000",
+    E_ZONE: "#8a8a8a",
 }
 BACKGROUND = {
     L_LB: E_WALL,
@@ -230,6 +232,7 @@ class InstallPlan(PlanSheet):
         self.walls_and_openings()
         self.stairs_and_voids()
         ghost(self.dw.items[start:])
+        self.zones()
         self.names()
         self.switch_lines()
         for mt in self.here:
@@ -240,6 +243,13 @@ class InstallPlan(PlanSheet):
         nr = f"E-{self.g.level_order().index(self.level) + 1:02d}"
         self.title_block(self.heading, "Symbole vereinfacht, in Anlehnung an DIN EN 60617", nr)
         return self.dw
+
+    def zones(self) -> None:
+        """The installation zones of the storey, thin and dashed (decision 0045)."""
+        pen = self.pen(0.18, "#8a8a8a", (4.0, 1.0, 1.0, 1.0))
+        for zg in self.g.zones.values():
+            if zg.level == self.level:
+                self.dw.add(Line(zg.a, zg.b, pen, E_ZONE))
 
     def names(self) -> None:
         """Room names in grey, so the plan reads."""

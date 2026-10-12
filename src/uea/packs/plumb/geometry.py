@@ -29,7 +29,18 @@ from uea.packs.arch.geometry import Resolver
 from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import TankType
 from uea.packs.mount import Mounted, Mounts
-from uea.packs.net import Crossing, Net, Node, finish, gap, grow, node_of, through, vertical
+from uea.packs.net import (
+    Crossing,
+    Net,
+    Node,
+    Zoned,
+    finish,
+    gap,
+    grow,
+    node_of,
+    through,
+    vertical,
+)
 from uea.packs.plumb.kinds import OUTLET_Z, Meter, Recirc, Riser, San, Sewer, Stack
 
 PLACED = ("meter", "riser", "stack", "sewer", "san")
@@ -147,6 +158,7 @@ class Placer:
 
 def supply(d: Derived, root: Node, ends: list[Node], risers: list[Node]) -> Net:
     """The tree of a drinking-water network from its root over the ends (see the module)."""
+    zoned = Zoned(d)
     order = d.arch.level_order()
     idx = {k: i for i, k in enumerate(order)}
     net = Net(root.id, {root.id: root})
@@ -171,8 +183,8 @@ def supply(d: Derived, root: Node, ends: list[Node], risers: list[Node]) -> Net:
         inside = [k for k in done if net.nodes[k].level == lv]
         if inside:
             left = [e.id for e in ends if e.level == lv] + on.get(lv, [])
-            grow(net, done, inside, left, "pipe")
-    grow(net, done, list(done), [e.id for e in ends], "pipe")
+            grow(net, done, inside, left, "pipe", zoned)
+    grow(net, done, list(done), [e.id for e in ends], "pipe", zoned)
     finish(net, {e.id for e in ends})
     return net
 
@@ -247,7 +259,7 @@ def drainage(d: Derived, fixtures: list[San], node: dict[str, Node]) -> Net | No
                 by_level.setdefault(net.nodes[k].level, []).append(k)
         for lv, ks in by_level.items():
             start = taker if taker == sewer.id else f"{taker}:{lv}"
-            grow(net, done, [start], ks, "branch")
+            grow(net, done, [start], ks, "branch", Zoned(d))
     finish(net, set(p.drains_to))
     return net
 

@@ -118,7 +118,9 @@ Derived, never stored: exterior walls, room outlines and areas (shell: between c
 fin: between finished surfaces), heights, volumes, slab outlines, stair risers, eaves and
 ridge heights. Read them with uea get.
 Holes (Durchbrüche, Kernbohrungen, Schlitze) answer the services' requests: their checks say
-where a pipe, duct or facade terminal passes a wall or slab without one.
+where a pipe, duct or facade terminal passes a wall or slab without one. A shaft opens every
+slab it passes, and what changes storey goes through it; a prewall carries the fixtures and
+devices on its wall face; zones are the runs the pipes, cables and ducts of a storey follow.
 """
 
 ELEC_NOTES = """\

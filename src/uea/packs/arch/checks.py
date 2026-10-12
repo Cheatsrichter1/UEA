@@ -39,6 +39,8 @@ CODES: dict[str, str] = {
     "W-ARCH-050": "two default types in one category",
     "W-ARCH-051": "door or window without type and no default type",
     "W-ARCH-060": "section outside the building (it cuts no wall)",
+    "E-ARCH-070": "shaft whose highest storey is not above its lowest",
+    "E-ARCH-071": "installation zone without a length",
 }
 
 

@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 from uea.core.registry import natural
 from uea.derive import Derived, Unresolved
 from uea.packs.elec.kinds import Circ, Conn, Data, Feed, Rcd, Switch
-from uea.packs.elec.routes import ALLOW, Route, Run, gap, tree
+from uea.packs.elec.routes import ALLOW, Route, Run, tree
 from uea.packs.elec.values import Breaker
 from uea.packs.light.geometry import lum_type
 from uea.packs.mount import Mounted, Mounts
+from uea.packs.net import Zoned, node_of
 
 VOLT = 230.0
 """Phase voltage, V."""
@@ -122,15 +123,20 @@ def route_cables(d: Derived) -> None:
         assert isinstance(el, Feed)
         if el.target.id in placed:
             at[el.id] = e.feeds[el.id] = placed[el.target.id]
+    zoned = Zoned(d)
+
+    def dist(a: Mounted, b: Mounted) -> float:
+        return zoned(node_of(a), node_of(b))[0]
+
     for cg in e.circuits.values():
         if cg.board is None or cg.board not in d.mounts:
             continue
-        e.routes[cg.id] = tree(cg.board, at, [*cg.devices, *cg.lums])
+        e.routes[cg.id] = tree(cg.board, at, [*cg.devices, *cg.lums], dist)
     for el in d.model.of_kind("data"):
         assert isinstance(el, Data)
         board, outlet = d.mounts.get(el.board.id), d.mounts.get(el.id)
         if board is not None and outlet is not None:
-            e.homeruns[el.id] = Run(el.board.id, el.id, gap(board, outlet) + ALLOW)
+            e.homeruns[el.id] = Run(el.board.id, el.id, dist(board, outlet) + ALLOW)
 
 
 def share_phases(d: Derived) -> None:
