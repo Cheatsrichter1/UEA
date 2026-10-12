@@ -9,8 +9,10 @@ supplies and extracts. For each section of the derived ducts:
     Δp    = R · l + Σζ · ρv²/2      Darcy-Weisbach and Colebrook-White, air at 20 °C
 
 The supply fan moves the outdoor air in and the supply air out; the extract fan the extract air in
-and the exhaust air out. Each side's worst way sets the pressure the unit must deliver, against
-the external pressure of its type; every other terminal is throttled by the difference.
+and the exhaust air out. A terminal's way ends with its own loss (`dp=`, the manufacturer's at its
+design flow), and each side of the unit adds the loss of its silencers (`sil=` on the unit). Each
+side's worst way sets the pressure the unit must deliver, against the external pressure of its
+type; every other terminal is throttled by the difference.
 """
 
 from dataclasses import dataclass, field
@@ -23,7 +25,7 @@ from uea.packs.net import Section
 from uea.packs.vent import airflow
 from uea.packs.vent.geometry import ahu_type, duct_type
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 NORM = "Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach"
 PARAMS = (*airflow.PARAMS, Param("vmax", float, None, "the highest air velocity in the ducts, m/s"))
 SIDE = {"oda": "sup", "sup": "sup", "ext": "ext", "eha": "ext"}
@@ -110,7 +112,8 @@ def calculate(d: Derived, env: Env) -> Result:
             by[s.b] = x
             res.ducts.append(x)
         for k in sorted((k for k in net.nodes if k != unit), key=natural):
-            res.ways.append(Way(k, unit, role, sum(by[s.b].dp for s in net.path(k))))
+            own = getattr(d.model[k], "dp", None) or 0.0
+            res.ways.append(Way(k, unit, role, sum(by[s.b].dp for s in net.path(k)) + own))
     for el in d.model.of_kind("ahu"):
         u = el.id
         mine = [w for w in res.ways if w.unit == u]
@@ -127,6 +130,7 @@ def calculate(d: Derived, env: Env) -> Result:
                 for w in group:
                     w.throttle = (worst.dp if worst else 0.0) - w.dp
             need = (worst_out.dp if worst_out else 0.0) + (worst_in.dp if worst_in else 0.0)
+            need += getattr(el, "sil", None) or 0.0
             sup, ext, _ = air.units.get(u, (0.0, 0.0, None))
             q = sup if side == "sup" else ext
             index = worst_in.terminal if worst_in else (worst_out.terminal if worst_out else u)
@@ -284,12 +288,14 @@ def report(d: Derived, res: Result) -> str:
         " Gerät nennt; Längen sind Untergrenzen.",
         "- Durchmesser: der kleinste des Kanalsystems mit v ≤ v_max. Druckverlust nach"
         " Darcy-Weisbach mit λ nach Colebrook-White; Einzelwiderstände ζ je Bogen und T-Stück.",
-        "- Ventilator: ungünstigster Weg der Außen- bzw. Fortluft plus der Zu- bzw. Abluft.",
+        "- Ventilator: ungünstigster Weg der Außen- bzw. Fortluft plus der Zu- bzw. Abluft, je"
+        " mit dem Druckverlust des Luftdurchlasses am Ende, und die Schalldämpfer der Seite.",
         "",
         "## Abweichungen und nicht abgebildet",
         "",
-        "- Ohne Druckverlust der Luftdurchlässe, Schalldämpfer, Filter und Brandschutzklappen;"
-        " die externe Pressung des Geräts ist gegen das Kanalnetz allein gestellt.",
+        "- Druckverlust der Luftdurchlässe (dp= am Durchlass) und der Schalldämpfer je Seite"
+        " (sil= am Gerät) nach Herstellerangabe beim Auslegungsvolumenstrom; ohne Filter im"
+        " Kanalnetz und Brandschutzklappen.",
         "- Nur runde Kanäle; keine Kanalführung entlang von Schächten und Installationszonen.",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"

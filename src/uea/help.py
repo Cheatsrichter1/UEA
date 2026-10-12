@@ -162,8 +162,10 @@ wall. The ducts are derived like the pipes: from the unit, the shortest tree ove
 of each kind of air. A decentral unit goes through an exterior wall; pair= joins a push-pull
 pair, the other side is derived. The flows the rooms need, and whether the system gives them:
 uea calc airflow; duct sizes and the fans' pressure: uea calc ducts (help calc). Ducts that
-change storey pass the slab through a hole, via= on the unit; units and terminals on the facade
-through a hole in the wall. Ask arch for them with a request.
+change storey pass the slab through a hole, via= on the unit; units, terminals and inlets on the
+facade through a hole in the wall. Ask arch for them with a request. An exhaust system gets its
+outdoor air through inlets (inlet) in the supply rooms; the air passes the doors through overflow
+openings (over: the undercut or an element), checked by uea calc airflow once there is one.
 """
 
 STRUCT_NOTES = """\
@@ -193,12 +195,14 @@ uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tabl
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
                   [groundwater=deep|shallow te=<C> tme=<C> flow=<C> spread=<K> floor=<C>
-                  bathfloor=<C>]
+                  bathfloor=<C> insulation=high|low]
                         Heizlast room by room (norm). tb: thermal bridge surcharge. Scope: a
                         storey or a room. Room temperatures by use and theta_e by postcode come
                         from the office's tables (uea data). flow, spread: the system's design
                         temperatures, for emitter types of DIN EN 442 (wn= n=) or 1264 (kh=);
-                        floor: the highest floor surface temperature of underfloor heating
+                        floor: the highest floor surface temperature of underfloor heating.
+                        insulation: take the ventilation system's flows (as airflow) and its
+                        heat recovery into Phi_V
 uea calc water [building=residential]
                         drinking-water pipe sizes and each fixture's pressure (norm). Flows by
                         fixture, the peak flow and vmax from the office's tables; the supply
@@ -216,9 +220,11 @@ uea calc hydronic tb= n50= shielding= spread=<K> vmax=<m/s> [flow=<C>]
                         own flow= spread= and its mixing valve (mix: needs the system's flow=)
 uea calc airflow n50=<1/h> insulation=high|low
                         the dwelling's air flows (DIN 1946-6, norm), whether a ventilation
-                        measure is needed, each room's flow against the units in vent.uea
+                        measure is needed, each room's flow against the units in vent.uea;
+                        overflow openings against the table vent-overflow
 uea calc ducts n50= insulation= vmax=<m/s>
-                        duct sizes of the central units and each side's fan pressure (norm)
+                        duct sizes of the central units and each side's fan pressure (norm),
+                        with the terminals' dp= and the unit's silencers sil=
 uea calc loads [soil=<kN/m²> sk=<kN/m²> qp=<kN/m²>]
                         the loads of the slabs, roofs, beams and walls, their takedown to the
                         foundation and the line loads on the footings (DIN EN 1991, norm); sk,

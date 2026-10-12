@@ -149,6 +149,7 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
         "vent-total",
         "vent-room",
         "vent-infiltration",
+        "vent-overflow",
         "unit-weight",
         "imposed-load",
         "partition-load",

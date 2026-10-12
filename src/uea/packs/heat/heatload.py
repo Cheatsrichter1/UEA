@@ -137,6 +137,15 @@ PARAMS = (
         "the same in baths and WCs, °C; floor= if left out",
         optional=True,
     ),
+    Param(
+        "insulation",
+        str,
+        None,
+        "with a ventilation system: the building's insulation for its flows (DIN 1946-6, as"
+        " airflow); the supply air then comes in warmed by the units' heat recovery",
+        ("high", "low"),
+        optional=True,
+    ),
 )
 
 
@@ -168,6 +177,16 @@ class RoomLoad:
     v_inf: float = 0.0
     v_min: float = 0.0
     phi_v: float = 0.0
+    mech: bool = False
+    """The ventilation system supplies or extracts its air (setting insulation=)."""
+    v_su: float = 0.0
+    """Supply air from the system, m³/h."""
+    t_su: float = 0.0
+    """Its temperature as it comes in, °C."""
+    f_su: float = 0.0
+    """(θ_int − θ_su) / (θ_int − θ_e)."""
+    v_tr: float = 0.0
+    """Air that comes over from other rooms (an extract room), m³/h."""
 
     @property
     def phi_t(self) -> float:
@@ -179,7 +198,11 @@ class RoomLoad:
 
     @property
     def v(self) -> float:
-        return max(self.v_inf, self.v_min)
+        """The outdoor-air equivalent flow, m³/h."""
+        if not self.mech:
+            return max(self.v_inf, self.v_min)
+        rest = max(self.v_min - self.v_inf - self.v_su - self.v_tr, 0.0)
+        return self.v_inf + self.v_su * self.f_su + rest
 
 
 @dataclass
@@ -339,7 +362,58 @@ def calculate(d: Derived, env: Env) -> tuple[list[RoomLoad], Tables, Thermal]:
         out.append(rl)
     if errors:
         raise ValueError("; ".join(sorted(set(errors))))
+    if env.param("insulation") is not None:
+        _mechanical(d, out, env, tab)
     return out, tab, th
+
+
+def _mechanical(d: Derived, out: list[RoomLoad], env: Env, tab: "Tables") -> None:
+    """The ventilation system in the rooms' Φ_V (DIN EN 12831-1, 6.3.3): supply air comes in at
+    θ_su = θ_e + η · (θ_ex − θ_e), the air an extract room draws comes over from other rooms at
+    their temperature, and outdoor air makes up what falls short of V̇_min. θ_ex is the extract
+    rooms' θ_int, weighted by their flows; η the heat recovery of the unit's type."""
+    # imported here: the ventilation pack builds on the heating pack's geometry
+    from uea.packs.vent import airflow
+    from uea.packs.vent.geometry import ahu_type, fan_flow, inlet_flow, vent_type
+    from uea.packs.vent.kinds import Fan, FanType
+
+    air = airflow.calculate(d, env)
+    te = tab.climate.te
+    ti = {r.id: r.ti for r in out}
+    ext = [(r.got, ti[r.id]) for r in air.rooms if r.role == "extract" and r.id in ti]
+    flow = sum(q for q, _ in ext)
+    t_ex = sum(q * t for q, t in ext) / flow if flow > 0 else None
+    by = {r.id: r for r in air.rooms}
+    m, v = d.model, d.vent
+    for rl in out:
+        a = by.get(rl.id)
+        if a is None or not a.by:
+            continue
+        rl.mech = True
+        if a.role == "extract":
+            rl.v_tr = a.got
+        elif a.role == "supply":
+            heat = 0.0
+            for k in a.by:
+                el = m[k]
+                eta = 0.0
+                if el.kind == "air":
+                    q = air.terminal.get(k, 0.0)
+                    unit = m.get(v.unit_of.get(k, ""))
+                    t = ahu_type(d, unit) if unit is not None else None
+                    eta = (t.hr or 0.0) if t is not None else 0.0
+                elif el.kind == "fan" and isinstance(el, Fan):
+                    q = (fan_flow(d, el) or 0.0) / (2 if el.mode == "alt" else 1)
+                    ft = vent_type(d, el, FanType, "fan")
+                    eta = (ft.hr or 0.0) if ft is not None else 0.0
+                else:
+                    q = inlet_flow(d, el) or 0.0
+                back = t_ex if t_ex is not None else rl.ti
+                heat += q * (te + eta * (back - te))
+                rl.v_su += q
+            rl.t_su = heat / rl.v_su if rl.v_su > 0 else te
+            rl.f_su = max((rl.ti - rl.t_su) / (rl.ti - te), 0.0)
+        rl.phi_v = rl.v * tab.factor["rho-cp"] * (rl.ti - te)
 
 
 def _use(d: Derived, rid: str) -> str:
@@ -453,6 +527,9 @@ def _data(r: RoomLoad) -> dict[str, object]:
         "volume": round(r.volume, 3),
         "v_inf": round(r.v_inf, 4),
         "v_min": round(r.v_min, 4),
+        "v_su": round(r.v_su, 4),
+        "t_su": round(r.t_su, 3),
+        "v_tr": round(r.v_tr, 4),
         "e": r.e,
         "eps": r.eps,
         "surfaces": [
@@ -560,7 +637,15 @@ def report(
             "",
             f"Lüftung: V = {de(r.volume)} m³, Fassaden mit Öffnungen {r.openings},"
             f" e = {de(r.e, 3)}, ε = {de(r.eps)}: V̇_inf = {de(r.v_inf)} m³/h,"
-            f" V̇_min = {de(r.v_min)} m³/h, Φ_V = {de(r.phi_v, 0)} W.",
+            f" V̇_min = {de(r.v_min)} m³/h"
+            + (
+                f", Zuluft der Anlage V̇_su = {de(r.v_su)} m³/h mit θ_su = {de(r.t_su, 1)} °C"
+                f" (f_V,su = {de(r.f_su, 3)})"
+                if r.v_su
+                else ""
+            )
+            + (f", überströmende Luft V̇_tr = {de(r.v_tr)} m³/h" if r.v_tr else "")
+            + f", Φ_V = {de(r.phi_v, 0)} W.",
             "",
         ]
     out += [
@@ -571,7 +656,11 @@ def report(
         " f = f_g1 · (θ_int − θ_m,e) / (θ_int − θ_e) · G_w gegen Erdreich,"
         " f = (θ_int − θ_j) / (θ_int − θ_e) gegen einen Raum mit θ_j.",
         "- Φ_V = V̇ · ρc_p · (θ_int − θ_e), V̇ = max(V̇_inf, n_min · V),"
-        " V̇_inf = 2 · V · n_50 · e · ε.",
+        " V̇_inf = 2 · V · n_50 · e · ε. Mit Lüftungsanlage (Einstellung insulation=):"
+        " V̇ = V̇_inf + V̇_su · f_V,su + max(0, V̇_min − V̇_inf − V̇_su − V̇_tr), Zuluft mit"
+        " θ_su = θ_e + η · (θ_ex − θ_e) nach der Wärmerückgewinnung des Geräts, θ_ex die"
+        " Raumtemperatur der Ablufträume nach ihren Volumenströmen; die Volumenströme nach"
+        " DIN 1946-6 (Rechenverfahren `airflow`).",
         "- U nach DIN EN ISO 6946 aus den Schichten (Tabellen `material`, `surface`); Fenster und"
         " Türen mit dem U-Wert ihres Typs. Maße: Längen entlang der Rohbaukontur des Raums, Höhen"
         " von OKFF zu OKFF des Geschosses darüber, Böden und Decken mit der Fläche der"
@@ -584,7 +673,9 @@ def report(
         "- Erdreich mit dem U-Wert des Bauteils statt U_equiv (liegt auf der sicheren Seite).",
         "- Infiltration raumweise mit V̇_inf = 2 · V · n_50 · e · ε, nicht über q_env50 und den"
         " Luftvolumenstrom des Gebäudes; Gebäudeheizlast ohne Abminderung der Infiltration.",
-        "- Keine Wiederaufheizleistung, keine mechanische Lüftung, keine Nachbargebäude.",
+        "- Keine Wiederaufheizleistung, keine Nachbargebäude. Mit Lüftungsanlage bleibt die"
+        " Infiltration die freie (ohne Ungleichgewicht der Anlage), überströmende Luft hat die"
+        " Temperatur des Raums, in den sie strömt.",
         "- Heizflächen: Leistung nach Herstellerangabe im Typ (Fußbodenheizung q mal Fläche,"
         " Heizkörper w) bei den Auslegungstemperaturen des Systems, oder aus den Prüfwerten des"
         " Herstellers bei den Temperaturen des Heizkreises: Heizkörper Φ = Φ_n · (Δθ/Δθ_n)^n"

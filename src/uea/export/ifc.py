@@ -3,7 +3,9 @@
 Stable GlobalIds come from the project name and the element id, so a re-export of the same
 element keeps its GlobalId. Geometry is explicit: extrusions for walls, slabs and stairs, a
 boolean clipping where one roof cuts a wall, triangulated solids for roof planes, for walls
-under several roofs and for rooms under a sloped ceiling.
+under several roofs and for rooms under a sloped ceiling. The ventilation goes along: units,
+terminals and inlets as boxes, the derived ducts as swept circles, each duct network of a unit an
+IfcDistributionSystem.
 """
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false, reportAttributeAccessIssue=false
 
@@ -17,15 +19,18 @@ import ifcopenshell.api.aggregate
 import ifcopenshell.api.context
 import ifcopenshell.api.feature
 import ifcopenshell.api.material
+import ifcopenshell.api.owner.settings
 import ifcopenshell.api.pset
 import ifcopenshell.api.root
 import ifcopenshell.api.spatial
+import ifcopenshell.api.system
 import ifcopenshell.api.type
 import shapely
 from shapely.geometry import Polygon
 from shapely.geometry.polygon import orient
 
 from uea import __version__
+from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
 from uea.export.guid import ifc_guid
@@ -42,6 +47,9 @@ from uea.packs.arch.geometry import (
     roof_pieces,
 )
 from uea.packs.arch.kinds import DoorType, Roof, Room, WinType
+from uea.packs.mount import Mounted
+from uea.packs.net import Net, Section
+from uea.packs.vent.geometry import duct_type
 
 STATUS = {"new": "NEW", "existing": "EXISTING", "demolish": "DEMOLISH", "temp": "TEMPORARY"}
 Entity = Any
@@ -246,6 +254,7 @@ class Writer:
             self.stair(st.id)
         for rg in self.g.rooms.values():
             self.space(rg.id)
+        self.ventilation()
         for lv_id, items in self.contained.items():
             if items:
                 ifcopenshell.api.spatial.assign_container(
@@ -638,6 +647,102 @@ class Writer:
             self.f, products=[e], relating_object=self.storeys[rg.level]
         )
 
+    # ---------- ventilation ----------
+
+    def ventilation(self) -> None:
+        """Units, terminals, inlets and the derived ducts, each duct network a distribution
+        system. Ducts are drawn at the smallest size of the duct type: their sizes come from the
+        calculation (`uea calc ducts`), which needs the office's tables."""
+        v = getattr(self.d, "vent", None)
+        if v is None:
+            return
+        m = self.d.model
+        made: dict[str, Entity] = {}
+        for k in sorted(v.at, key=natural):
+            el, mt = m[k], v.at[k]
+            if el.kind == "ahu":
+                e = self.entity("IfcUnitaryEquipment", k, k, "AIRHANDLER")
+                size, low = (0.6, 0.6, mt.z - self.g.levels[mt.level].z + 0.2), 0.0
+            elif el.kind == "fan":
+                if getattr(el, "mode", "") == "ext":
+                    e = self.entity("IfcFan", k, k, "NOTDEFINED")
+                else:
+                    e = self.entity("IfcUnitaryEquipment", k, k, "USERDEFINED")
+                    e.ObjectType = "Dezentrales Lüftungsgerät"
+                size, low = (0.25, 0.25, 0.25), None
+            else:
+                role = getattr(el, "role", "oda")
+                kind = {"sup": "DIFFUSER", "ext": "GRILLE"}.get(role, "LOUVRE")
+                e = self.entity("IfcAirTerminal", k, k, kind)
+                size, low = (0.2, 0.2, 0.05), None
+            self._common(e, k, el.label)
+            self.equipment(e, mt, size, low)
+            made[k] = e
+        dt = duct_type(self.d)
+        radius = (dt.sizes.items[0] if dt is not None else 100.0) / 2000
+        for (unit, role), net in sorted(
+            v.ducts.items(), key=lambda kv: (natural(kv[0][0]), kv[0][1])
+        ):
+            system = ifcopenshell.api.system.add_system(self.f, ifc_class="IfcDistributionSystem")
+            system.GlobalId = self.guid(f"system/{unit}/{role}")
+            system.Name = f"{unit} {VENT_ROLE_DE[role]}"
+            system.PredefinedType = "VENTILATION"
+            members = [made[k] for k in net.nodes if k in made]
+            for s in net.sections:
+                seg = self.duct(net, s, role, radius)
+                if seg is not None:
+                    members.append(seg)
+            ifcopenshell.api.system.assign_system(self.f, products=members, system=system)
+
+    def equipment(
+        self, e: Entity, mt: Mounted, size: tuple[float, float, float], low: float | None
+    ) -> None:
+        """A box of size (along x, along y, height) at a mounted thing's point: from `low` above
+        the storey's FFL, else centred on its height."""
+        lv = self.g.levels[mt.level]
+        e.ObjectPlacement = self.placement(self.storeys[mt.level].ObjectPlacement)
+        x, y = mt.point
+        w, dep, h = size
+        z0 = low if low is not None else mt.z - lv.z - h / 2
+        poly = shapely.box(x - w / 2, y - dep / 2, x + w / 2, y + dep / 2)
+        e.Representation = self.body([self.extrude(poly, z0, h)], "SweptSolid")
+        self.contained[mt.level].append(e)
+
+    def duct(self, net: Net, s: Section, role: str, radius: float) -> Entity | None:
+        a, b = net.nodes[s.a], net.nodes[s.b]
+        lv = self.g.levels[a.level]
+        pts: list[tuple[float, float, float]] = []
+        for p in (
+            (a.point[0], a.point[1], a.z),
+            (b.point[0], a.point[1], a.z),
+            (b.point[0], b.point[1], a.z),
+            (b.point[0], b.point[1], b.z),
+        ):
+            q = (p[0], p[1], p[2] - lv.z)
+            if not pts or math.dist(pts[-1], q) > 1e-6:
+                pts.append(q)
+        if len(pts) < 2:
+            return None
+        e = self.entity("IfcDuctSegment", f"duct/{role}/{s.name}", s.name, "RIGIDSEGMENT")
+        e.Description = VENT_ROLE_DE[role]
+        e.ObjectPlacement = self.placement(self.storeys[a.level].ObjectPlacement)
+        line = self.f.createIfcPolyline([self.pt(*p) for p in pts])
+        solid = self.f.createIfcSweptDiskSolid(line, float(radius), None, None, None)
+        e.Representation = self.body([solid], "AdvancedSweptSolid")
+        self.contained[a.level].append(e)
+        return e
+
+
+VENT_ROLE_DE = {"oda": "Außenluft", "sup": "Zuluft", "ext": "Abluft", "eha": "Fortluft"}
+
 
 def export_ifc(d: Derived, path: Path) -> dict[str, int]:
-    return Writer(d).write(path)
+    # IFC4 needs no owner history: keep a caller's settings for it out of this file
+    owner = ifcopenshell.api.owner.settings
+    saved = (owner.get_user, owner.get_application)
+    owner.get_user = lambda _f: None
+    owner.get_application = lambda _f: None
+    try:
+        return Writer(d).write(path)
+    finally:
+        owner.get_user, owner.get_application = saved

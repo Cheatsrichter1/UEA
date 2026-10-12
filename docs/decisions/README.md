@@ -46,6 +46,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0040 | [Structure, phase 8](0040-structure.md) | Proposed (slices 8a to 8d built, not reviewed) |
 | 0041 | [Minimum electrical equipment of a room](0041-minimum-equipment.md) | Proposed |
 | 0042 | [Emitter output, mixing circuits and the hot-water circulation](0042-heating-and-hot-water-details.md) | Proposed |
+| 0043 | [Inlets, overflow openings, terminal losses, heat recovery and ventilation in the IFC](0043-ventilation-details.md) | Proposed |
 
 Template:
 

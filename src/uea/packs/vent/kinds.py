@@ -75,6 +75,21 @@ class FanType(_VentType):
         return self
 
 
+class InletType(_VentType):
+    category: ClassVar[str | None] = "inlet"
+    doc: ClassVar[str] = (
+        "Outdoor air inlet type (Außenluftdurchlass, ALD): type ALD-30 inlet flow=30. flow: its"
+        " air flow at the design pressure difference of the exhaust system, from the"
+        " manufacturer."
+    )
+    flow: Annotated[float, F("air flow at the design pressure difference", unit="m³/h")]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        self._positive("flow")
+        return self
+
+
 class DuctType(_VentType):
     category: ClassVar[str | None] = "duct"
     doc: ClassVar[str] = (
@@ -114,6 +129,16 @@ class Ahu(Element):
         RefList | None,
         F("slab holes or voids its ducts change storey through", targets=("hole", "void")),
     ] = None
+    sil: Annotated[
+        float | None,
+        F("loss of the silencers on each side (supply, extract) at the design flow", unit="Pa"),
+    ] = None
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.sil is not None and self.sil < 0:
+            raise ValueError("sil must be 0 or more")
+        return self
 
 
 class Fan(WallMounted):
@@ -165,9 +190,12 @@ class Air(Element):
     s: Annotated[Anchor | None, F("centre along a wall in any direction", unit="m")] = None
     z: Annotated[float | None, F("height of its centre above the FFL", unit="m")] = None
     src: Annotated[Ref | None, F("its central unit", targets=("ahu",))] = None
+    dp: Annotated[float | None, F("its pressure loss at its design flow", unit="Pa")] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
+        if self.dp is not None and self.dp < 0:
+            raise ValueError("dp must be 0 or more")
         axes = sum(v is not None for v in (self.x, self.y, self.s))
         if axes > 1:
             raise ValueError("give one of x=, y= or s=, for a terminal on a wall")
@@ -180,4 +208,59 @@ class Air(Element):
         return 0.2
 
 
-KINDS: tuple[type[Element], ...] = (AhuType, FanType, DuctType, Ahu, Fan, Air)
+class Inlet(WallMounted):
+    kind: ClassVar[str] = "inlet"
+    pack: ClassVar[str] = "vent"
+    prefix: ClassVar[str | None] = "al"
+    positional: ClassVar[tuple[str, ...]] = ("host",)
+    default_z: ClassVar[float | None] = 2.0
+    doc: ClassVar[str] = (
+        "An outdoor air inlet (Außenluftdurchlass, ALD) through an exterior wall, for a room an"
+        " exhaust system supplies: inlet al1 w1 x=W+2. Its type's flow counts as the room's"
+        " supply. z= 2.0 if left out."
+    )
+    type: Annotated[Ref | None, F("inlet type; default if left out", targets=("type:inlet",))] = (
+        None
+    )
+
+    @property
+    def width(self) -> float:
+        return 0.2
+
+
+class Over(Element):
+    kind: ClassVar[str] = "over"
+    pack: ClassVar[str] = "vent"
+    prefix: ClassVar[str | None] = "ue"
+    positional: ClassVar[tuple[str, ...]] = ("host",)
+    doc: ClassVar[str] = (
+        "An overflow opening (Überströmöffnung) in or under a door, for the air between the"
+        " supply and the extract rooms: over ue1 d3 cut=0.01 (the door's undercut) or over ue2"
+        " d4 area=150 (an overflow element, free area in cm²)."
+    )
+    host: Annotated[Ref, F("the door", targets=("door",))]
+    cut: Annotated[float | None, F("the door's undercut", unit="m")] = None
+    area: Annotated[float | None, F("free area of an overflow element", unit="cm²")] = None
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if (self.cut is None) == (self.area is None):
+            raise ValueError("give cut= (the undercut) or area= (an overflow element)")
+        for n in ("cut", "area"):
+            v = getattr(self, n)
+            if v is not None and v <= 0:
+                raise ValueError(f"{n} must be more than 0")
+        return self
+
+
+KINDS: tuple[type[Element], ...] = (
+    AhuType,
+    FanType,
+    InletType,
+    DuctType,
+    Ahu,
+    Fan,
+    Air,
+    Inlet,
+    Over,
+)

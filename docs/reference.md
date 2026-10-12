@@ -884,9 +884,9 @@ A hot-water circulation (Zirkulation) of a tank that heats drinking water: recir
 
 ### Ventilation (`vent.uea`)
 
-Types: `type … ahu`, `type … fan`, `type … duct`.
+Types: `type … ahu`, `type … fan`, `type … inlet`, `type … duct`.
 
-Kinds: `ahu`, `fan`, `air`.
+Kinds: `ahu`, `fan`, `air`, `inlet`, `over`.
 
 #### `type … ahu`
 
@@ -911,6 +911,17 @@ Decentral unit type (dezentrales Lüftungsgerät, Abluftventilator): type DZ-160
 |---|---|---|---|
 | flow | `flow=` | m³/h | air flow at the nominal level (required) |
 | hr | `hr=` |  | heat recovery efficiency, 0 to 1 |
+| default | flag `default` | | used by elements of its kind without type= |
+
+#### `type … inlet`
+
+Outdoor air inlet type (Außenluftdurchlass, ALD): type ALD-30 inlet flow=30. flow: its air flow at the design pressure difference of the exhaust system, from the manufacturer.
+
+`type <name> inlet`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| flow | `flow=` | m³/h | air flow at the design pressure difference (required) |
 | default | flag `default` | | used by elements of its kind without type= |
 
 #### `type … duct`
@@ -940,6 +951,7 @@ A central ventilation unit with heat recovery in a room: ahu lg1 r3 at=w4+0.5,w3
 | z | `z=` | m | height of its duct connections above the FFL |
 | type | `type=` |  | unit type; default if left out |
 | via | `via=` |  | slab holes or voids its ducts change storey through |
+| sil | `sil=` | Pa | loss of the silencers on each side (supply, extract) at the design flow |
 
 #### `fan`
 
@@ -974,6 +986,34 @@ An air terminal of a central unit (Luftdurchlass): in a room for supply or extra
 | s | `s=` | m | centre along a wall in any direction |
 | z | `z=` | m | height of its centre above the FFL |
 | src | `src=` |  | its central unit |
+| dp | `dp=` | Pa | its pressure loss at its design flow |
+
+#### `inlet`
+
+An outdoor air inlet (Außenluftdurchlass, ALD) through an exterior wall, for a room an exhaust system supplies: inlet al1 w1 x=W+2. Its type's flow counts as the room's supply. z= 2.0 if left out.
+
+`inlet <id> <host>` · ids `al1`, `al2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| type | `type=` |  | inlet type; default if left out |
+
+#### `over`
+
+An overflow opening (Überströmöffnung) in or under a door, for the air between the supply and the extract rooms: over ue1 d3 cut=0.01 (the door's undercut) or over ue2 d4 area=150 (an overflow element, free area in cm²).
+
+`over <id> <host>` · ids `ue1`, `ue2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | the door |
+| cut | `cut=` | m | the door's undercut |
+| area | `area=` | cm² | free area of an overflow element |
 
 ### Requests and waivers (`issues.uea`)
 
@@ -1079,10 +1119,10 @@ E is an error, W a warning.
 | E-VENT-002 | unit or terminal on a wall without a usable face, or outdoor or exhaust air in a room |
 | W-VENT-001 | ventilation unit without a type, and none of its kind is marked default |
 | W-VENT-002 | push-pull unit without a matching pair |
-| W-VENT-003 | decentral unit, or outdoor or exhaust air terminal, not on an exterior wall |
+| W-VENT-003 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, not on an exterior wall |
 | W-VENT-004 | air terminal with no central unit |
 | W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
-| W-VENT-006 | decentral unit, or outdoor or exhaust air terminal, with no hole through its wall |
+| W-VENT-006 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, with no hole through its wall |
 | W-VENT-007 | ducts that change storey through a slab with no hole for them |
 
 ## Calculators
@@ -1101,8 +1141,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `water` | norm | 0.1.0 | DIN 1988-300:2012-05 | Trinkwasser-Rohrbemessung |
 | `drain` | norm | 0.1.0 | DIN 1986-100:2016-12 mit DIN EN 12056-2 | Schmutzwasser-Rohrbemessung |
 | `recirc` | norm | 0.1.0 | DIN 1988-300:2012-05, Kurzverfahren der Zirkulation | Zirkulation |
-| `airflow` | norm | 0.1.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
-| `ducts` | norm | 0.1.1 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
+| `airflow` | norm | 0.2.0 | DIN 1946-6:2019-12 | Lüftungskonzept und Luftvolumenströme |
+| `ducts` | norm | 0.2.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
 | `loads` | norm | 0.2.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
 | `struct` | norm | 0.1.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
 
@@ -1147,6 +1187,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `spread` | float |  | the system's design spread, K |
 | `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
 | `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
+| `insulation` | str |  | with a ventilation system: the building's insulation for its flows (DIN 1946-6, as airflow); the supply air then comes in warmed by the units' heat recovery (high / low) |
 
 ### `hydronic` settings
 
@@ -1162,6 +1203,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `spread` | float |  | the system's design spread, K |
 | `floor` | float |  | the highest mean floor surface temperature, °C; underfloor heating above it fails |
 | `bathfloor` | float |  | the same in baths and WCs, °C; floor= if left out |
+| `insulation` | str |  | with a ventilation system: the building's insulation for its flows (DIN 1946-6, as airflow); the supply air then comes in warmed by the units' heat recovery (high / low) |
 | `vmax` | float | required | the highest velocity in the heating pipes, m/s |
 
 ### `water` settings
@@ -1490,6 +1532,17 @@ q_v,inf = komp · V_NE · n_50 · (lage · dp / 50)^n, m³/h; dp in Pa.
 | `value` | num > 0 | its value |
 
 One row for each: name.
+
+#### `vent-overflow`: Free area of the overflow openings by air flow (DIN 1946-6)
+
+Needed once vent.uea has overflow openings (over).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `upto` | num > 0 | air flow through the room's doors up to, m³/h |
+| `area` | num > 0 | free area the overflow openings need, cm² |
+
+One row for each: upto.
 
 #### `unit-weight`: Unit weights of building materials (DIN EN 1991-1-1, Anhang A, or the manufacturer)
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `airflow` 0.1.0, kind `norm` |
+| Calculator | `airflow` 0.2.0, kind `norm` |
 | Standard | DIN 1946-6:2019-12 |
 | Code | `src/uea/packs/vent/airflow.py`; the units and terminals from `geometry.py` |
 | Tests | `tests/test_vent.py` |
@@ -24,7 +24,9 @@ The dwelling's area and volume, its total air flow at the four ventilation level
 - Extract room: q_R = q_extract,R · q_design / Σ q_extract. Supply room: q_R = q_design · f_R / Σ f_R. Overflow rooms: none.
 - Central terminals of a room: together the room's flow (less what decentral units in it give), in equal shares; outdoor and exhaust air terminals share their unit's supply and extract.
 - Decentral unit: flow/2 to supply and to extract (mode alt), flow to both (both), flow to extract (ext).
-- Fails if a room gets less than q_R (with a system), a unit's type flow is below its supply or extract, or a measure is needed and there is no system.
+- Outdoor air inlet (`inlet`): its type's flow to its room's supply.
+- Overflow, once `vent.uea` has an `over`: for each supply and extract room, the area its flow q_R needs (the first row of `vent-overflow` with upto ≥ q_R) against the free area of the overflow openings in its doors (`area=`, or the door's width × `cut=`).
+- Fails if a room gets less than q_R (with a system), a unit's type flow is below its supply or extract, a measure is needed and there is no system, or a room's overflow openings are smaller than its flow needs.
 
 ## Inputs and how they are chosen
 
@@ -35,15 +37,16 @@ The dwelling's area and volume, its total air flow at the four ventilation level
 | komp, lage, dp, n | table `vent-infiltration` |
 | Role, q_extract, f_R by room use | table `vent-room` |
 | n_50, insulation | settings |
-| Unit flows | the `ahu` and `fan` types |
+| Unit flows | the `ahu`, `fan` and `inlet` types |
+| Overflow area by flow | table `vent-overflow` |
 
 ## Deviations and not implemented
 
 - One dwelling per project.
-- No overflow openings, no outdoor air inlets of exhaust systems, no fireplaces.
+- No fireplaces. Overflow is checked room by room at its doors; the air's way through the overflow zone (the hall) is not followed. An inlet gives its type's flow at the system's design pressure, which is not computed.
 - The infiltration by the formula above; the review checks how the standard distinguishes it by system and location.
 - A system is checked at the nominal level only; the reduced and intensive levels are reported, not checked.
-- Heat recovery is not carried into the Heizlast.
+- The heat recovery goes into the Heizlast with `uea calc heatload ... insulation=` (`heatload.md`).
 
 ## Assumptions to check when signing
 
@@ -59,6 +62,8 @@ The box of `tests/test_heatload.py` with r1 living (supply, f_R 3) and r2 kitche
 |---|---|---|
 | `test_airflow_without_a_system` | no units | A_NE 4.68 · 7.38 + 4.565 · 7.38; the totals; q_v,inf = 0.5 · V · 1.5 · 0.04; a measure needed and no system: fails; with n_50 40 no measure: ok |
 | `test_airflow_against_the_units` | a push-pull pair; a central unit; a unit of 60 m³/h | 15 m³/h in each room, short; every terminal the nominal flow, the unit carries it; too small: fails |
+| `test_inlets_supply_their_room` (`tests/test_vent_more.py`) | an exhaust fan in r2, two inlets of 30 m³/h in r1 | r1 gets 60, r2 30; an inlet on an interior wall: `W-VENT-003` |
+| `test_overflow_openings` | door d2 between r1 and r2, 0.885 m wide; table 150 cm² up to 150 m³/h | no `over`: not checked; undercut 0.01 m: 88.5 cm² < 150, fails; and an element of 100 cm²: ok |
 | `test_haus_mueller_ventilation` | the prototype | loads, pairs derived, feeds reach the units |
 
 ## Changes
@@ -66,3 +71,4 @@ The box of `tests/test_heatload.py` with r1 living (supply, f_R 3) and r2 kitche
 | Version | Change |
 |---|---|
 | 0.1.0 | First version |
+| 0.2.0 | Outdoor air inlets, overflow openings against `vent-overflow` (decision 0043) |

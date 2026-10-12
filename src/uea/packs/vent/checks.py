@@ -9,21 +9,22 @@ from uea.derive import Derived
 from uea.fmt import ln
 from uea.packs.net import missing_holes
 from uea.packs.vent.geometry import vent_type
-from uea.packs.vent.kinds import AhuType, Air, Fan, FanType
+from uea.packs.vent.kinds import AhuType, Air, Fan, FanType, InletType
 
 CODES: dict[str, str] = {
     "E-VENT-002": "unit or terminal on a wall without a usable face, or outdoor or exhaust air in"
     " a room",
     "W-VENT-001": "ventilation unit without a type, and none of its kind is marked default",
     "W-VENT-002": "push-pull unit without a matching pair",
-    "W-VENT-003": "decentral unit, or outdoor or exhaust air terminal, not on an exterior wall",
+    "W-VENT-003": "decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, not on"
+    " an exterior wall",
     "W-VENT-004": "air terminal with no central unit",
     "W-VENT-005": "central unit without outdoor air, exhaust air, supply or extract terminals",
-    "W-VENT-006": "decentral unit, or outdoor or exhaust air terminal, with no hole through its"
-    " wall",
+    "W-VENT-006": "decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, with no"
+    " hole through its wall",
     "W-VENT-007": "ducts that change storey through a slab with no hole for them",
 }
-TYPES = {"ahu": AhuType, "fan": FanType}
+TYPES = {"ahu": AhuType, "fan": FanType, "inlet": InletType}
 
 
 def vent_checks(d: Derived) -> Iterable[Issue]:
@@ -57,7 +58,7 @@ def vent_checks(d: Derived) -> Iterable[Issue]:
                 "is a push-pull unit without a pair: it works only in pairs",
                 f"~ {el.id} pair=<the other unit>, or mode=both",
             )
-    for kind in ("fan", "air"):
+    for kind in ("fan", "air", "inlet"):
         for el in m.of_kind(kind):
             mt = v.at.get(el.id)
             if mt is None or mt.wall is None:
