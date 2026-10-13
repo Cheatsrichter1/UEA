@@ -138,3 +138,17 @@ def test_ventilation_in_the_ifc(tmp_path: Path) -> None:
     sup = next(s for s in f.by_type("IfcDistributionSystem") if s.Name == "lg1 Zuluft")
     members = {p.Tag or p.Name for r in sup.IsGroupedBy for p in r.RelatedObjects}
     assert members == {"lg1", "ld1", "lg1>ld1"}
+
+
+def test_inlets_on_the_ventilation_plan() -> None:
+    # an exhaust system: one fan and two inlets, no central unit; the plan drew no inlet and
+    # failed on it ('Inlet' has no role)
+    from uea.export.drawing import Text
+    from uea.export.tga import sheet_tga
+
+    d, _ = box(EXHAUST)
+    dw = sheet_tga(d, "EG", "vent")
+    assert dw is not None
+    texts = [it.text for it in dw.items if isinstance(it, Text)]
+    assert texts.count("ALD") == 2 and {"al1", "al2", "vl1 Abluft"} <= set(texts)
+    assert "Außenluftdurchlass (ALD)" in texts

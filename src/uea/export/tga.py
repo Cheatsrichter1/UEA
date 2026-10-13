@@ -141,6 +141,7 @@ VENT_KEYS = {
     "ahu": "Lüftungsgerät mit Wärmerückgewinnung",
     "fan": "Dezentrales Lüftungsgerät (Paar gestrichelt)",
     "air": "Luftdurchlass (ZU, AB, AU, FO)",
+    "inlet": "Außenluftdurchlass (ALD)",
     "oda": "Außenluft",
     "sup": "Zuluft",
     "ext": "Abluft",
@@ -432,6 +433,11 @@ class TgaPlan(InstallPlan):
             mode = getattr(el, "mode")  # noqa: B009
             label = f"{mt.id} {'Abluft' if mode == 'ext' else ''}".strip()
             reach = 3.2
+        elif mt.kind == "inlet":
+            ink.layer, ink.color = L_TERMINAL, AIR["oda"]
+            ink.poly([(-1.6, 0.0), (1.6, 0.0), (1.6, 2.4), (-1.6, 2.4)], "#ffffff", 0.35)
+            ink.text(0.0, 0.7, "ALD", 1.1, True)
+            reach = 2.4
         else:
             role = getattr(el, "role")  # noqa: B009
             ink.layer, ink.color = L_TERMINAL, AIR[role]
@@ -560,6 +566,9 @@ class TgaPlan(InstallPlan):
         elif key == "air":
             ink.color = AIR["sup"]
             ink.circle(0.0, 0.0, 1.2, "#ffffff", 0.35)
+        elif key == "inlet":
+            ink.color = AIR["oda"]
+            ink.poly([(-1.4, -1.0), (1.4, -1.0), (1.4, 1.0), (-1.4, 1.0)], "#ffffff", 0.35)
         elif key in AIR:
             pen = Pen(AIR[key], sh.m(0.5))
             self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))

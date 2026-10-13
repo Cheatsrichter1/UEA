@@ -1470,6 +1470,15 @@ class Resolver:
             if not parts or dom is None:
                 continue
             bare = dom.difference(union(p.foot for p in parts))
+            # split level: an airspace (a void of this storey's slab) needs no roof of its own,
+            # nor does a part that the storey above covers with its slab
+            bare = bare.difference(self._airspace(lv))
+            if lv.above is not None:
+                above = self.g.slab_on(lv.above)
+                if above is not None:
+                    bare = bare.difference(
+                        above.outline.difference(self._airspace(self.g.levels[lv.above]))
+                    )
             if bare.area > 0.05:
                 c = max(polys(bare), key=lambda q: q.area).representative_point()
                 self.d.add(
@@ -1479,6 +1488,15 @@ class Resolver:
                     f" ({ar(c.x)},{ar(c.y)})",
                     "add a roof for that part, or extend the roofs' x=/y=",
                 )
+
+    def _airspace(self, lv: LevelGeo) -> BaseGeometry:
+        """Where the storey has no floor: the voids of its slab that no stair fills."""
+        slab = self.g.slab_on(lv.id)
+        if slab is None:
+            return Polygon()
+        voids = [v.poly for v in self.g.voids.values() if v.slab == slab.id]
+        stairs = [s.poly for s in self.g.stairs.values()]
+        return clean(union(voids).difference(union(stairs))) if voids else Polygon()
 
     def _wall_tops(self) -> None:
         for w in self.g.walls.values():
@@ -1581,8 +1599,10 @@ class Resolver:
                 ]
                 bounds = sorted(bounds, key=natural)
                 self.g.rooms[el.id] = RoomGeo(el.id, lv.id, (x, y), poly, fin, bounds, ceiling)
+            air = self._airspace(lv)
             for i, reg in enumerate(regions):
-                if taken and i not in taken and reg.area >= 0.5:
+                # an airspace over a void (split level) is no floor, so it needs no room
+                if taken and i not in taken and reg.difference(air).area >= 0.5:
                     c = reg.representative_point()
                     self.d.add(
                         "W-ARCH-022",
@@ -1593,6 +1613,7 @@ class Resolver:
 
     def _ceiling(self, lv: LevelGeo) -> Ceil:
         caps: list[Lin] = []
+        slab: SlabGeo | None = None
         if lv.above is not None:
             above = self.g.levels[lv.above]
             slab = self.g.slab_on(above.id)
@@ -1604,7 +1625,12 @@ class Resolver:
             if rl.z <= lv.z + 1e-9 and roof.status != "demolish":
                 planes = tuple(Lin(p.a, p.b, p.c - roof.lining_of(p) - lv.z) for p in roof.planes)
                 parts.append(Part(roof.foot, planes))
-        return Ceil(tuple(caps), tuple(parts))
+        # split level: where the slab above has no floor (outside it or in a void) and a roof of
+        # this storey or one below covers the room, that roof is its ceiling, not the storey above
+        uncapped: BaseGeometry = Polygon()
+        if slab is not None and parts:
+            uncapped = clean(union(p.foot for p in parts).difference(slab.net))
+        return Ceil(tuple(caps), tuple(parts), uncapped)
 
     def _opening_sides(self) -> None:
         for o in self.g.openings.values():

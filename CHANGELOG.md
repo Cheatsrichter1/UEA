@@ -2,6 +2,11 @@
 
 What each release contains. What is built and what is open in detail is in `ROADMAP.md`; the reasons are in `docs/decisions/`.
 
+## Unreleased
+
+- **Split levels:** a hall beside a storeyed wing reaches up to its own roof where the slab above has a void; its height and volume follow, and the airspace over it raises no W-ARCH-022 or W-ARCH-042.
+- **Fix:** the ventilation plan failed on outdoor-air inlets (`'Inlet' object has no attribute 'role'`); it now draws them as ALD with a legend entry.
+
 ## 0.1.0 (2026-10-12): first preview
 
 The first version's packs, from the shell to the structure, for agents and developers to try. **A preview:** no calculator has been reviewed by a licensed person yet, and the norm tables in the repo are synthetic test data. Nothing UEA produces is fit for a real project until the Fachplaner, Tragwerksplaner or Prüfingenieur responsible has checked and signed it.
