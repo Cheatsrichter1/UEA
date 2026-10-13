@@ -89,7 +89,7 @@ To be scheduled into the phases above.
 
 - **Apartments as zones** (`IfcZone`), with a Wohnfläche per apartment.
 - **Lifts** (`IfcTransportElement`) and stairwells with landings.
-- **Split levels.**
+- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py`). Open: floors at different heights within one storey (half-storey offsets).
 - **Timber-frame walls** whose layers mix studs and insulation, which the U-value calculation must handle.
 
 ### Services

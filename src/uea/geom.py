@@ -2,7 +2,7 @@
 
 import math
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import shapely
 from shapely.geometry import LineString, MultiPolygon, Polygon, box
@@ -187,12 +187,15 @@ def union_pieces(parts: Sequence[Part], g: BaseGeometry) -> list[tuple[int, Lin,
 class Ceil:
     """Clear height above the FFL: the lowest of the caps and of the highest roof part.
 
-    A cap is a plane that holds everywhere (the slab above). Roof parts hold where they exist;
-    where several overlap, the highest counts (valleys and hips of a roof with wings).
+    A cap is a plane that holds everywhere (the slab above) except in `uncapped`: where there
+    is no slab above and a roof part covers the room (a hall beside a storeyed wing). Roof
+    parts hold where they exist; where several overlap, the highest counts (valleys and hips
+    of a roof with wings).
     """
 
     caps: tuple[Lin, ...] = ()
     parts: tuple[Part, ...] = ()
+    uncapped: BaseGeometry = field(default_factory=Polygon)
 
     def __bool__(self) -> bool:
         return bool(self.caps or self.parts)
@@ -205,10 +208,18 @@ class Ceil:
         if self.parts:
             cover = union(p.foot for p in self.parts)
             for _, f, poly in union_pieces(self.parts, clean(g.intersection(cover))):
-                fs = [f, *self.caps]
-                out.extend(
-                    (h, p) for h, geo in lower_envelope_regions(poly, fs) for p in polys(geo)
-                )
+                regions: list[tuple[BaseGeometry, list[Lin]]] = [(poly, [f, *self.caps])]
+                if self.caps and not self.uncapped.is_empty:
+                    regions = [
+                        (clean(poly.difference(self.uncapped)), [f, *self.caps]),
+                        (clean(poly.intersection(self.uncapped)), [f]),
+                    ]
+                for region, fs in regions:
+                    if region.is_empty:
+                        continue
+                    out.extend(
+                        (h, p) for h, geo in lower_envelope_regions(region, fs) for p in polys(geo)
+                    )
             outside = clean(g.difference(cover))
         if self.caps and not outside.is_empty:
             fs = list(self.caps)

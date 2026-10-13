@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import Literal
 
+from shapely.geometry import Point as SPoint
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
@@ -146,7 +147,10 @@ def _walls(
     g = d.arch
     lv = g.levels[rg.level]
     walls = g.walls_on(rg.level)
-    others = [(k, o.poly) for k, o in g.rooms.items() if o.level == rg.level and k != rg.id]
+    others: list[tuple[str, BaseGeometry]] = [
+        (k, o.poly) for k, o in g.rooms.items() if o.level == rg.level and k != rg.id
+    ]
+    others += _reaching(d, lv)
     for a, b in _edges(rg.poly):
         for w in walls:
             side = _on_face(w, a, b)
@@ -159,6 +163,22 @@ def _walls(
                 _wall_piece(d, rg, lv, w, side, s0, s1, others, walls, by_host, out, notes)
 
 
+def _reaching(d: Derived, lv: LevelGeo) -> list[tuple[str, BaseGeometry]]:
+    """Rooms of lower storeys that reach up into this one (split level: a hall under its own
+    roof beside a storeyed wing), with the part of their outline that does."""
+    g = d.arch
+    out: list[tuple[str, BaseGeometry]] = []
+    for k, o in g.rooms.items():
+        low = g.levels[o.level]
+        hr = o.height_range()
+        if low.z >= lv.z - TOL or hr is None or low.z + hr[1] <= lv.z + TOL:
+            continue
+        up = o.poly.intersection(o.ceiling.uncapped)
+        if up.area > MIN_AREA:
+            out.append((k, up))
+    return out
+
+
 def _wall_piece(
     d: Derived,
     rg: RoomGeo,
@@ -167,7 +187,7 @@ def _wall_piece(
     side: Side,
     s0: float,
     s1: float,
-    others: list[tuple[str, Polygon]],
+    others: list[tuple[str, BaseGeometry]],
     walls: list[WallGeo],
     by_host: dict[str, list[OpeningGeo]],
     out: list[Surface],
@@ -216,11 +236,18 @@ def _wall_piece(
     n = w.n if side == "lo" else (-w.n[0], -w.n[1])
     build = _type(d, w.id)
     ground = terrain(d)
+    near = w.lo - STRIP / 2 if side == "lo" else w.hi + STRIP / 2
     for lo, hi, other in sorted(spans + rest):
         beyond: Beyond = "room" if other else "outside" if exterior else "none"
         if beyond == "none":
             notes.append(f"{rg.id}: no room beyond {w.id} over {hi - lo:.2f} m, counted as outside")
-        area, below = _wall_area(d, lv, w, lo, hi, ground if beyond == "outside" else None)
+        # split level: where the room reaches up to its own roof, the wall counts up to its top,
+        # no higher than the room's ceiling
+        reach = None
+        hr = rg.height_range()
+        if hr is not None and rg.ceiling.uncapped.covers(SPoint(w.plan_point((lo + hi) / 2, near))):
+            reach = lv.z + hr[1]
+        area, below = _wall_area(d, lv, w, lo, hi, ground if beyond == "outside" else None, reach)
         for o in by_host.get(w.id, []):
             if not lo - TOL <= o.mid <= hi + TOL:
                 continue
@@ -263,10 +290,17 @@ def _wall_piece(
 
 
 def _wall_area(
-    d: Derived, lv: LevelGeo, w: WallGeo, lo: float, hi: float, ground: float | None
+    d: Derived,
+    lv: LevelGeo,
+    w: WallGeo,
+    lo: float,
+    hi: float,
+    ground: float | None,
+    reach: float | None = None,
 ) -> tuple[float, float]:
-    """The area of the wall from lo to hi above the terrain, and below it."""
-    if lv.above is not None:
+    """The area of the wall from lo to hi above the terrain, and below it. reach: the room
+    reaches up past the storey above to this height (split level)."""
+    if lv.above is not None and reach is None:
         h = d.arch.levels[lv.above].z - lv.z
         under = min(max(ground - lv.z, 0.0), h) if ground is not None else 0.0
         return (hi - lo) * (h - under), (hi - lo) * under
@@ -277,8 +311,13 @@ def _wall_area(
     for sa, sb in pairwise(pts):
         za, zb = w.top_at(sa), w.top_at(sb)
         assert za is not None and zb is not None
+        if reach is not None:
+            za, zb = min(za, reach), min(zb, reach)
         total += (sb - sa) * ((za + zb) / 2 - lv.z)
-    return max(total, 0.0), 0.0
+    under = 0.0
+    if ground is not None and reach is not None:
+        under = (hi - lo) * min(max(ground - lv.z, 0.0), reach - lv.z)
+    return max(total - under, 0.0), under
 
 
 def _opening(
@@ -364,9 +403,19 @@ def _ceiling(d: Derived, rg: RoomGeo, out: list[Surface], notes: list[str]) -> N
     g = d.arch
     lv = g.levels[rg.level]
     slab = g.slab_on(lv.above) if lv.above is not None else None
+    # split level: the part of the room that reaches up to its own roof has no slab above
+    uncapped = rg.ceiling.uncapped
+    roofed: BaseGeometry = rg.poly
+    if slab is not None and not uncapped.is_empty:
+        roofed = rg.poly.intersection(uncapped)
+        if roofed.area > MIN_AREA:
+            _roofs(d, rg, roofed, out)
     if slab is not None:
         assert lv.above is not None
-        over, rest = _overlaps(d, lv.above, rg.poly)
+        capped = rg.poly.difference(uncapped) if not uncapped.is_empty else rg.poly
+        if capped.area <= MIN_AREA:
+            return
+        over, rest = _overlaps(d, lv.above, capped)
         for k, a in over:
             name, layers = _build(d, slab.id, k)
             out.append(Surface(rg.id, "ceiling", slab.id, name, layers, None, "up", "room", k, a))
@@ -387,8 +436,15 @@ def _ceiling(d: Derived, rg: RoomGeo, out: list[Surface], notes: list[str]) -> N
                 )
             )
         return
-    roofs = g.roofs_on(rg.level)
-    for f, poly in rg.ceiling.pieces(rg.poly):
+    _roofs(d, rg, roofed, out)
+    if not any(s.part == "roof" for s in out):
+        notes.append(f"{rg.id}: neither a slab nor a roof above it, so no ceiling")
+
+
+def _roofs(d: Derived, rg: RoomGeo, region: BaseGeometry, out: list[Surface]) -> None:
+    """The roofs over a region of the room, with their sloped area."""
+    roofs = d.arch.roofs_on(rg.level)
+    for f, poly in rg.ceiling.pieces(region):
         c = poly.centroid
         roof = next((r for r in roofs if r.foot.buffer(TOL).covers(c)), None)
         if roof is None:
@@ -400,5 +456,3 @@ def _ceiling(d: Derived, rg: RoomGeo, out: list[Surface], notes: list[str]) -> N
         out.append(
             Surface(rg.id, "roof", roof.id, t.id, t.layers.items, None, "up", "outside", None, area)
         )
-    if not any(s.part == "roof" for s in out):
-        notes.append(f"{rg.id}: neither a slab nor a roof above it, so no ceiling")
