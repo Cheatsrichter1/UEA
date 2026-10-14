@@ -5,7 +5,7 @@ Date: 2026-10-11
 
 ## Context
 
-Phase 7 (`ROADMAP.md`) is ventilation: units, ducts, outlets. Its "done when" is that the Einfamilienhaus demo is complete apart from structural. A German house needs a Lüftungskonzept per DIN 1946-6: whether infiltration alone keeps the dwelling dry (Feuchteschutz) or a ventilation measure is needed, and, for a system, the flows of each room. Systems in an EFH are a central unit with heat recovery and ducts (KWL), decentral units through the facade (push-pull pairs, Pendellüfter), or exhaust fans. Haus Müller's hand-written `vent.uea` has two pairs of decentral units, `feed` lines in `elec.uea` that wait for them, and request q4 for their core drillings. The plumbing and heating pipes set the pattern: elements placed, networks derived, sizing as `norm` calculators on the office's tables (`0035`, `0037`).
+Phase 7 is ventilation: units, ducts, outlets. Its "done when" is that the Einfamilienhaus demo is complete apart from structural. A German house needs a Lüftungskonzept per DIN 1946-6: whether infiltration alone keeps the dwelling dry (Feuchteschutz) or a ventilation measure is needed, and, for a system, the flows of each room. Systems in an EFH are a central unit with heat recovery and ducts (KWL), decentral units through the facade (push-pull pairs, Pendellüfter), or exhaust fans. Haus Müller's hand-written `vent.uea` has two pairs of decentral units, `feed` lines in `elec.uea` that wait for them, and request q4 for their core drillings. The plumbing and heating pipes set the pattern: elements placed, networks derived, sizing as `norm` calculators on the office's tables (`0035`, `0037`).
 
 ## Decision
 

@@ -5,7 +5,7 @@ Date: 2026-10-11, slices 8b to 8d 2026-10-12
 
 ## Context
 
-Phase 8 (`ROADMAP.md`) is the structure: load-bearing elements, loads, frame analysis on an open-source solver. Its "done when" is that a licensed engineer reviews the validation. The architecture carries most of what the structure starts from: which walls are load-bearing (`lb`), their build-ups, the slabs and their build-ups, the floor build-ups and uses of the rooms, the roof, the openings and holes. The Haftung for the structure lies with the Tragwerksplaner and, for the check, the Prüfingenieur (`VISION.md`). UEA computes, and the engineer decides and signs, as with every `norm` calculator.
+Phase 8 is the structure: load-bearing elements, loads, frame analysis on an open-source solver. Its "done when" is that a licensed engineer reviews the validation. The architecture carries most of what the structure starts from: which walls are load-bearing (`lb`), their build-ups, the slabs and their build-ups, the floor build-ups and uses of the rooms, the roof, the openings and holes. The Haftung for the structure lies with the Tragwerksplaner and, for the check, the Prüfingenieur (`VISION.md`). UEA computes, and the engineer decides and signs, as with every `norm` calculator.
 
 The plan was to build slice 8a and wait for the engineer's review before the next. The engineer is away; on 2026-10-12 the user decided to build 8b to 8d now. All four slices are unreviewed, and the review covers them together (`docs/validation/loads.md`, `docs/validation/struct.md`).
 

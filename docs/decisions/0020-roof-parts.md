@@ -20,7 +20,7 @@ Date: 2026-10-08
 
 - **A roof from explicit outline points** (`pts=`): covers any polygon, but costs tokens in the common case and needs a rule for which edges are eaves. Rectangles that overlap cover L, T, U and cross shapes.
 - **A straight-skeleton roof over any polygon:** the mathematically clean hip roof for an arbitrary outline, but it needs a skeleton algorithm (a dependency, or our own) and it does not give a cross gable, which is the usual roof of an L-shaped house.
-- **One element per roof plane:** more flexible (Gauben, Kehlen), more tokens and more ways to get it inconsistent. It stays an option for later (`ROADMAP.md`, more roof elements).
+- **One element per roof plane:** more flexible (Gauben, Kehlen), more tokens and more ways to get it inconsistent. It stays an option for later (`FUTURE.md`, more roof elements).
 
 ## Consequences
 

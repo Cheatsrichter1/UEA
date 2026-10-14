@@ -30,4 +30,4 @@ Until now a wall has one position on one axis and a span on the other (`y=S+ x=W
 
 - Rooms, slab outlines, exterior detection, finishes, plan and IFC work on polygons already; they need the frame, not new algorithms.
 - At very shallow angles (below about 12°) between a raw wall and the wall it touches, no join is made.
-- Curved walls (`ROADMAP.md`) build on this: an arc is another way to give the axis.
+- Curved walls (`FUTURE.md`) build on this: an arc is another way to give the axis.

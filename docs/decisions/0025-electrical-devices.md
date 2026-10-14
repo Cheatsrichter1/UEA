@@ -5,7 +5,7 @@ Date: 2026-10-09
 
 ## Context
 
-Phase 3 of `ROADMAP.md` is the electrical design. It is large, so it goes in three slices that each end with something a human can open (the order was agreed with the user on 2026-10-09):
+Phase 3 is the electrical design. It is large, so it goes in three slices that each end with something a human can open (the order was agreed with the user on 2026-10-09):
 
 1. **The pack and its checks** (this record): the kinds, placement on walls, circuits and loads, validators, XLSX tables.
 2. **The Installationsplan per storey** as PDF and DXF with simplified symbols, and the Verteilungsplan.

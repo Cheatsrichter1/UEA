@@ -1,8 +1,8 @@
 # UEA architecture
 
-How UEA is built. For the why see `VISION.md`; for the order of work see `ROADMAP.md`; for the reasoning behind individual choices see `docs/decisions/`.
+How UEA is built. For the why see `VISION.md`; for what comes next see `FUTURE.md`; for the reasoning behind individual choices see `docs/decisions/`.
 
-Status: phase 1 in progress. The core, the architecture pack, the CLI, the first `norm` calculator, plan images and the IFC export exist in `src/uea/`; the other packs, importers and exports are still plans. Syntax and output may change before the first release.
+Status: version 1 (0.1.0, `CHANGELOG.md`). Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
 
 ## 1. Overview
 
@@ -54,7 +54,7 @@ haus-mueller/
   out/            exports (not canonical, not committed)
 ```
 
-A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format.
+A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format. For an agent that must not read the whole project, partial views are planned (`FUTURE.md`).
 
 ### Reference direction
 
@@ -277,7 +277,7 @@ The IFC GlobalId of each element is kept in the history entry of the import, wit
 - Buildings are mostly extrusions. UEA uses 2D plan geometry (Shapely) plus heights, and builds simple 3D bodies only for export and rendering.
 - Wall joins, room boundaries, opening voids and device positions are derived from intent. Rooms are the free regions between walls and separators around their seed point (`docs/decisions/0015-rooms-and-finishes.md`).
 - Roofs are where plain extrusion stops: pitched roof planes cut the walls below them (gables, knee walls) and set the clear height of the rooms under them, which the Wohnfläche depends on. UEA handles this with plane cuts on the extruded bodies, still without a general geometry kernel (`docs/decisions/0016-roofs.md`, `0020-roof-parts.md`: one roof per wing for L-, T- and U-shaped houses).
-- No general geometry kernel. Anything that needs real solids (mechanical parts, see `FUTURE.md`) goes into a separate pack on an existing kernel.
+- No general geometry kernel. Anything that needs real solids, such as mechanical parts, is outside UEA (UMEA, a separate program, `FUTURE.md`).
 
 ## 11. Tech stack
 
@@ -295,7 +295,7 @@ Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) co
 
 ## 12. Token efficiency
 
-Token use is a design constraint, measured by the token task set from phase 1 on (`ROADMAP.md`):
+Token use is a design constraint, measured by the token task set from phase 1 on (`bench/`):
 
 - The file format and the operation syntax are the cheapest readable form we can find.
 - `uea help` is layered, so an agent's starting context stays small.

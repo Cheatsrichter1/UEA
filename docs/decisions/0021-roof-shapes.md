@@ -21,7 +21,7 @@ Date: 2026-10-08
 - **A steeper pitch for the hipped ends** (`halfhip=` with its own pitch): common for the Krüppelwalm. It needs a second pitch field and the same plane arithmetic; it can follow if a project needs it.
 - **A break given as a horizontal run** instead of a height: the same, but a brief says "Aufbau 2.40 m hoch". The height is what is drawn.
 - **A butterfly roof** (Schmetterlingsdach) and **sawtooth** roofs as shapes: not needed. A roof is the lowest of its planes, but two roofs on one storey are combined by the highest (`0020-roof-parts.md`), so two shed roofs on the two halves, each rising to the outside, are a butterfly roof (tested), and a sawtooth roof is several sheds.
-- **Barrel roofs** (curved) and **dormers**: open, see `ROADMAP.md`.
+- **Barrel roofs** (curved) and **dormers**: open, see `FUTURE.md`.
 
 ## Consequences
 

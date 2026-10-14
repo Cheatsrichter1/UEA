@@ -5,7 +5,7 @@ Date: 2026-10-11
 
 ## Context
 
-The Todo in `ROADMAP.md` names openings without a fill (Durchbrüche, Kernbohrungen, Schlitze; `IfcOpeningElement` with nothing in it) as the main handoff from the Fachplaner to the architect: a request asks for a hole, and the architect answers with the element. Until now the model had niches and slab voids only, so Haus Müller's requests for the stack (q3), the core drillings (q4) and the ducts to the OG (q7) could be asked but never answered, and nothing told the services agent that a pipe passes a slab with no hole in it. The IFC import listed such openings as not imported. The derived networks (`0027`, `0035`, `0037`, `0038`) change storey anywhere, so nothing said where a hole had to be.
+The Todo of the roadmap (since removed; now `FUTURE.md`, Backlog) named openings without a fill (Durchbrüche, Kernbohrungen, Schlitze; `IfcOpeningElement` with nothing in it) as the main handoff from the Fachplaner to the architect: a request asks for a hole, and the architect answers with the element. Until now the model had niches and slab voids only, so Haus Müller's requests for the stack (q3), the core drillings (q4) and the ducts to the OG (q7) could be asked but never answered, and nothing told the services agent that a pipe passes a slab with no hole in it. The IFC import listed such openings as not imported. The derived networks (`0027`, `0035`, `0037`, `0038`) change storey anywhere, so nothing said where a hole had to be.
 
 ## Decision
 

@@ -5,7 +5,7 @@ Date: 2026-10-12
 
 ## Context
 
-The services' networks are derived as rectilinear trees: pipes, cables and ducts (`0027-cable-routes.md`, `0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`, `0038-ventilation.md`). Since `0039-openings-without-a-fill.md` they pass slabs through the holes their networks name. `ROADMAP.md` left three things open, shared by the disciplines:
+The services' networks are derived as rectilinear trees: pipes, cables and ducts (`0027-cable-routes.md`, `0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`, `0038-ventilation.md`). Since `0039-openings-without-a-fill.md` they pass slabs through the holes their networks name. The Todo of the roadmap (since removed; now `FUTURE.md`, Backlog) left three things open, shared by the disciplines:
 
 - vertical shafts through several storeys as one element;
 - pre-wall installations (Vorwandinstallation) in WC and bath;

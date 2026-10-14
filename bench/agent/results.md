@@ -1,6 +1,6 @@
 # Agent test: results
 
-Two runs. The shell run: an off-the-shelf agent builds the Haus Müller shell, roof included, from the written brief in `haus-mueller.md`, the phase 1 "done when" in `ROADMAP.md`. The services run: it plans electrical, heating, plumbing and ventilation into the finished shell from `haus-mueller-services.md`, the end-to-end run phase 7's "done when" needs (see below). How they run is in the docstring of `__init__.py`:
+Two runs. The shell run: an off-the-shelf agent builds the Haus Müller shell, roof included, from the written brief in `haus-mueller.md`, the phase 1 "done when". The services run: it plans electrical, heating, plumbing and ventilation into the finished shell from `haus-mueller-services.md`, the end-to-end run phase 7's "done when" needs (see below). How they run is in the docstring of `__init__.py`:
 
 ```bash
 uv run python -m bench.agent setup RUN [--services]   # prints the prompt to give the agent
