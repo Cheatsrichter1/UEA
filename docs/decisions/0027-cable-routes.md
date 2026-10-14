@@ -7,7 +7,7 @@ Date: 2026-10-09
 
 Slice 3 of phase 3 (`0025-electrical-devices.md`) adds cable lengths and the first `norm` calculators (voltage drop, cable sizing). The calculators need a length for every circuit, and the quantity list (Materialliste) needs the metres of each cable type. It splits in two: the lengths first (this record, no norm data involved), then the table storage and the calculators (slice 3b, `0008-office-supplied-norm-data.md`).
 
-The prototype only derived the routes roughly (`docs/prototype/haus-mueller/README.md`). The ROADMAP asked for runs "along the installation zones" (Installationszonen, DIN 18015-3). The zone widths and distances are in the licensed text, and a router that avoids obstacles in bands is a project of its own; the lengths are needed now.
+The prototype only derived the routes roughly (`docs/prototype/haus-mueller/README.md`). The roadmap (since removed) asked for runs "along the installation zones" (Installationszonen, DIN 18015-3). The zone widths and distances are in the licensed text, and a router that avoids obstacles in bands is a project of its own; the lengths are needed now.
 
 ## Decision
 
@@ -39,7 +39,7 @@ The prototype only derived the routes roughly (`docs/prototype/haus-mueller/READ
 
 ## Consequences
 
-- The lengths are a lower bound for the cable on site: the real route follows the zones, switch loops take extra cores, and the slab is crossed at a shaft or the stair. There are no shafts in the model yet (ROADMAP todo); a circuit across storeys crosses at the cheapest place. The sheets say "abgeleitet" and the calculators will add a reserve and record it.
+- The lengths are a lower bound for the cable on site: the real route follows the zones, switch loops take extra cores, and the slab is crossed at a shaft or the stair. There are no shafts in the model yet (the roadmap's todo); a circuit across storeys crosses at the cheapest place. The sheets say "abgeleitet" and the calculators will add a reserve and record it.
 - A switch is fed from the board like any device. A real lighting circuit runs the supply to the luminaire and a switch loop to the switch; the lengths differ by less than a run.
 - Boards fed from other boards are still open (several boards, the feeder to the sub-board is not a circuit).
 - The cable is not drawn on the installation plan. The derived runs are in the sheets and in `uea get`; drawing them (lightly, behind the symbols) can come with the zones.

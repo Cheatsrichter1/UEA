@@ -5,7 +5,7 @@ Date: 2026-10-11
 
 ## Context
 
-Phase 6 plans the plumbing and the heating of the Einfamilienhaus (`ROADMAP.md`). Slices 6a to 6c built the Heizlast and the heating elements (`0033`, `0034`). Slice 6d adds the plumbing: sanitary fixtures, the pipes for drinking water and waste water, and their sizing per DIN 1988-300 (drinking water) and DIN 1986-100 (drainage) as `norm` calculators. Haus Müller's draft `plumb.uea` had seven fixtures and nothing else; request q3 asks for a hole in the slab for a stack (Fallleitung) in the HWR.
+Phase 6 plans the plumbing and the heating of the Einfamilienhaus. Slices 6a to 6c built the Heizlast and the heating elements (`0033`, `0034`). Slice 6d adds the plumbing: sanitary fixtures, the pipes for drinking water and waste water, and their sizing per DIN 1988-300 (drinking water) and DIN 1986-100 (drainage) as `norm` calculators. Haus Müller's draft `plumb.uea` had seven fixtures and nothing else; request q3 asks for a hole in the slab for a stack (Fallleitung) in the HWR.
 
 ## Decision
 

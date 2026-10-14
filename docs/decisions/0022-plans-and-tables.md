@@ -5,7 +5,7 @@ Date: 2026-10-08
 
 ## Context
 
-Phase 2 of `ROADMAP.md` makes the exports an architect or Fachplaner can read: floor plans, sections and elevations as DXF and PDF in German drafting conventions, and XLSX tables. Today there is one neutral `Drawing` (polygons, lines, arcs, text) that renders to SVG and PNG for agents (`ARCHITECTURE.md` §9). It has no scale, line weights, hatches, dimensions, sheet or title block, and no table output.
+Phase 2 makes the exports an architect or Fachplaner can read: floor plans, sections and elevations as DXF and PDF in German drafting conventions, and XLSX tables. Today there is one neutral `Drawing` (polygons, lines, arcs, text) that renders to SVG and PNG for agents (`ARCHITECTURE.md` §9). It has no scale, line weights, hatches, dimensions, sheet or title block, and no table output.
 
 ## Decision
 
@@ -28,7 +28,7 @@ Phase 2 of `ROADMAP.md` makes the exports an architect or Fachplaner can read: f
 | Heights | Height marks with ±0.00 at the finished floor of the lowest storey above ground. |
 | Title block | Project, storey, scale, date, plan number, revision. The signature field stays empty and the sheet says "Entwurf – nicht unterzeichnet": a human signs. |
 | DXF layers | Readable German names per discipline and element, such as `A-WAND-TRAG`. An office-supplied layer table can replace them later. |
-| Level of detail | Entwurf. Permit and construction drawings come later (`ROADMAP.md`). |
+| Level of detail | Entwurf. Permit and construction drawings come later (`FUTURE.md`). |
 
 **The floor plan sheet (built, `export/sheet.py`).** One sheet per storey, the same `Drawing` in all four formats.
 

@@ -5,7 +5,7 @@ Date: 2026-10-12
 
 ## Context
 
-Phase 6 left open (`ROADMAP.md`): emitter output per DIN EN 442 and DIN EN 1264, a spread and mixing valves per circuit, and the circulation of the hot water. Until now an emitter's output was the type's number at the system's design temperatures, every circuit had the system's spread, and the hot water ran to its fixtures with no circulation.
+Phase 6 left open: emitter output per DIN EN 442 and DIN EN 1264, a spread and mixing valves per circuit, and the circulation of the hot water. Until now an emitter's output was the type's number at the system's design temperatures, every circuit had the system's spread, and the hot water ran to its fixtures with no circulation.
 
 ## Decision
 

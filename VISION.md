@@ -58,7 +58,7 @@ UEA starts with buildings and the disciplines of a German planning office:
 
 New buildings and Bestand: every element can be marked as existing or to be demolished, so Umbau projects work in the same model.
 
-The core knows nothing about any one discipline. Each discipline is a domain pack on top of it, so the same approach can later reach steel and timber construction, mechanical parts and civil engineering (see `FUTURE.md`).
+The core knows nothing about any one discipline. Each discipline is a domain pack on top of it, so the same approach can later reach steel and timber construction and civil engineering (see `FUTURE.md`).
 
 ## How we prove it
 
@@ -74,3 +74,4 @@ UEA is fully open source (Apache-2.0). In the age of AI, closed engineering soft
 - Not an agent. Agents use UEA.
 - Not a Revit clone. No GUI, no general geometry kernel, no attempt to cover everything Revit does.
 - Not a replacement for the engineer who signs.
+- Not for mechanical parts. Those need solid geometry and belong to UMEA, a separate program (`FUTURE.md`).

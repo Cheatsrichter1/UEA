@@ -5,7 +5,7 @@ Date: 2026-10-10
 
 ## Context
 
-Phase 6 (`ROADMAP.md`) is plumbing and heating, with the Heizlast per DIN EN 12831-1 as its `norm` calculator. The user chose the order: the Heizlast first, because emitters are sized to the room loads, then the heating elements, plumbing with pipe sizing, and the exports. The Heizlast needs the U-value of every surface around a room (DIN EN ISO 6946) and the surfaces themselves: which wall, slab or roof, how large, and what lies beyond it. The model has the build-ups as layers with material names and thicknesses, windows and doors with `uw=`/`ud=`, and rooms with a use. It has no thermal data: conductivities, surface resistances, design temperatures and air change rates are numbers of licensed standards, which the office supplies (`0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`).
+Phase 6 is plumbing and heating, with the Heizlast per DIN EN 12831-1 as its `norm` calculator. The user chose the order: the Heizlast first, because emitters are sized to the room loads, then the heating elements, plumbing with pipe sizing, and the exports. The Heizlast needs the U-value of every surface around a room (DIN EN ISO 6946) and the surfaces themselves: which wall, slab or roof, how large, and what lies beyond it. The model has the build-ups as layers with material names and thicknesses, windows and doors with `uw=`/`ud=`, and rooms with a use. It has no thermal data: conductivities, surface resistances, design temperatures and air change rates are numbers of licensed standards, which the office supplies (`0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`).
 
 ## Decision
 

@@ -24,4 +24,4 @@ Every change must be revertible, and ids must never be reused, so that an old re
 
 - `log.jsonl` grows with the project. For buildings this stays small.
 - Reverting an old batch can conflict with later batches. UEA then rejects the revert and reports why, like any other batch.
-- Merging two git branches needs a strategy for the history and for ids assigned on both branches (open question in `ROADMAP.md`).
+- Merging two git branches needs a strategy for the history and for ids assigned on both branches (open question in `FUTURE.md`).

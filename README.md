@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** release 0.1.0 is a first preview for agents and developers (`CHANGELOG.md`). The core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is built too, also unreviewed: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent run of the whole house end to end is prepared, not yet run. See `ROADMAP.md`.
+**Status:** release 0.1.0 is a first preview for agents and developers (`CHANGELOG.md`). The core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, none of which a licensed person has reviewed yet. Structural is built too, also unreviewed: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent run of the whole house end to end is prepared, not yet run. What is open for v1 and what comes next is in `FUTURE.md`.
 
 ## Why
 
@@ -27,7 +27,7 @@ Building the architecture of that house through the CLI, storeys and roof includ
 
 The first three rows are the cost of reading the model. The last row is a whole working session, so it is not comparable with them; the table by project size below compares a full build with a full build.
 
-The UEA figures are counted with `tiktoken`; the others are rough estimates, not measurements. In UEA a wall is one line; in IFC it takes 20–40 entity lines, and a Revit export adds geometry for every device, quantities and its own property sets. The benchmark in `ROADMAP.md` (phase 5) will measure the comparison properly.
+The UEA figures are counted with `tiktoken`; the others are rough estimates, not measurements. In UEA a wall is one line; in IFC it takes 20–40 entity lines, and a Revit export adds geometry for every device, quantities and its own property sets. The benchmark (open for v1, `FUTURE.md`) will measure the comparison properly.
 
 ### In euros
 
@@ -66,10 +66,10 @@ What a complete build costs an agent, from the brief to the exports: with conven
 | **A large project such as a hospital, UEA** | **5–100 million** | €0.50–10 | €5–100 | €50–1,000 |
 
 - **What is counted:** everything the agent spends on the build, the whole conversation: the commands it writes, what it reads back, corrections, checks and calculations, its own thinking.
-- **What the numbers are:** the conventional ranges are our estimates. The UEA ranges are a tenth of them, a planning figure. No medium or large project has been built with UEA, and structural is built but not yet reviewed by a licensed engineer (`ROADMAP.md`, phase 8), so not even a complete house has been measured.
-- **What has been measured:** one agent run built only the shell and roof of the house, for 107,000–113,000 tokens (`bench/agent/results.md`, 2026-10-07). That is above the house range for UEA. It was the first run, before the help was fixed from what the agents had to guess, and a rerun is open (`ROADMAP.md`); the house range assumes that a complete house can be done for less than that first run. Treat it as a target, not a result.
+- **What the numbers are:** the conventional ranges are our estimates. The UEA ranges are a tenth of them, a planning figure. No medium or large project has been built with UEA, and structural is built but not yet reviewed by a licensed engineer (`FUTURE.md`), so not even a complete house has been measured.
+- **What has been measured:** one agent run built only the shell and roof of the house, for 107,000–113,000 tokens (`bench/agent/results.md`, 2026-10-07). That is above the house range for UEA. It was the first run, before the help was fixed from what the agents had to guess, and a rerun is open (`FUTURE.md`); the house range assumes that a complete house can be done for less than that first run. Treat it as a target, not a result.
 - **Why UEA is expected to cost less, and to grow about in line with the project:** an element is one line, and its connections are ids (a socket names its wall and its circuit), not geometry or relationship objects. An agent reads only the part it asks for (`uea show`, `uea get`, `uea find`). The cost follows the number of elements and the number of changes.
-- **Why IFC and Revit grow faster:** every element also carries relationships: its type or family, materials, property sets, spatial containment and connections to other parts. The number of those grows faster than the number of elements, so the files, and what an agent must read to work on them, grow faster than the project. The table keeps UEA at a flat tenth at every size, which is the cautious reading; if the conventional cost grows faster, as we expect, the gap is wider. That has not been measured, and the benchmark in `ROADMAP.md` (phase 5) is meant to do it.
+- **Why IFC and Revit grow faster:** every element also carries relationships: its type or family, materials, property sets, spatial containment and connections to other parts. The number of those grows faster than the number of elements, so the files, and what an agent must read to work on them, grow faster than the project. The table keeps UEA at a flat tenth at every size, which is the cautious reading; if the conventional cost grows faster, as we expect, the gap is wider. That has not been measured, and the benchmark (`FUTURE.md`) is meant to do it.
 
 ## Try it
 
@@ -112,7 +112,7 @@ Development: `uv run pytest`, `uv run ruff check`, `uv run pyright`, and `uv run
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Later directions are in `FUTURE.md`.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. The next versions are partial views and model to tender, office workflows, plot evaluation with tender watching, and an agent dashboard (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 
@@ -122,8 +122,7 @@ Buildings first: architecture, electrical, plumbing, heating, ventilation, light
 | `VISION.md` | What UEA is, why, and what it is not |
 | `CHANGELOG.md` | What each release contains |
 | `ARCHITECTURE.md` | How it is built: core, domain packs, file format, CLI, calculators, exports |
-| `ROADMAP.md` | Phases up to the Einfamilienhaus demo |
-| `FUTURE.md` | Ideas beyond the first scope |
+| `FUTURE.md` | What is open for v1, the next versions, partial views, the backlog |
 | `docs/decisions/` | Major decisions with alternatives and reasons |
 | `docs/prototype/haus-mueller/` | A complete Einfamilienhaus in the draft format, written by hand |
 | `docs/validation/` | Validation reports of the `norm` calculators |

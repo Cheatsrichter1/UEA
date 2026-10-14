@@ -19,14 +19,13 @@ UEA is building software for AI agents: agents plan a building in a compact text
 |---|---|
 | What is UEA, and what is it not? | [`VISION.md`](../../VISION.md) |
 | How is it built? | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) |
-| What is built, what is open? | [`ROADMAP.md`](../../ROADMAP.md) |
 | What is in a release? | [`CHANGELOG.md`](../../CHANGELOG.md) |
 | Why was it done this way? | [`docs/decisions/`](../decisions/README.md), one record per decision |
 | Every command, kind, field, issue code and calculator | [`docs/reference.md`](../reference.md), generated from the code |
 | A complete house in the format | [Haus Müller](../prototype/haus-mueller/README.md) |
 | How far can a `norm` calculator be trusted? | [`docs/validation/`](../validation/), one report per calculator |
 | What does it cost an agent in tokens? | [`bench/results.md`](../../bench/results.md) and [`bench/agent/results.md`](../../bench/agent/results.md) |
-| Ideas beyond the first scope | [`FUTURE.md`](../../FUTURE.md) |
+| What is open for v1, what comes next, partial views, the backlog | [`FUTURE.md`](../../FUTURE.md) |
 
 ## The ground rules in one breath
 

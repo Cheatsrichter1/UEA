@@ -1,7 +1,7 @@
 """Floor plan of one storey as a Drawing: rooms, walls, openings with door swings, stairs.
 
 A working plan for agents and a preview for humans. Plans in German drafting conventions
-(dimensions, hatches, symbols) are ROADMAP phase 2.
+(dimensions, hatches, symbols) were built in phase 2.
 """
 
 import math

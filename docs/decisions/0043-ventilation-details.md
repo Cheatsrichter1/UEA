@@ -5,7 +5,7 @@ Date: 2026-10-12
 
 ## Context
 
-Phase 7 left open (`ROADMAP.md`, `0038-ventilation.md`): overflow openings and outdoor air inlets, heat recovery in the Heizlast, the losses of terminals and silencers, and ventilation in the IFC export.
+Phase 7 left open (`0038-ventilation.md`): overflow openings and outdoor air inlets, heat recovery in the Heizlast, the losses of terminals and silencers, and ventilation in the IFC export.
 
 ## Decision
 

@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** the first version's packs are built: phases 0 to 4 and 6 to 8. Open are the reviews by licensed people, the agent runs end to end, the test with an office's IFC, and the benchmark (phase 5); what is built and what is open is in `ROADMAP.md`.
+**Status:** the first version's packs are built: phases 0 to 4 and 6 to 8. Open are the reviews by licensed people, the agent runs end to end, the test with an office's IFC, and the benchmark; what is open for v1 and the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
 
 ## Docs
 
@@ -11,8 +11,7 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `README.md` | Front page for the open-source repo |
 | `VISION.md` | What UEA is, why, what it is not |
 | `ARCHITECTURE.md` | How it is built: core, domain packs, file format, CLI, calculators, exports, tech stack |
-| `ROADMAP.md` | Phases up to the Einfamilienhaus demo, open questions |
-| `FUTURE.md` | Ideas beyond the first scope. Not planned. |
+| `FUTURE.md` | Open for v1, the order of the next versions, partial views, the backlog, open questions |
 | `CHANGELOG.md` | What each release contains; add an entry with every release |
 | `docs/wiki/` | A quick way in: getting started, concepts, code map, contributing; points to the files above |
 | `docs/decisions/` | One file per major decision, with alternatives and reasons |
@@ -44,7 +43,7 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 - Before finishing: `uv run ruff format`, `uv run ruff check`, `uv run pyright`, `uv run pytest` must all pass. After a change to CLI output or the format, also `uv run python -m bench --write` and compare with the committed `bench/results.md`. After a change to commands, kinds, fields, help or issue codes, regenerate `docs/reference.md` with `uv run python -m uea.reference` (a test checks it).
 - Dependencies must be Apache-2.0-compatible: LGPL as a library is fine, GPL only as a separate process. Check the licence before adding anything.
 - Add tests with every behaviour change. Prefer hand-computed expected values over values copied from program output.
-- Any change to CLI output or the file format must keep or improve token cost and error rate on the token task set (`ROADMAP.md`).
+- Any change to CLI output or the file format must keep or improve token cost and error rate on the token task set (`bench/`).
 
 ### Calculators and norms
 

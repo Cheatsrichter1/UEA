@@ -2,7 +2,7 @@
 
 The reference solution is what a careful agent types; the runner counts the tokens of the
 commands, the operations and UEA's output. A change to the file format or the CLI output must
-keep or lower these numbers (CLAUDE.md, ROADMAP.md). Agent runs, which add the error rate,
+keep or lower these numbers (CLAUDE.md). Agent runs, which add the error rate,
 use the same briefs and checks.
 """
 

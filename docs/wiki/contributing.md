@@ -28,7 +28,6 @@ And depending on what changed:
 |---|---|
 | A major decision, or a changed one | A record in [`docs/decisions/`](../decisions/README.md), then fix the docs that depend on it |
 | A `norm` calculator | Its validation report in [`docs/validation/`](../validation/) |
-| What is built or open | [`ROADMAP.md`](../../ROADMAP.md) |
 | A release | [`CHANGELOG.md`](../../CHANGELOG.md) |
 
 Each fact lives in one file; the others link to it.
@@ -46,4 +45,4 @@ Format, CLI output, help, code and docs are English. Legal, norm and role terms 
 
 ## Good first contributions
 
-New exports only need the read API ([`ARCHITECTURE.md` §9](../../ARCHITECTURE.md#9-import-exports-and-renders)). Open work is listed under Todo in [`ROADMAP.md`](../../ROADMAP.md).
+New exports only need the read API ([`ARCHITECTURE.md` §9](../../ARCHITECTURE.md#9-import-exports-and-renders)). Open work is listed under Backlog in [`FUTURE.md`](../../FUTURE.md).

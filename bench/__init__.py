@@ -1,1 +1,1 @@
-"""The token task set (ROADMAP.md): fixed agent tasks, measured in tokens and checked."""
+"""The token task set (CLAUDE.md): fixed agent tasks, measured in tokens and checked."""
