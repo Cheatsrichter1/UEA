@@ -47,6 +47,22 @@ Open:
 - Incremental validation: checking only what a batch can have changed, so a batch on a big model does not validate all of it (`ARCHITECTURE.md` §5, step 3).
 - Whether an agent works on a file extract, which could also be handed to a person, or only on scoped reads and writes against the project folder.
 
+### Agents on several machines
+
+The project lock (`.uea.lock`) covers one filesystem. Agents on several PCs each have their own clone, and git is the only link between them. Tested on two clones of Haus Müller (2026-10-14), one adding a request and the other changing a door, merged through a bare remote:
+
+- Files of different disciplines merge cleanly.
+- `log.jsonl` conflicts on every concurrent push, because every batch appends there and both clones take the same next batch number.
+- Keeping both lines by hand is accepted without a word: two batch 2 entries, so reverting by number is ambiguous. Elements created on both sides would also get the same ids.
+- What works today: pull, apply, commit, push; if the push is rejected, `git reset --hard origin/main` and run the same ops again (they use placeholders, not ids, so a replay is safe). The push is the lock and every agent runs the loop itself.
+
+To solve, probably together with partial views:
+
+- A merge strategy for the history: the batch numbers and the ids each side assigned.
+- `uea sync`, which does the loop above (pull, replay, push, retry) so an agent does not.
+- A check on load for duplicate batch numbers and ids, which today passes silently.
+- Or a host model: one machine holds the project, remote agents reach it through ssh or the MCP server (`ARCHITECTURE.md`, MCP), and GitHub is the mirror and the review trail. The lock keeps working and nothing has to merge.
+
 ## More engineering domains
 
 The core is domain-neutral, so new domain packs can be added on top of it:
@@ -196,4 +212,4 @@ The answers can reorder the versions.
 - **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **Engineer partner:** who reviews the `norm` calculators and the structure (`docs/decisions/0040-structure.md`).
 - **Type catalogues:** where realistic product and build-up data comes from (manufacturer data, BIM libraries) without licence trouble.
-- **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`). Partial views on separate slices would avoid most of it.
+- **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`). What was tested and the options are under Partial views, Agents on several machines.
