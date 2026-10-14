@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** the first version's packs are built: phases 0 to 4 and 6 to 8. Open are the reviews by licensed people, the agent runs end to end, the test with an office's IFC, and the benchmark; what is open for v1 and the order of the next versions (v2 model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
+**Status:** the first version's packs are built: phases 0 to 4 and 6 to 8. Open are the reviews by licensed people, the agent runs end to end, the test with an office's IFC, and the benchmark; what is open for v1 and the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
 
 ## Docs
 

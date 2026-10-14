@@ -7,12 +7,12 @@ What is open for the first version, what comes after it and in which order, and 
 | Version | Content | Section |
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | Open for v1 |
-| v2 | From model to tender: cost estimate, Leistungsverzeichnis, GAEB, bids, fees | From model to tender |
+| v2 | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, bids, fees | Partial views, From model to tender |
 | v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 | v5 | The agent dashboard | Agent dashboard |
 
-The order is fixed; the content of each version is not. Partial views (below) are not tied to a version yet.
+The order is fixed; the content of each version is not.
 
 ## Open for v1
 
@@ -27,6 +27,8 @@ What 0.1.0 still lacks is people's work, not code (`CHANGELOG.md`, "Not in this 
 The decision records and the code comments refer to the work of v1 by phase number: 0 foundation, 1 core and architecture, 2 plans and tables, 3 electrical, 4 IFC import, 5 benchmark, 6 plumbing and heating, 7 ventilation, 8 structure.
 
 ## Partial views
+
+Version 2, first in the version: tenders and cost estimates work on bigger buildings than a house, and those only fit in an agent's context a slice at a time.
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 

@@ -4,7 +4,7 @@ What each release contains. What is open for v1 and what comes next is in `FUTUR
 
 ## Unreleased
 
-- **Docs:** `ROADMAP.md` is gone; what is open for v1, the order of the next versions (v2 model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard), the backlog and the plan for partial views are in `FUTURE.md`. Mechanical parts are left to UMEA, a separate program.
+- **Docs:** `ROADMAP.md` is gone; what is open for v1, the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard), the backlog and the plan for partial views are in `FUTURE.md`. Mechanical parts are left to UMEA, a separate program.
 - **Split levels:** a hall beside a storeyed wing reaches up to its own roof where the slab above has a void; its height and volume follow, and the airspace over it raises no W-ARCH-022 or W-ARCH-042.
 - **Fix:** the ventilation plan failed on outdoor-air inlets (`'Inlet' object has no attribute 'role'`); it now draws them as ALD with a legend entry.
 
