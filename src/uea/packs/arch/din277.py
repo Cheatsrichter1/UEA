@@ -213,6 +213,22 @@ def _groups(env: Env, d: Derived) -> dict[str, int] | None:
     return out
 
 
+def reference(d: Derived, env: Env) -> dict[str, float | None]:
+    """The project's totals as reference quantities for a cost estimate: bgf, nrf, kgf, bri
+    (m², m³; bri None if a storey has no roof over it) and nuf (None without the use table)."""
+    groups = _groups(env, d)
+    result = [level_areas(d, d.arch.levels[k], groups) for k in d.arch.level_order()]
+    bri = [la.bri for la in result]
+    nuf = sum(v for la in result for k, v in la.groups.items() if k.startswith("NUF"))
+    return {
+        "bgf": sum(la.bgf for la in result),
+        "nrf": sum(la.nrf for la in result),
+        "kgf": sum(la.kgf for la in result),
+        "bri": None if any(x is None for x in bri) else sum(x for x in bri if x is not None),
+        "nuf": nuf if groups is not None else None,
+    }
+
+
 def din277(d: Derived, scope: str | None, env: Env) -> Output:
     g = d.arch
     if scope is None:

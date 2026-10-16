@@ -125,9 +125,13 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
     assert code == 0
     lines = out.splitlines()
     assert lines[0].startswith("din277-uses  missing  Room uses in the usage groups of DIN 277")
-    assert lines[1].startswith("ampacity  missing  Current-carrying capacity Iz (DIN VDE 0298-4)")
+    assert lines[1].startswith("cost-ref  missing  Reference prices per cost group")
+    assert lines[2].startswith("hoai-fees  missing  Fee tables (Honorartafeln) of the HOAI")
+    assert lines[3].startswith("ampacity  missing  Current-carrying capacity Iz (DIN VDE 0298-4)")
     assert [x.split()[0] for x in lines] == [
         "din277-uses",
+        "cost-ref",
+        "hoai-fees",
         "ampacity",
         "temp-factor",
         "group-factor",

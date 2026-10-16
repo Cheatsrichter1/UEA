@@ -74,9 +74,9 @@ Until then, an agent defines every type in the project file.
 
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
-- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276. The priced LV already sums up per cost group (`kg=` on the positions, sheet Kosten). Open: a Kostenschätzung before there is an LV, from reference quantities (BGF, BRI from `uea calc din277`) and the office's reference prices.
-- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
-- **Fees:** an Honorar calculation per HOAI for the offer.
+- **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it. Open: the Kostenberechnung from the priced LV as its own result, the estimate per group of technical systems.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them, deferred to after the costs and fees; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
+- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. Open: shipping a checked copy of the fee tables; special services; per group of technical systems; the structure's chargeable costs from the estimate.
 
 ## Office workflows
 
