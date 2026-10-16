@@ -7,7 +7,7 @@ What comes after the first version and in which order, and the ideas and backlog
 | Version | Content | Section |
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
-| v2 | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, bids, fees | Partial views, From model to tender |
+| v2 (0.2.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids later | Partial views, From model to tender |
 | v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 | v5 | The agent dashboard | Agent dashboard |
@@ -74,9 +74,9 @@ Until then, an agent defines every type in the project file.
 
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
-- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276. The priced LV already sums up per cost group (`kg=` on the positions, sheet Kosten). Open: a Kostenschätzung before there is an LV, from reference quantities (BGF, BRI from `uea calc din277`) and the office's reference prices.
-- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
-- **Fees:** an Honorar calculation per HOAI for the offer.
+- **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. Open: the Kostenanschlag from the bids (with reading the bids), the Kostenfeststellung.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them, deferred beyond 0.2.0; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
+- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs.
 
 ## Office workflows
 

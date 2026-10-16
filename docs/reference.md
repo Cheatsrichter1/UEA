@@ -1251,6 +1251,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
+| `costs` | norm | 0.2.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung) |
+| `hoai` | norm | 0.2.0 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
@@ -1264,6 +1266,29 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `ducts` | norm | 0.2.0 | Luftvolumenströme nach DIN 1946-6:2019-12; Druckverlust nach Darcy-Weisbach | Luftleitungen |
 | `loads` | norm | 0.3.0 | DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Lastannahmen und Lastabtrag |
 | `struct` | norm | 0.2.0 | DIN EN 1996-3:2010-12 mit NA (Mauerwerk, vereinfachtes Verfahren); DIN EN 1992-1-1:2011-01 mit NA (Biegebemessung der Decken); DIN EN 1993-1-1, DIN EN 1995-1-1 mit NA (Unterzüge); Lasten: DIN EN 1991-1-1:2010-12, DIN EN 1991-1-3:2010-12, DIN EN 1991-1-4:2010-12, je mit NA; DIN EN 1990:2010-12 mit NA | Statische Berechnung |
+
+### `costs` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `stage` | str | estimate | estimate (Kostenschätzung, by reference prices) or calculation (Kostenberechnung, from the priced LV, the estimate for what it does not price) (estimate / calculation) |
+| `ust` | float | 19.0 | VAT in percent, for the gross total |
+| `stand` | str |  | the price level (Kostenstand) of the prices, e.g. 2026-Q3 |
+
+### `hoai` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `service` | str | building | what is planned (building / services / structure) |
+| `zone` | str | required | the fee zone (Honorarzone), I to V (I / II / III / IV / V) |
+| `rate` | float | 0.0 | where between the base rate (0) and the upper rate (100), % |
+| `lph` | str |  | the service phases, e.g. 1-4 or 1-3,5; all if left out |
+| `kosten` | float |  | chargeable costs in €, net; else from the estimate |
+| `costs` | str | auto | which costs: the calculation where the LV is priced, else the estimate (auto, § 6 Abs. 1), or estimate, calculation (auto / estimate / calculation) |
+| `groups` | str |  | services only: the groups of systems this fee is for, e.g. 410,420 (§ 54 Abs. 1) |
+| `umbau` | float | 0.0 | surcharge for a conversion (Umbauzuschlag), % |
+| `nk` | float | 0.0 | incidental costs (Nebenkosten), % of the fee |
+| `ust` | float | 19.0 | VAT, % |
 
 ### `cable` settings
 
@@ -1392,6 +1417,33 @@ One row per room use. A use with no row stops the split of the NRF and is named.
 | `group` | num > 0 | usage group: 1 to 7 NUF, 8 TF, 9 VF |
 
 One row for each: use.
+
+#### `cost-ref`: Reference prices per cost group (Kostenkennwerte) (DIN 276; the office's own prices)
+
+One row per cost group the estimate covers, at any level (300, or 330 and 340). A group and one of its own subgroups may not both have a row.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `kg` | num > 0 | cost group, three digits: 300, 330, 334 |
+| `name` | text | the office's name of the cost group |
+| `basis` | text | reference quantity per DIN 277 (one of bgf, nrf, nuf, kgf, bri) |
+| `price` | num ≥ 0 | net price per m² or m³ of the basis, € |
+
+One row for each: kg.
+
+#### `hoai-fees`: Fee tables (Honorartafeln) of the HOAI (HOAI 2021, § 35, § 52, § 56)
+
+The HOAI is an ordinance and free to copy: one row per service, row of the table and zone, from the official text (gesetze-im-internet.de).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `service` | text | building (§ 35), services (§ 56) or structure (§ 52) (one of building, services, structure) |
+| `cost` | num > 0 | chargeable costs of the table's row, € |
+| `zone` | text | fee zone (one of I, II, III, IV, V) |
+| `base` | num > 0 | fee at the base rate (Basishonorarsatz), € |
+| `top` | num > 0 | fee at the upper rate (oberer Honorarsatz), € |
+
+One row for each: service, cost, zone.
 
 #### `ampacity`: Current-carrying capacity Iz (DIN VDE 0298-4)
 
