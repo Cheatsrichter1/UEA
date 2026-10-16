@@ -43,7 +43,7 @@ Date: 2026-10-09
 
 - Each office, on each machine, installs its tables once. Public CI cannot run the standards' worked examples; a private run with the licensed data can.
 - The tests and the demonstration use synthetic tables of our own that are not any standard's values (the CSV says so in its first line).
-- Both calculators are `norm` calculators that are **not yet reviewed** by a licensed person (see the validation reports). Their lengths are a lower bound, hence the reserve.
+- Both calculators are `norm` calculators (see the validation reports). Their lengths are a lower bound, hence the reserve.
 - `Calculator.fn` takes `(d, scope)`, or `(d, scope, env)` when it declares settings or tables; the calculators in a project's `calc/` keep working unchanged.
 - The help grew by 8 tokens in the bench's reading (`uea data` named in the command list); the task set is unchanged at 3,403.
 - Open: the worked examples of the standards as a private test suite, short-circuit protection and the fault loop, the minimum cross-section by use, aluminium ampacity, the grouping and temperature derived from the model instead of settings, the feeder from the house connection.

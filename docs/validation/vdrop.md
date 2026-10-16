@@ -6,7 +6,7 @@
 | Standard | DIN VDE 0100-520 (IEC 60364-5-52), Annex G, voltage drop in consumers' installations |
 | Code | `src/uea/packs/elec/vdrop.py`; lengths from `src/uea/packs/elec/routes.py`; tables from `src/uea/calc/data.py` |
 | Tests | `tests/test_calc_elec.py`, `tests/test_routes.py` |
-| Review | **Not yet reviewed** by a licensed person. The worked examples of the standard have **not** been run. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The standard's constants are licensed and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`). The code holds the formula; the office supplies ρ and λ in the table `conductor`, and every result names the edition of the table it used. The tests use values of our own that are not any standard's.
 

@@ -1,6 +1,6 @@
 # 0041: Minimum electrical equipment of a room
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-12
 
 ## Context
@@ -26,5 +26,5 @@ DIN 18015-2 sets how many socket outlets, lighting outlets, communication outlet
 ## Consequences
 
 - `W-ELEC-010` is the code on the result's lines and the code a waiver names; it is not an issue of `uea check`.
-- Validation report: `docs/validation/equip.md`. Not reviewed.
+- Validation report: `docs/validation/equip.md`.
 - Not checked: the number of circuits per dwelling and where in the room the outlets are.

@@ -6,7 +6,7 @@
 | Standard | DIN 1946-6:2019-12 |
 | Code | `src/uea/packs/vent/airflow.py`; the units and terminals from `geometry.py` |
 | Tests | `tests/test_vent.py` |
-| Review | **Not yet reviewed** by a licensed person. The worked examples of the standard have **not** been run. The formulas below are as implemented; the review must check them, and the meaning of each table's columns, against the text of the standard, which is not in this repository. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standard come from the office's tables; n_50 and the insulation are the planner's settings (`docs/decisions/0038-ventilation.md`). Every result names the edition of each table.
 

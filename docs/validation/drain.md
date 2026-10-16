@@ -6,7 +6,7 @@
 | Standard | DIN 1986-100:2016-12 with DIN EN 12056-2 |
 | Code | `src/uea/packs/plumb/drain.py`; sections from `geometry.py`, the hydraulics in `hydraulics.py` |
 | Tests | `tests/test_plumb.py` |
-| Review | **Not yet reviewed** by a licensed person. The worked examples of the standard have **not** been run. The formulas below are as implemented; the review must check them against the text of the standard, which is not in this repository. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standard come from the office's tables or the planner's settings (`docs/decisions/0035-plumbing.md`). Every result names the edition of each table.
 

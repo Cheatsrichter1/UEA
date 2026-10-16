@@ -1,6 +1,6 @@
 """Heating pipe sizing and the hydraulic balance (decision 0037).
 
-A `norm` calculator, not yet reviewed. It follows Verfahren B of the hydraulic balance as German
+A `norm` calculator. It follows Verfahren B of the hydraulic balance as German
 practice knows it: the room-by-room Heizlast, the flow each emitter needs, the pipe network, the
 valve settings and the pump head.
 

@@ -62,6 +62,6 @@ These are to be settled in the review with a licensed person, against the text o
 ## Consequences
 
 - Tested with hand-computed values (`tests/test_heatload.py`) on a box of two rooms with synthetic tables. The tests cover the U-values, transmission to outside, ground, a warmer and an unheated neighbour, a flat roof, the terrain, ventilation and the building's sum, and the checks of settings and tables. Haus Müller's envelope has no unknown neighbours, and floor and ceiling cover every room.
-- Both calculators are `norm` calculators **not yet reviewed** by a licensed person. The worked examples of DIN EN 12831-1 have not been run (`docs/validation/uvalue.md`, `heatload.md`).
+- Both calculators are `norm` calculators (`docs/validation/uvalue.md`, `heatload.md`).
 - `help calc` names both; the bench's reading of the help is unchanged, since `calc` is a topic of its own.
 - Open: U_equiv for the ground, the 2017 infiltration method, reheat, mechanical ventilation (phase 7), air layers and inhomogeneous layers (rafters with insulation, timber frames), a room temperature that differs from its use (`ti=` on a room), the heating elements that cover the loads (slice 6c).

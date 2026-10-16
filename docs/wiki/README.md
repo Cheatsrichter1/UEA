@@ -25,7 +25,7 @@ UEA is building software for AI agents: agents plan a building in a compact text
 | A complete house in the format | [Haus Müller](../prototype/haus-mueller/README.md) |
 | How far can a `norm` calculator be trusted? | [`docs/validation/`](../validation/), one report per calculator |
 | What does it cost an agent in tokens? | [`bench/results.md`](../../bench/results.md) and [`bench/agent/results.md`](../../bench/agent/results.md) |
-| What is open for v1, what comes next, partial views, the backlog | [`FUTURE.md`](../../FUTURE.md) |
+| What comes next, partial views, the backlog | [`FUTURE.md`](../../FUTURE.md) |
 
 ## The ground rules in one breath
 

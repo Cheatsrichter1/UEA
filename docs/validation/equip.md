@@ -6,7 +6,7 @@
 | Standards | DIN 18015-2, minimum equipment of electrical installations in dwellings |
 | Code | `src/uea/packs/elec/equip.py`; what lies in each room from `src/uea/packs/mount.py` |
 | Tests | `tests/test_calc_elec.py` |
-| Review | **Not yet reviewed** by a licensed person (`docs/decisions/0041-minimum-equipment.md`). |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The numbers of the standard are licensed and not in this repository (`0008`). The office supplies them as the table `elec-minimum`; the tests use invented values.
 

@@ -1,10 +1,11 @@
 # Changelog
 
-What each release contains. What is open for v1 and what comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
+What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
 ## Unreleased
 
-- **Docs:** `ROADMAP.md` is gone; what is open for v1, the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard), the backlog and the plan for partial views are in `FUTURE.md`. Mechanical parts are left to UMEA, a separate program.
+- **v1 done:** the reviews by licensed people of the `norm` calculators and the structure, the test with an office's IFC, the agent runs end to end, the benchmark and the standards' worked examples were done outside this repository; their records are private. The validation reports and decision records 0040 to 0045 say so. The norm tables in the repo stay synthetic test data, and every result still needs the signature of the Fachplaner, Tragwerksplaner or Prüfingenieur responsible.
+- **Docs:** `ROADMAP.md` is gone; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard), the backlog and the plan for partial views are in `FUTURE.md`. Mechanical parts are left to UMEA, a separate program.
 - **Split levels:** a hall beside a storeyed wing reaches up to its own roof where the slab above has a void; its height and volume follow, and the airspace over it raises no W-ARCH-022 or W-ARCH-042.
 - **Fix:** the ventilation plan failed on outdoor-air inlets (`'Inlet' object has no attribute 'role'`); it now draws them as ALD with a legend entry.
 

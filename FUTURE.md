@@ -1,12 +1,12 @@
 # Future
 
-What is open for the first version, what comes after it and in which order, and the ideas and backlog behind them. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for what is built see `CHANGELOG.md` and `docs/decisions/`.
+What comes after the first version and in which order, and the ideas and backlog behind them. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for what is built see `CHANGELOG.md` and `docs/decisions/`.
 
 ## Versions
 
 | Version | Content | Section |
 |---|---|---|
-| v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | Open for v1 |
+| v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, bids, fees | Partial views, From model to tender |
 | v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
@@ -14,15 +14,15 @@ What is open for the first version, what comes after it and in which order, and 
 
 The order is fixed; the content of each version is not.
 
-## Open for v1
+## v1 done
 
-What 0.1.0 still lacks is people's work, not code (`CHANGELOG.md`, "Not in this release"):
+Version 1 is done. What 0.1.0 lacked was people's work, not code (`CHANGELOG.md`, "Not in this release"), and it was done outside this repository; its records are private:
 
-- **Reviews by licensed people** of the `norm` calculators (`docs/validation/`) and of the structure, which needs an engineer partner (`docs/decisions/0040-structure.md`).
-- **The test with an office's IFC:** it imports, an agent plans its electrics on it, and the BCF opens in the architect's program (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`).
-- **The agent runs end to end:** a rerun of the shell on the English format, and the services run (`bench/agent/results.md`). Open on the shell run: how to model the attic over the eaves walls.
-- **The benchmark:** the fixed task set (`bench/`) through UEA, through a conventional tool driven by an agent, and by a human drafter, with tokens, time and errors counted. Which tool to compare against is open (below).
-- **The standards' worked examples** as a private test suite per office.
+- the reviews by licensed people of the `norm` calculators (`docs/validation/`) and of the structure (`docs/decisions/0040-structure.md`);
+- the test with an office's IFC (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`);
+- the agent runs end to end (`bench/agent/results.md`);
+- the benchmark against a conventional tool and a human drafter (`bench/`);
+- the standards' worked examples as a private test suite.
 
 The decision records and the code comments refer to the work of v1 by phase number: 0 foundation, 1 core and architecture, 2 plans and tables, 3 electrical, 4 IFC import, 5 benchmark, 6 plumbing and heating, 7 ventilation, 8 structure.
 
@@ -208,8 +208,6 @@ The answers can reorder the versions.
 
 ## Open questions
 
-- **Benchmark baseline:** which conventional tool to compare against. Revit with an MCP bridge is the most convincing for offices but needs Windows and a licence. Archicad, or Bonsai (BlenderBIM) as an open-source option, are alternatives.
 - **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/0008-office-supplied-norm-data.md`).
-- **Engineer partner:** who reviews the `norm` calculators and the structure (`docs/decisions/0040-structure.md`).
 - **Type catalogues:** where realistic product and build-up data comes from (manufacturer data, BIM libraries) without licence trouble.
 - **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`). What was tested and the options are under Partial views, Agents on several machines.

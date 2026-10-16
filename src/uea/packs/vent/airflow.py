@@ -1,6 +1,6 @@
 """Air flows of the dwelling and its rooms (DIN 1946-6), decision 0038.
 
-A `norm` calculator, not yet reviewed. The dwelling (Nutzungseinheit) is every room whose use the
+A `norm` calculator. The dwelling (Nutzungseinheit) is every room whose use the
 office's table `vent-room` does not mark `none`; A_NE its finished floor area, V_NE its volume.
 
     q_v,ges   = f · (a · A_NE² + b · A_NE + c)      for each level: FL (by insulation), RL, NL, IL

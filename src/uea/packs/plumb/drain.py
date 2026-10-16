@@ -1,6 +1,6 @@
 """Waste-water pipe sizing (DIN 1986-100), decision 0035.
 
-A `norm` calculator, not yet reviewed. For each section of the waste-water network derived from
+A `norm` calculator. For each section of the waste-water network derived from
 the model (`geometry.py`), with the fixtures whose waste water it carries:
 
     Q_ww = K · √ΣDU, at least the largest single DU

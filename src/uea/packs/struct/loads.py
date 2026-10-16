@@ -1,6 +1,6 @@
 """Loads and their takedown to the foundation (decision 0040).
 
-A `norm` calculator, not yet reviewed. Characteristic actions per DIN EN 1991-1-1 (weights,
+A `norm` calculator. Characteristic actions per DIN EN 1991-1-1 (weights,
 imposed loads, partitions), DIN EN 1991-1-3 (snow) and DIN EN 1991-1-4 (wind) with the values
 from the office's tables, combined per DIN EN 1990 with the office's factors:
 

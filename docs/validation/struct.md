@@ -7,7 +7,7 @@
 | Code | `src/uea/packs/struct/design.py`, `plate.py`, `frame.py`, `bracing.py`, `positions.py`; the Positionsplan `src/uea/export/positionsplan.py` |
 | Solver | PyNite (MIT), optional extra `uea[struct]`; the version is in the report |
 | Tests | `tests/test_struct.py` |
-| Review | **Not yet reviewed** by a licensed person (`docs/decisions/0040-structure.md`). The standards' worked examples have **not** been run. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 ## What it computes
 

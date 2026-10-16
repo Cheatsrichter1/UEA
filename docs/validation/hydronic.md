@@ -6,7 +6,7 @@
 | Method | Verfahren B of the hydraulic balance, on the Heizlast per DIN EN 12831-1:2017-09 |
 | Code | `src/uea/packs/heat/hydronic.py`; the pipes from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py`, the Heizlast in `heatload.py` |
 | Tests | `tests/test_hydronic.py` |
-| Review | **Not yet reviewed** by a licensed person. The method is implemented as German practice describes Verfahren B; the review must name the rule and edition it is checked against. The Heizlast underneath it has its own report (`heatload.md`), with its deviations. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The settings `spread`, `vmax` and `flow` are the planner's, and so are a manifold's own `flow=`, `spread=` and `mix`; the Heizlast's settings and tables are those of `heatload`. The pipe sizes, roughness and ζ come from the model's types (`docs/decisions/0037-heating-pipes-and-strangschema.md`). Every result names the edition of each table.
 

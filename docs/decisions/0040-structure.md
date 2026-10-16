@@ -1,13 +1,13 @@
 # 0040: Structure, phase 8
 
-Status: Proposed; slices 8a to 8d built, none reviewed (for the user's veto, and for the review of the licensed engineer the phase needs)
+Status: Accepted; slices 8a to 8d built and reviewed by a licensed engineer, outside this repository
 Date: 2026-10-11, slices 8b to 8d 2026-10-12
 
 ## Context
 
 Phase 8 is the structure: load-bearing elements, loads, frame analysis on an open-source solver. Its "done when" is that a licensed engineer reviews the validation. The architecture carries most of what the structure starts from: which walls are load-bearing (`lb`), their build-ups, the slabs and their build-ups, the floor build-ups and uses of the rooms, the roof, the openings and holes. The Haftung for the structure lies with the Tragwerksplaner and, for the check, the Prüfingenieur (`VISION.md`). UEA computes, and the engineer decides and signs, as with every `norm` calculator.
 
-The plan was to build slice 8a and wait for the engineer's review before the next. The engineer is away; on 2026-10-12 the user decided to build 8b to 8d now. All four slices are unreviewed, and the review covers them together (`docs/validation/loads.md`, `docs/validation/struct.md`).
+The plan was to build slice 8a and wait for the engineer's review before the next. The engineer is away; on 2026-10-12 the user decided to build 8b to 8d now. The review covered all four slices together (`docs/validation/loads.md`, `docs/validation/struct.md`); it was done outside this repository.
 
 ## Decision
 
@@ -137,8 +137,5 @@ The last group holds the strip footings. Numbers read `2.07`. A position is draw
   - Φ3 under the top slab;
   - basement walls with earth pressure;
   - the geotechnical checks of the footings.
-- **Open:**
-  - a beam's own deflection in the slab model;
-  - the standard's worked examples as a private test suite;
-  - the review.
+- **Open:** a beam's own deflection in the slab model.
 - **Since `0044-structure-completion.md`:** the slab checks beyond bending, the rafters and collar beams, columns with pad footings, and the bracing against wind are built; the list of what is not proved shrank to the connections and anchoring of the roof, the roof plane's bracing, torsion, robustness reinforcement and crack widths, timber columns and the geotechnical checks.

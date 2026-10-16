@@ -1,7 +1,7 @@
 """The Statische Berechnung (decision 0040): the loads, the design of every position, the
 strip footings and the holes in load-bearing members, as one calculation to sign.
 
-A `norm` calculator, not yet reviewed. The positions (`positions.py`) are proved as follows:
+A `norm` calculator. The positions (`positions.py`) are proved as follows:
 
     roof     the loads on the walls under its eaves and the uplift at the eaves (loads)
     slab     a plate on the solver (plate.py) under γ_G·g + γ_Q·q of the rooms on it, all rooms

@@ -1,6 +1,6 @@
 # 0042: Emitter output, mixing circuits and the hot-water circulation
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-12
 
 ## Context
