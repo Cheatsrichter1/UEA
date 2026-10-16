@@ -12,6 +12,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea show [scope]` | summary: project, EG, arch, arch:EG, or an id |
 | `uea get <id>...` | elements with derived values |
 | `uea find <kind> [filters]` | find wall ext lb · find door room=r3 · find win level=OG |
+| `uea view <selector>` | a slice as lines to edit: heat:OG, elec:r3, b2 (help ops) |
 | `uea apply --by <who> -m <why>` | atomic batch of operations from stdin (help ops) |
 | `uea revert <batch> --by <who>` | undo a batch as a new batch |
 | `uea check [discipline]` | open issues, requests and waivers |
@@ -31,7 +32,8 @@ uea init dir
 uea show [scope]
 uea get id [id ...]
 uea find [--skip N] [--ids] kind [filters ...]
-uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run]
+uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run] [--view SELECTOR] [--base N]
+uea view [--skip N] selector
 uea revert [--by WHO] [-m WHY] batch
 uea check [discipline]
 uea log [n]
@@ -56,6 +58,10 @@ uea apply --by <who> -m <why> [--dry-run] < ops   (quote the heredoc: <<'EOF')
 A batch is atomic. Placeholders may be used before they are defined. It is rejected if it
 adds an error in a discipline it writes; nothing changes then. Errors it causes in other
 disciplines are reported (affects ...) and stay open there. --dry-run checks without writing.
+Big projects, a slice at a time: uea view heat:OG prints the slice's lines after the lines they
+reference (context, read-only) and its base batch. Then apply --view heat:OG --base <n>: it
+may only write the slice, and is rejected if a later batch touched what it edits. Selectors:
+heat, heat:OG, elec:r3 (a room), OG, or an id with all that references it; join with commas.
 Output: ok batch N (packs): +added changed -removed, the ids, new issues, what follows.
 ```
 

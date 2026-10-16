@@ -54,7 +54,7 @@ haus-mueller/
   out/            exports (not canonical, not committed)
 ```
 
-A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format. For an agent that must not read the whole project, partial views are planned (`FUTURE.md`).
+A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format. An agent that must not read the whole project works on a partial view (§5).
 
 ### Reference direction
 
@@ -158,6 +158,10 @@ A batch is atomic:
 - An agent with a shell can still edit a `.uea` file directly. The next command notices through the file hashes: a valid edit is recorded as an external batch (the difference to the replayed history, so it can be reverted too), an invalid one stops UEA with the errors.
 - A revert is rejected when a later batch changed the same elements; the error names the batch.
 
+### Partial views
+
+A big project does not fit in an agent's context, so an agent reads and writes a slice of it (`docs/decisions/0046-partial-views.md`). `uea view heat:OG` prints the slice's lines after the lines they reference (context, read-only, so every reference resolves) with the base, the batch number it read at. `uea apply --view heat:OG --base 41` then may only change and remove elements of the slice and add elements that fall in it, and is rejected when a batch after 41 touched an element it changes or removes. Otherwise it is an ordinary batch: derived values and validation stay those of the whole model. Selectors are those of `uea show`: a discipline, a discipline on a level or in a room, a level, or an id with everything that references it; terms join with commas. Agents on views that do not overlap cannot conflict.
+
 ### Changes that affect other disciplines
 
 An upstream change must stay possible even when downstream elements depend on it. Otherwise architecture could never move a wall once the electrics are in.
@@ -198,7 +202,8 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea show [scope]` | Summary at a scope: `project`, `EG`, `r3`, `elec`, `elec:EG`, any id |
 | `uea get <id>...` | Elements with their derived values |
 | `uea find <kind> [filters]` | Query, for example `uea find sock room=r3`, `uea find wall ext lb` |
-| `uea apply --by <who> -m <why> [--dry-run] [-f file]` | Atomic batch from stdin or a file (§5) |
+| `uea view <selector>` | A slice as lines to edit, with its context and base (§5, Partial views) |
+| `uea apply --by <who> -m <why> [--dry-run] [-f file] [--view <selector> --base <n>]` | Atomic batch from stdin or a file, optionally limited to a view (§5) |
 | `uea revert <batch> --by <who>` | Undo a batch as a new batch (§5) |
 | `uea check [discipline]` | Open issues, requests and waivers |
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |

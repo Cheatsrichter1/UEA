@@ -32,20 +32,13 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-The design is proposed in `docs/decisions/0046-partial-views.md`. The sketch it started from, on the parts that exist (`ARCHITECTURE.md` §2 to §5):
-
-- **A view is a selector and a base.** The selector names the slice: a discipline and a level (`heat:OG`), an element with what hangs on it (a board with its circuits, devices and cables), a room with everything in it. The base is the batch number of the history at the time of reading.
-- **What the view shows.** The selected elements in the usual line format, and the upstream elements they reference (host walls, rooms, levels, types) as read-only context lines, marked as such, so every reference resolves and the checks that need only the slice can run. Ids are the project's own, stable and never reused, so an edit names the same elements as the model.
-- **Edits are ordinary batches.** The agent writes operations in the same syntax (`ARCHITECTURE.md` §5) with a scope and a base, for example `uea apply --view <selector> --base 41`. A batch that touches an element outside the slice is rejected. A batch whose base is older than the last change to an element it edits is rejected with the batch that changed it, like a revert (§5). New elements get their ids at the merge, through placeholders as today. History, revert and the issues for other disciplines work unchanged, because the merge is a batch.
-- **Several agents.** Agents on views that do not overlap cannot conflict, so they can write in parallel. This also narrows the open question on parallel branches (`docs/decisions/0009-history-revert-ids.md`).
-- **Cost.** The read costs what the slice costs, not what the project costs, and the same holds for the write. It is measured on a large synthetic project in `bench/` before it lands, like every change to the output (`CLAUDE.md`).
+Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On the generated block in `bench/` (`bench/large.py`, 8 storeys of 6 flats, 1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/results.md`).
 
 Open:
 
-- The selector grammar, and how much upstream context a view carries (one step, or all that the checks need).
-- Derived values that need the whole model, such as a room's area when a wall of it lies outside the slice. The view could carry them as read-only values.
-- Incremental validation: checking only what a batch can have changed, so a batch on a big model does not validate all of it (`ARCHITECTURE.md` §5, step 3).
-- Whether an agent works on a file extract, which could also be handed to a person, or only on scoped reads and writes against the project folder.
+- **Incremental validation:** checking only what a batch can have changed. Every batch still checks the whole model twice, before and after. On the block that takes 0.4 s per check; on a block of 16 storeys of 10 flats (3,469 elements) 3.1 s, and a batch 6.8 s. It grows faster than the model, so bigger projects need it first.
+- **Context size:** on `heat:OG3` the context is 63 lines for 18 elements, most of them the walls the storey's walls stand on (`on=`). Context could stop at what a line's position needs.
+- **Elements without a level:** a type cannot be added through a level view (`heat:OG`), since it has no level; it is written with the discipline's view (`heat`) or without `--view`.
 
 ### Agents on several machines
 

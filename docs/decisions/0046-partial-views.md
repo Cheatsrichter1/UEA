@@ -1,6 +1,6 @@
 # 0046: Partial views
 
-Status: Proposed
+Status: Accepted (built)
 Date: 2026-10-16
 
 ## Context
@@ -61,7 +61,10 @@ The context is every element outside the slice that the slice references, transi
 
 ## Consequences
 
-- A new command `uea view`, two flags on `apply`, their help, `docs/reference.md` and a bench task.
+- A new command `uea view`, two flags on `apply`, their help, `docs/reference.md` and a bench task (`view`, on the generated block `bench/large.py`).
+- Building it showed that `show heat:OG` and `find ... level=` knew no level for elements that hang on something with one (a manifold in a niche, a loop in a room, a circuit on a board). They now take the level of what they hang on.
+- A type has no level, so it cannot be added through a level view; it is written with the discipline's view or without `--view`.
+- Measured on the block (`FUTURE.md`, Partial views): the view of a storey's heating is about a twelfth of all files; most of it is context. Whole-model validation takes 0.4 s per check at 1,073 elements and 3.1 s at 3,469.
 - Validation stays whole-model for now (`ARCHITECTURE.md` §7). On the large project it may be too slow; incremental validation, checking only what a batch can have changed, is the next decision if the bench says so.
 - The selector grammar is shared with `show`; an extension there (a room in every discipline, `r3` alone) extends views too.
 - It narrows the open question on parallel branches (`0009`): agents on disjoint views on several machines still merge `log.jsonl` by git, but their element changes cannot conflict. The merge strategy for the history, `uea sync` or a host model stay open (`FUTURE.md`, Agents on several machines).

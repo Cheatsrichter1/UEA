@@ -22,6 +22,7 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `help.py` | `uea help`, in layers |
 | `project.py` | A project folder: the `.uea` files and `log.jsonl` |
 | `batch.py` | Atomic batches, revert and the detection of edits made outside UEA |
+| `view.py` | Partial views: selectors, context, and the checks of a write to a view at a base |
 | `derive.py` | Derived values: geometry and everything computed from the model |
 | `geom.py` | Small 2D helpers on top of Shapely |
 | `fmt.py` | Number formatting for CLI output |

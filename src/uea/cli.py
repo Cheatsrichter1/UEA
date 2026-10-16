@@ -19,8 +19,10 @@ from uea.derive import Derived, Report, report
 from uea.fmt import ar, ids
 from uea.help import TOPICS, help_text
 from uea.project import LoadError, NotAProject, Project
+from uea.view import ViewError, view
 
 FIND_LIMIT = 60
+VIEW_LIMIT = 200
 
 
 class Parser(argparse.ArgumentParser):
@@ -435,6 +437,31 @@ def cmd_find(ctx: Ctx) -> int:
     return 0
 
 
+def cmd_view(ctx: Ctx) -> int:
+    d, _ = ctx.derived()
+    try:
+        v = view(d, ctx.args.selector, ctx.project.history.last())
+    except ViewError as e:
+        out(str(e))
+        return 1
+    if ctx.json:
+        out_json(
+            {"selector": v.selector, "base": v.base, "context": v.context, "elements": v.elements}
+        )
+        return 0
+    head = f"# {v.selector} at base {v.base} · {len(v.elements)} elements"
+    if v.context:
+        head += f" · {len(v.context)} context first, read-only"
+    body = [*v.context, f"# {v.selector}", *v.elements] if v.context else v.elements
+    skip: int = ctx.args.skip
+    page = body[skip : skip + VIEW_LIMIT]
+    out([head, *page])
+    rest = len(body) - skip - len(page)
+    if rest > 0:
+        out(f"… {rest} more: add --skip {skip + len(page)}")
+    return 0
+
+
 def _read_ops(ctx: Ctx) -> str | None:
     if ctx.args.file:
         return Path(ctx.args.file).read_text(encoding="utf-8")
@@ -471,7 +498,15 @@ def cmd_apply(ctx: Ctx) -> int:
     text = _read_ops(ctx)
     if text is None:
         return 2
-    res = run(ctx.project, text, by, ctx.args.m, dry=ctx.args.dry_run)
+    res = run(
+        ctx.project,
+        text,
+        by,
+        ctx.args.m,
+        dry=ctx.args.dry_run,
+        view=ctx.args.view,
+        base=ctx.args.base,
+    )
     return _print_result(ctx, res)
 
 
@@ -639,6 +674,11 @@ def build_parser() -> Parser:
     a.add_argument("-m", metavar="WHY")
     a.add_argument("-f", "--file")
     a.add_argument("--dry-run", action="store_true")
+    a.add_argument("--view", metavar="SELECTOR")
+    a.add_argument("--base", type=int, metavar="N")
+    v = add("view", cmd_view)
+    v.add_argument("selector")
+    v.add_argument("--skip", type=int, default=0, metavar="N")
     r = add("revert", cmd_revert)
     r.add_argument("batch", type=int)
     r.add_argument("--by", metavar="WHO")
