@@ -13,12 +13,12 @@ from uea.batch import Result, revert, run, sync
 from uea.core.issues import Issue
 from uea.core.model import Model
 from uea.core.registry import natural
-from uea.core.schema import Element, fmt_value, spec
-from uea.core.values import Ref, RefList
+from uea.core.schema import Element
 from uea.derive import Derived, Report, report
 from uea.fmt import ar, ids
 from uea.help import TOPICS, help_text
 from uea.project import LoadError, NotAProject, Project
+from uea.query import matches
 from uea.view import ViewError, view
 
 FIND_LIMIT = 60
@@ -365,52 +365,6 @@ def cmd_get(ctx: Ctx) -> int:
     return 1 if missing else 0
 
 
-def _matches(d: Derived, el: Element, flt: list[str]) -> bool:
-    from uea.packs.arch.views import in_room, level_of
-
-    sp = spec(type(el))
-    for f in flt:
-        if "=" in f:
-            k, v = f.split("=", 1)
-            if k == "level":
-                if level_of(d, el) != v:
-                    return False
-                continue
-            if k == "room":
-                if not in_room(d, el, v):
-                    return False
-                continue
-            if k not in sp.fields:
-                return False
-            val = getattr(el, k)
-            if isinstance(val, Ref):
-                if v not in (val.id, val.fmt()):
-                    return False
-            elif isinstance(val, RefList):
-                if v not in val.refs():
-                    return False
-            elif val is None or fmt_value(val).strip('"') != v:
-                return False
-        else:
-            if f in ("ext", "int") and el.kind == "wall":
-                w = d.arch.walls.get(el.id)
-                if w is None or (w.ext is not None) != (f == "ext"):
-                    return False
-                continue
-            if f == "open" and el.kind == "req":
-                if not getattr(el, "open", False):
-                    return False
-                continue
-            if f in sp.flags:
-                if not getattr(el, f):
-                    return False
-                continue
-            hit = any(getattr(el, n) == f for n in sp.flag_enums)
-            if not hit and el.category != f:
-                return False
-    return True
-
-
 def cmd_find(ctx: Ctx) -> int:
     m = ctx.model
     d, _ = ctx.derived()
@@ -419,7 +373,7 @@ def cmd_find(ctx: Ctx) -> int:
         out(f"unknown kind {kind!r}. Kinds: {' '.join(m.reg.kind_names())} all")
         return 1
     els = m.sorted() if kind == "all" else m.of_kind(kind)
-    hits = [e for e in els if _matches(d, e, ctx.args.filters)]
+    hits = [e for e in els if matches(d, e, ctx.args.filters)]
     skip: int = ctx.args.skip
     page = hits[skip : skip + FIND_LIMIT]
     if ctx.json:

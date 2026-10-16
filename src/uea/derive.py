@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from uea.packs.elec.geometry import ElecGeo
     from uea.packs.heat.geometry import HeatGeo
     from uea.packs.issues import Req, Waive
+    from uea.packs.lv.geometry import LvGeo
     from uea.packs.mount import Mounted
     from uea.packs.plumb.geometry import PlumbGeo
     from uea.packs.struct.geometry import StructGeo
@@ -64,6 +65,7 @@ class Derived:
         self.plumb: PlumbGeo
         self.vent: VentGeo
         self.struct: StructGeo
+        self.lv: LvGeo
         self.mounts: dict[str, Mounted] = {}
         """What is mounted on a wall or in a room: luminaires and electrical devices."""
 

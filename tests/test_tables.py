@@ -11,9 +11,10 @@ from tests.conftest import BOX, derive_text
 from tests.test_geometry import ROOF, SLABS
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.export.tables import Table, layers_de, tables, wall_qty
+from uea.export.tables import Table, layers_de, tables
 from uea.export.xlsx import HEAD, write_xlsx
 from uea.packs.arch.geometry import ArchGeo, WallGeo
+from uea.packs.arch.quantities import wall_qty
 
 # EG z=0 fb=0.15, OG z=2.9: the slab above has its core top at 2.9-0.15 = 2.75 and its core
 # underside at 2.55; the walls stand on -0.15, so they are 2.7 high.

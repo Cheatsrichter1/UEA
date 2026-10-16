@@ -12,7 +12,7 @@ from uea.core.registry import Pack
 from uea.core.schema import Element, F
 from uea.core.values import Ref, RefList
 
-Discipline = Literal["arch", "struct", "light", "elec", "heat", "plumb", "vent"]
+Discipline = Literal["arch", "struct", "light", "elec", "heat", "plumb", "vent", "lv"]
 CODE_RE = re.compile(r"^[EW]-[A-Z]+-\d{3}$")
 
 

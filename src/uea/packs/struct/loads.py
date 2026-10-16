@@ -35,9 +35,9 @@ from uea.calc.data import Table
 from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.export.tables import wall_qty
 from uea.packs.arch.geometry import ArchGeo, RoofGeo, WallGeo
 from uea.packs.arch.kinds import FloorType, Roof, RoofType, Room
+from uea.packs.arch.quantities import wall_qty
 from uea.packs.struct.actions import Act, Factors
 from uea.packs.struct.frame import Case, beam
 from uea.packs.struct.geometry import SAMPLE, BeamGeo, LoadGeo, StructGeo

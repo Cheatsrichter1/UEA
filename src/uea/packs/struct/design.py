@@ -41,8 +41,8 @@ from uea.calc import Calculator, Env, Output, de, md_table
 from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.export.tables import wall_profile
 from uea.packs.arch.geometry import ArchGeo, OpeningGeo, RoofGeo, WallGeo
+from uea.packs.arch.quantities import wall_profile
 from uea.packs.struct.actions import Factors
 from uea.packs.struct.bracing import bracing
 from uea.packs.struct.frame import Bar, Case, Push, beam, plane_frame, solver_version

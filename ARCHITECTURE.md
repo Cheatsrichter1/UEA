@@ -48,6 +48,7 @@ haus-mueller/
   heat.uea        heating: heat generators, tanks, manifolds with their mixers, emitters; pipes derived
   vent.uea        ventilation: units, terminals, inlets, overflow openings; ducts derived
   light.uea       Lighting: luminaires; after v1 also lighting design and requirements
+  lv.uea          the Leistungsverzeichnis: titles and positions; quantities derived (§9)
   issues.uea      requests between disciplines and waivers (shared, §5)
   calc/           project-specific calculators written by agents (custom)
   log.jsonl       history: every batch, revertible; every id ever assigned (§5)
@@ -71,6 +72,7 @@ project ─▶ arch ─┬─▶ struct
 
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair. So far: `plumb` may reference `heat`, whose storage tank heats the drinking water (`docs/decisions/0035-plumbing.md`).
+- `lv.uea` sits below all of them: a position may count the elements of every discipline, and no discipline references the LV (`docs/decisions/0048-leistungsverzeichnis.md`).
 - `issues.uea` is outside the graph: requests and waivers may reference anything, and nothing references them.
 
 The exact graph is fixed per pack and checked by the core. It must stay acyclic.
@@ -209,7 +211,7 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
 | `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
 | `uea import ifc <file>` | Architecture from an architect's IFC (§9) |
-| `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf` |
+| `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf`, `gaeb` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
 
@@ -262,11 +264,16 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
 | PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation, the electrical, heating and plumbing sheets, the Heizungsschema (`0036-heating-and-plumbing-sheets.md`), the Strangschema (`0037`), the ventilation plans (`0038`) and the Positionsplan (`0040`) |
 | PDF reports | reportlab (BSD), DejaVu Sans (free licence, shipped) | Built. A calculation result's report on A4 with an empty signature block, refused when the model has changed since (`0036`) |
-| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`) |
+| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`); the LV and its costs per DIN 276 cost group (`0048`) |
+| GAEB DA XML 3.3 | Python's standard library (XML) | Built. The LV for bidders, phase 83, without prices (`0048-leistungsverzeichnis.md`); not yet validated against the official schema |
 | BCF 2.1 | Python's standard library (zip, XML) | Built. The requests to a discipline as topics for the programs of people outside UEA (`0032-bcf-requests.md`) |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
 New exports are a good place for outside contributions: each one only needs the read API.
+
+### The Leistungsverzeichnis
+
+The LV is part of the model (`lv.uea`, `docs/decisions/0048-leistungsverzeichnis.md`): agents decide its titles and positions, and code counts. A position names the elements it counts with the selector of `uea find` and a measure whose meaning per kind is fixed in code (a wall's `area` is its net elevation area, a circuit's `len` its cable length, a heat generator's `heat` the heating pipes from it); work no element carries is `fix=` with a unit. Quantities are derived, so they follow every change of the model, and a batch names the positions that follow it. The numbers (OZ) follow the order of the ids and can be pinned with `oz=`. Long texts come from the office's table `lv-texts`, unit prices (`ep=`) and DIN 276 cost groups (`kg=`) from the position.
 
 ### IFC import
 

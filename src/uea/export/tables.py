@@ -7,14 +7,14 @@ and follow no deduction rules of the VOB/C: a Leistungsverzeichnis applies those
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from itertools import pairwise
 from typing import Any
 
 from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.packs.arch.geometry import ArchGeo, WallGeo, opening_type, roof_pieces
+from uea.packs.arch.geometry import opening_type
 from uea.packs.arch.kinds import Door, DoorType, Roof, Room, WinType
+from uea.packs.arch.quantities import roof_areas, wall_qty
 
 Cell = str | float | int | None
 
@@ -105,53 +105,6 @@ def layers_de(layers: Layers) -> str:
     return " | ".join(f"{'*' if x.core else ''}{x.material} {cm(x.t)}" for x in layers.items)
 
 
-def wall_profile(w: WallGeo) -> list[tuple[float, float]] | None:
-    """Height of the wall above its bottom along its run, at every break of the top."""
-    if not w.top:
-        return None
-    ss = sorted({w.s0, w.s1, *(s for s, _ in w.top if w.s0 < s < w.s1)})
-    out: list[tuple[float, float]] = []
-    for s in ss:
-        z = w.top_at(s)
-        assert z is not None
-        out.append((s, z - w.bottom))
-    return out
-
-
-@dataclass
-class WallQty:
-    gross: float | None
-    """Elevation area between the wall ends, under the top profile."""
-    openings: float
-    """Doors and windows, in structural sizes."""
-    net: float | None
-    volume: float | None
-    """Core volume: net area times core thickness."""
-    h_min: float | None
-    h_max: float | None
-
-
-def wall_qty(g: ArchGeo, w: WallGeo) -> WallQty:
-    holes = sum(
-        (o.hi - o.lo) * (o.top - o.sill)
-        for o in g.openings.values()
-        if o.host == w.id and o.kind != "niche"
-    )
-    prof = wall_profile(w)
-    if prof is None:
-        return WallQty(None, holes, None, None, None, None)
-    gross = sum((b - a) * (ha + hb) / 2 for (a, ha), (b, hb) in pairwise(prof))
-    net = gross - holes
-    return WallQty(
-        gross,
-        holes,
-        net,
-        net * (w.hi - w.lo),
-        min(h for _, h in prof),
-        max(h for _, h in prof),
-    )
-
-
 class _Builder:
     def __init__(self, d: Derived, level: str | None) -> None:
         self.d = d
@@ -185,14 +138,7 @@ class _Builder:
     def sloped(self) -> dict[str, float]:
         """Sloped area of each roof, including its overhangs."""
         if self._sloped is None:
-            out: dict[str, float] = defaultdict(float)
-            for lv in self.levels:
-                ids = [rf.id for rf in self.g.roofs_on(lv)]
-                if not ids:
-                    continue
-                for i, plane, poly in roof_pieces(self.g, lv):
-                    out[ids[i]] += poly.area * (1 + plane.a**2 + plane.b**2) ** 0.5
-            self._sloped = out
+            self._sloped = roof_areas(self.g, self.levels)
         return self._sloped
 
     # ---------- the tables ----------
@@ -679,7 +625,9 @@ def tables(d: Derived, level: str | None = None) -> list[Table]:
         b.stairs(),
         b.quantities(),
     ]
+    from uea.export.lv import lv_tables
     from uea.export.tables_elec import elec_tables
     from uea.export.tables_tga import tga_tables
 
-    return [t for t in [*all_tables, *elec_tables(d, level), *tga_tables(d, level)] if t.rows]
+    lv = lv_tables(d) if level is None else []
+    return [t for t in [*all_tables, *elec_tables(d, level), *tga_tables(d, level), *lv] if t.rows]

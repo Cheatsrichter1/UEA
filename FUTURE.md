@@ -74,8 +74,8 @@ Until then, an agent defines every type in the project file.
 
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
-- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276, with quantities taken from the model. Needs the areas and volumes per DIN 277 (Backlog, Calculations).
-- **Leistungsverzeichnis and Ausschreibung:** generate the LV from the model and export it as GAEB, for public Vergabe (VOB/A, VgV) and private tenders. Compare the bids that come back.
+- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276. The priced LV already sums up per cost group (`kg=` on the positions, sheet Kosten). Open: a Kostenschätzung before there is an LV, from reference quantities (BGF, BRI from `uea calc din277`) and the office's reference prices.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
 - **Fees:** an Honorar calculation per HOAI for the offer.
 
 ## Office workflows

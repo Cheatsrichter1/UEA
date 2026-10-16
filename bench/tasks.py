@@ -198,6 +198,19 @@ def check_view(p: Project) -> list[str]:
     return out
 
 
+def check_lv(p: Project) -> list[str]:
+    from uea.derive import report
+
+    d, rep = report(p.load())
+    out = [i.text() for i in rep.issues if "LV" in i.code]
+    want = {"p1": "m2", "p2": "St", "p3": "psch"}
+    for k, unit in want.items():
+        q = d.lv.qty.get(k)
+        if q is None or q.unit != unit:
+            out.append(f"{k}: expected a quantity in {unit}")
+    return out
+
+
 def check_nothing(p: Project) -> list[str]:
     return []
 
@@ -286,6 +299,25 @@ TASKS: list[Task] = [
             Step(["find", "door", "room=r10", "--ids"]),
         ],
         check_nothing,
+        setup="house",
+    ),
+    Task(
+        "lv",
+        "Start the Leistungsverzeichnis of the house: a title for the shell, a position for the"
+        " exterior masonry (36.5 cm), one for the windows and a lump sum for the site setup."
+        " Then read the masonry position.",
+        [
+            apply(
+                "lv-agent",
+                "LV Rohbau",
+                '+ title T01 "Rohbau"\n'
+                '+ pos _ T01 area sel="wall type=AW-365" "Außenmauerwerk 36,5 cm" kg=331\n'
+                '+ pos _ T01 n sel="win" "Fenster liefern und einbauen" kg=334\n'
+                '+ pos _ T01 fix=1 unit=psch "Baustelleneinrichtung" kg=391\n',
+            ),
+            Step(["get", "p1"]),
+        ],
+        check_lv,
         setup="house",
     ),
     Task(
