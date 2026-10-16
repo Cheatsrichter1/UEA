@@ -51,6 +51,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0045 | [Shafts, pre-wall installations and installation zones](0045-shafts-prewalls-zones.md) | Accepted |
 | 0046 | [Partial views](0046-partial-views.md) | Accepted (built) |
 | 0047 | [Areas and volumes per DIN 277](0047-din277-areas.md) | Accepted (built) |
+| 0048 | [The Leistungsverzeichnis from the model](0048-leistungsverzeichnis.md) | Proposed |
 
 Template:
 
