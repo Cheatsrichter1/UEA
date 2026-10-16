@@ -32,7 +32,7 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-Sketch, on the parts that exist (`ARCHITECTURE.md` §2 to §5):
+The design is proposed in `docs/decisions/0046-partial-views.md`. The sketch it started from, on the parts that exist (`ARCHITECTURE.md` §2 to §5):
 
 - **A view is a selector and a base.** The selector names the slice: a discipline and a level (`heat:OG`), an element with what hangs on it (a board with its circuits, devices and cables), a room with everything in it. The base is the batch number of the history at the time of reading.
 - **What the view shows.** The selected elements in the usual line format, and the upstream elements they reference (host walls, rooms, levels, types) as read-only context lines, marked as such, so every reference resolves and the checks that need only the slice can run. Ids are the project's own, stable and never reused, so an edit names the same elements as the model.
