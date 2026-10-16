@@ -1213,6 +1213,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
+| `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
@@ -1343,6 +1344,17 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 ### Norm tables
 
 One CSV file for each table, the first line the header: `uea data add <id> <file.csv> --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is read. Numbers must be more than 0 unless the column says otherwise. No two rows may have the same key.
+
+#### `din277-uses`: Room uses in the usage groups of DIN 277 (DIN 277)
+
+One row per room use. A use with no row stops the split of the NRF and is named.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `group` | num > 0 | usage group: 1 to 7 NUF, 8 TF, 9 VF |
+
+One row for each: use.
 
 #### `ampacity`: Current-carrying capacity Iz (DIN VDE 0298-4)
 

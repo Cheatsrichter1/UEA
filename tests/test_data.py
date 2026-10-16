@@ -124,8 +124,10 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
     code, out = sh("data")
     assert code == 0
     lines = out.splitlines()
-    assert lines[0].startswith("ampacity  missing  Current-carrying capacity Iz (DIN VDE 0298-4)")
+    assert lines[0].startswith("din277-uses  missing  Room uses in the usage groups of DIN 277")
+    assert lines[1].startswith("ampacity  missing  Current-carrying capacity Iz (DIN VDE 0298-4)")
     assert [x.split()[0] for x in lines] == [
+        "din277-uses",
         "ampacity",
         "temp-factor",
         "group-factor",

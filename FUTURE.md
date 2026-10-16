@@ -150,7 +150,7 @@ Work on what exists, to be scheduled into a version.
 
 ### Calculations
 
-- **Areas and volumes per DIN 277** (BGF, NRF, BRI) as a `norm` calculator. The building application needs them, and they are the basis of a cost estimate per DIN 276.
+- **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/0047-din277-areas.md`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
 - **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
 - **Setbacks and plot ratios:** Abstandsflächen per Landesbauordnung, GRZ and GFZ per BauNVO. Needs the site plan below; the rules differ per Land.
 - **GEG compliance** and the Energieausweis, later.
