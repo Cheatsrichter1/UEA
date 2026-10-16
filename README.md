@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** version 1 (0.1.0, `CHANGELOG.md`) is done. The core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, reviewed by licensed people outside this repository. Structural is built and reviewed too: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent runs end to end, the test with an office's IFC and the benchmark were done in private. What comes next is in `FUTURE.md`.
+**Status:** release 0.2.0 (`CHANGELOG.md`): version 1 is done, and version 2 adds partial views for big projects and the way from the model to the tender: areas per DIN 277, the Leistungsverzeichnis with a GAEB export, costs per DIN 276 and the fee per HOAI, not yet reviewed. In version 1, the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, reviewed by licensed people outside this repository. Structural is built and reviewed too: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent runs end to end, the test with an office's IFC and the benchmark were done in private. What comes next is in `FUTURE.md`.
 
 ## Why
 
@@ -76,7 +76,7 @@ What a complete build costs an agent, from the brief to the exports: with conven
 Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/). Install the release as a command, with the IFC and structural extras:
 
 ```bash
-uv tool install "uea[ifc,struct] @ git+https://github.com/Cheatsrichter1/UEA@v0.1.0"
+uv tool install "uea[ifc,struct] @ git+https://github.com/Cheatsrichter1/UEA@v0.2.0"
 uea help
 ```
 
@@ -112,7 +112,7 @@ Development: `uv run pytest`, `uv run ruff check`, `uv run pyright`, and `uv run
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. The next versions are partial views and model to tender, office workflows, plot evaluation with tender watching, and an agent dashboard (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Version 2 (0.2.0) added partial views and the way from the model to the tender; reading the bids follows. The next versions are office workflows, plot evaluation with tender watching, and an agent dashboard (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 
