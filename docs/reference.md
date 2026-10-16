@@ -1251,8 +1251,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
-| `costs` | norm | 0.1.0 | DIN 276:2018-12 | Cost estimate per DIN 276 (Kostenschätzung) |
-| `hoai` | norm | 0.1.0 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
+| `costs` | norm | 0.2.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung) |
+| `hoai` | norm | 0.2.0 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
@@ -1271,6 +1271,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
+| `stage` | str | estimate | estimate (Kostenschätzung, by reference prices) or calculation (Kostenberechnung, from the priced LV, the estimate for what it does not price) (estimate / calculation) |
 | `ust` | float | 19.0 | VAT in percent, for the gross total |
 | `stand` | str |  | the price level (Kostenstand) of the prices, e.g. 2026-Q3 |
 
@@ -1283,6 +1284,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `rate` | float | 0.0 | where between the base rate (0) and the upper rate (100), % |
 | `lph` | str |  | the service phases, e.g. 1-4 or 1-3,5; all if left out |
 | `kosten` | float |  | chargeable costs in €, net; else from the estimate |
+| `costs` | str | auto | which costs: the calculation where the LV is priced, else the estimate (auto, § 6 Abs. 1), or estimate, calculation (auto / estimate / calculation) |
+| `groups` | str |  | services only: the groups of systems this fee is for, e.g. 410,420 (§ 54 Abs. 1) |
 | `umbau` | float | 0.0 | surcharge for a conversion (Umbauzuschlag), % |
 | `nk` | float | 0.0 | incidental costs (Nebenkosten), % of the fee |
 | `ust` | float | 19.0 | VAT, % |

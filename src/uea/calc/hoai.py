@@ -5,12 +5,13 @@ implemented and cited freely. Its fee tables (Honorartafeln) are not typed into 
 from memory: the office copies them once from the official text into the table `hoai-fees`
 (decision 0049), and every result records which copy it used.
 
+- § 6 Abs. 1: the chargeable costs come from the cost calculation (Kostenberechnung) where
+  there is one, else from the cost estimate (`uea calc costs`); costs= chooses.
 - § 33 Abs. 2: the chargeable costs (anrechenbare Kosten) of a building are the costs of its
   construction (KG 300) and of its technical equipment (KG 400): the latter fully up to 25 % of
-  the former, the part above that by half. They come from the cost estimate (`uea calc
-  costs`), net (§ 4 Abs. 1 and § 16), or are given with kosten=.
-- § 54: the chargeable costs of the technical equipment are its costs (KG 400); the estimate
-  gives them for all equipment together, or kosten= for one group of systems.
+  the former, the part above that by half. Net (§ 4 Abs. 1 and § 16), or given with kosten=.
+- § 54: the chargeable costs of the technical equipment are its costs (KG 400), per group of
+  systems with groups= (Anlagengruppen, § 54 Abs. 1), or kosten=.
 - § 50: the chargeable costs of the structure are given with kosten=.
 - § 13: fees between the table's steps are interpolated linearly.
 - § 5, § 35, § 52, § 56: the fee zone (I to V) and the rate between the base rate
@@ -28,12 +29,12 @@ from itertools import pairwise
 
 from uea.calc import Calculator, Env, Output, Param, de, md_table
 from uea.calc.data import Col, Spec
-from uea.calc.din276 import REF, estimate
+from uea.calc.din276 import REF, cost_rows, priced, span
 from uea.derive import Derived
 from uea.fmt import ar
 from uea.packs.arch.din277 import USES
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 NORM = "HOAI 2021"
 ZONES = ("I", "II", "III", "IV", "V")
 
@@ -76,10 +77,44 @@ PARAMS = (
     Param(
         "kosten", float, None, "chargeable costs in €, net; else from the estimate", optional=True
     ),
+    Param(
+        "costs",
+        str,
+        "auto",
+        "which costs: the calculation where the LV is priced, else the estimate (auto, § 6"
+        " Abs. 1), or estimate, calculation",
+        ("auto", "estimate", "calculation"),
+    ),
+    Param(
+        "groups",
+        str,
+        None,
+        "services only: the groups of systems this fee is for, e.g. 410,420 (§ 54 Abs. 1)",
+        optional=True,
+    ),
     Param("umbau", float, 0.0, "surcharge for a conversion (Umbauzuschlag), %"),
     Param("nk", float, 0.0, "incidental costs (Nebenkosten), % of the fee"),
     Param("ust", float, 19.0, "VAT, %"),
 )
+
+
+STAGE_DE = {"estimate": "from the cost estimate", "calculation": "from the cost calculation"}
+
+
+def _groups(text: str | None) -> list[tuple[int, int]]:
+    """The groups of technical systems groups= names: 410,420 (§ 54 Abs. 1)."""
+    if text is None:
+        return []
+    out: list[tuple[int, int]] = []
+    for part in text.split(","):
+        try:
+            kg = int(part.strip())
+        except ValueError:
+            raise ValueError(f"groups={text}: give cost groups of KG 400, e.g. 410,420") from None
+        if not 400 <= kg <= 499:
+            raise ValueError(f"groups={text}: {kg} is not a cost group of KG 400")
+        out.append(span(kg))
+    return out
 
 
 def phases(text: str | None, n: int) -> list[int]:
@@ -152,9 +187,21 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
     elif service == "structure":
         raise ValueError("the structure's chargeable costs (§ 50) need kosten=<€>")
     else:
-        rows = estimate(d, env)
+        stage = str(env.param("costs"))
+        if stage == "auto":
+            # § 6 Abs. 1: the cost calculation where there is one, else the estimate
+            stage = "calculation" if priced(d) else "estimate"
+        rows, _ = cost_rows(d, env, stage)
+        basis.append(STAGE_DE[stage])
         kg300 = sum(r.cost for r in rows if 300 <= r.kg <= 399)
-        kg400 = sum(r.cost for r in rows if 400 <= r.kg <= 499)
+        groups = _groups(env.param("groups"))
+        if groups and service != "services":
+            raise ValueError("groups= is for service=services (§ 54 Abs. 1)")
+        kg400 = sum(
+            r.cost
+            for r in rows
+            if 400 <= r.kg <= 499 and (not groups or any(lo <= r.kg <= hi for lo, hi in groups))
+        )
         if service == "building":
             cost, full, half = chargeable_building(kg300, kg400)
             basis.append(
@@ -163,7 +210,8 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
             )
         else:
             cost = kg400
-            basis.append(f"KG 400 {ar(kg400)} (§ 54)")
+            which = ", ".join(str(lo) for lo, _ in groups) if groups else "400"
+            basis.append(f"KG {which} {ar(kg400)} (§ 54)")
     if cost <= 0:
         raise ValueError("the chargeable costs are 0; check the estimate or give kosten=")
     table = env.table(FEES)

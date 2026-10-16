@@ -16,6 +16,8 @@ DIN 276 is licensed. The HOAI is a federal ordinance and so an amtliches Werk: i
   - The chargeable costs of a building follow § 33 Abs. 2 from the estimate's KG 300 and KG 400; of the technical equipment, KG 400 (§ 54), for all of it together; of the structure, `kosten=` (§ 50).
   - The fee table is interpolated linearly (§ 13); outside the table the fee is free to agree (§ 7 Abs. 2) and the calculator stops.
   - The shares of the service phases are in code with their clauses (§ 34 Abs. 3, § 55 Abs. 1, § 51 Abs. 1).
+- **The cost calculation** (Kostenberechnung, `stage=calculation`) takes the priced LV per cost group (its positions' quantities from the model times their `ep=`). A row of `cost-ref` stays where no priced position falls in its group, marked as such, so a half-priced LV still gives a whole total; what is left out (positions without a price or without a cost group) is listed.
+- **The fee follows § 6 Abs. 1:** its chargeable costs come from the cost calculation where the LV is priced, else from the estimate (`costs=auto`); `costs=estimate` or `calculation` chooses. The technical equipment's fee can be computed per group of systems (`groups=410,420`, § 54 Abs. 1).
 - **The HOAI's fee tables come from the office** (`hoai-fees`: service, chargeable costs, zone, base and upper fee), copied once from the official text. They could be shipped, since the ordinance is free; they are not typed into the repository from memory, because a single wrong value would be worse than none. Shipping a checked copy is open.
 
 ## Alternatives
@@ -27,5 +29,5 @@ DIN 276 is licensed. The HOAI is a federal ordinance and so an amtliches Werk: i
 ## Consequences
 
 - Two calculators, two office tables, validation reports `docs/validation/costs.md` and `hoai.md`.
-- The technical equipment's fee per group of systems (Anlagengruppe, § 54 Abs. 1) needs the estimate per group; until then `kosten=` per group.
+- The technical equipment's fee per group of systems (Anlagengruppe, § 54 Abs. 1) takes the groups' rows of the calculation; with the estimate it needs reference prices per group (410, 420, ... in `cost-ref`).
 - The structure's chargeable costs per § 50 Abs. 2 (shares of KG 300 and KG 400) could follow from the estimate; open.

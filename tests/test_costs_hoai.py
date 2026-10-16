@@ -177,9 +177,9 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 1 and "uea data add cost-ref" in text
     tables(tmp_path)
     code, text = sh("calc", "costs", "stand=2026-Q3")
-    assert code == 0 and "norm costs 0.1.0" in text and "DIN 276:2018-12" in text
+    assert code == 0 and "norm costs 0.2.0" in text and "DIN 276:2018-12" in text
     code, text = sh("calc", "hoai", "zone=III", "lph=1-4")
-    assert code == 0 and "norm hoai 0.1.0" in text and "HOAI 2021" in text
+    assert code == 0 and "norm hoai 0.2.0" in text and "HOAI 2021" in text
     report = (sh.root / "out" / "hoai.md").read_text()
     assert "# Honorarermittlung nach HOAI 2021: Box" in report
     assert "| LPH 3 | 15 % |" in report
@@ -193,3 +193,93 @@ def test_phase_shares_sum_to_the_whole_fee() -> None:
         "services": (9, 100),
         "structure": (6, 100),
     }
+
+
+# ---------- the calculation from the priced LV, and the fee on it ----------
+
+PRICED = """\
+title T01 "Rohbau"
+pos p1 T01 area sel="wall ext" "Außenwand" kg=331 ep=100
+pos p2 T01 fix=1 unit=psch "Heizung" kg=420 ep=5000
+pos p3 T01 fix=2 unit=St "Lüftungsgeräte" kg=430 ep=1500
+pos p4 T01 fix=3 unit=St "Fenster" kg=334
+pos p5 T01 fix=1 unit=psch "Gerüst" ep=800
+"""
+WALLS = 34.8 * (2.7 + 2.6) * 100  # 184.44 m² of exterior wall at 100 €: 18444
+SMALL_FEES = """\
+service,cost,zone,base,top
+building,20000,III,5000,6000
+building,30000,III,7000,8400
+services,4000,II,1000,1200
+services,6000,II,1400,1700
+"""
+
+
+def test_calculation_takes_the_lv_where_it_is_priced(tmp_path: Path) -> None:
+    install("prices", REF, PRICES, tmp_path)
+    o = run(COSTS, box(PRICED), stage="calculation")
+    assert [(r["kg"], r["source"], r["cost"]) for r in o.data["rows"]] == [
+        (331, "lv", pytest.approx(WALLS)),
+        (420, "lv", 5000),
+        (430, "lv", 3000),
+    ]
+    assert o.data["net"] == pytest.approx(WALLS + 8000)  # 26444
+    assert o.data["notes"] == [
+        "300: priced in the LV; its estimate of 161443.20 € is not used",
+        "400: priced in the LV; its estimate of 48190.80 € is not used",
+        "no price (ep=), not in it: p4",
+        "no cost group (kg=), not in it: p5",
+    ]
+    assert "# Kostenberechnung nach DIN 276: Box" in o.report
+
+
+def test_calculation_keeps_the_estimate_of_groups_the_lv_does_not_price(tmp_path: Path) -> None:
+    prices = "kg,name,basis,price\n330,Außenwände,bgf,600\n340,Innenwände,bgf,400\n"
+    install("prices", REF, prices, tmp_path)
+    rows = run(COSTS, box(PRICED), stage="calculation").data["rows"]
+    assert [(r["kg"], r["source"]) for r in rows] == [
+        (331, "lv"),
+        (340, "estimate"),
+        (420, "lv"),
+        (430, "lv"),
+    ]
+    assert rows[1]["cost"] == pytest.approx(BGF * 400)  # 64577.28
+    assert rows[0]["name"] == "Außenwände"
+
+
+def test_calculation_needs_a_priced_lv(tmp_path: Path) -> None:
+    install("prices", REF, PRICES, tmp_path)
+    with pytest.raises(ValueError, match="no calculation yet"):
+        run(COSTS, box(), stage="calculation")
+
+
+def test_fee_on_the_calculation(tmp_path: Path) -> None:
+    install("prices", REF, PRICES, tmp_path)
+    install("fees", FEES, SMALL_FEES, tmp_path)
+    o = run(HOAI, box(PRICED), zone="III")
+    # § 6 Abs. 1: the LV is priced, so the calculation: KG 300 18444, KG 400 8000; a quarter of
+    # KG 300 is 4611 in full, the 3389 above it by half
+    cost = WALLS + 4611 + (8000 - 4611) / 2  # 24749.5
+    assert o.data["chargeable"] == pytest.approx(cost)
+    assert "from the cost calculation" in o.lines[0]
+    assert o.data["fee"] == pytest.approx(5000 + (cost - 20_000) / 10_000 * 2000)  # 5949.90
+    # the estimate is far above this table
+    with pytest.raises(ValueError, match="free to agree"):
+        run(HOAI, box(PRICED), zone="III", costs="estimate")
+
+
+def test_fee_per_group_of_technical_systems(tmp_path: Path) -> None:
+    install("prices", REF, PRICES, tmp_path)
+    install("fees", FEES, SMALL_FEES, tmp_path)
+    o = run(HOAI, box(PRICED), service="services", zone="II", groups="420")
+    assert o.data["chargeable"] == 5000
+    assert o.data["full"] == pytest.approx(1200)  # halfway between 4000 and 6000
+    assert "KG 420 5000.00 (§ 54)" in o.lines[0]
+    with pytest.raises(ValueError, match="free to agree"):
+        run(HOAI, box(PRICED), service="services", zone="II", groups="420,430")  # 8000
+    with pytest.raises(ValueError, match="chargeable costs are 0"):
+        run(HOAI, box(PRICED), service="services", zone="II", groups="410")
+    with pytest.raises(ValueError, match="is for service=services"):
+        run(HOAI, box(PRICED), zone="III", groups="420")
+    with pytest.raises(ValueError, match="510 is not a cost group of KG 400"):
+        run(HOAI, box(PRICED), service="services", zone="II", groups="510")
