@@ -6,7 +6,7 @@
 | Method | Flows per DIN 1946-6:2019-12 (`airflow`); pressure loss by Darcy-Weisbach with Colebrook-White |
 | Code | `src/uea/packs/vent/ducts.py`; the ducts from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py` |
 | Tests | `tests/test_vent.py` |
-| Review | **Not yet reviewed** by a licensed person. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 `vmax` is the planner's; the flows come from `airflow` with its settings and tables; the diameters, roughness and ζ from the default duct type (`docs/decisions/0038-ventilation.md`).
 

@@ -6,7 +6,7 @@
 | Standard | DIN EN 12831-1:2017-09 with the national supplement DIN/TS 12831-1:2020-04 |
 | Code | `src/uea/packs/heat/heatload.py`; surfaces from `envelope.py`, U-values from `thermal.py` (`docs/validation/uvalue.md`) |
 | Tests | `tests/test_heatload.py` |
-| Review | **Not yet reviewed** by a licensed person. The worked examples of the standard have **not** been run. The formulas below are as implemented; the review must check them against the text of the standard, which is not in this repository. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standards come from the office's tables or are the planner's settings (`docs/decisions/0033-u-values-and-heizlast.md`). Every result names the edition of each table.
 

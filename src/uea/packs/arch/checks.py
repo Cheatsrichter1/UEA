@@ -8,7 +8,7 @@ from uea.core.issues import Issue
 from uea.derive import Derived
 from uea.fmt import ar, ln
 from uea.geom import union
-from uea.packs.arch.geometry import ArchGeo
+from uea.packs.arch.geometry import ArchGeo, boxes_touch
 from uea.packs.arch.kinds import Door, FloorType, Room, Win
 
 CODES: dict[str, str] = {
@@ -140,11 +140,12 @@ def arch_checks(d: Derived) -> Iterable[Issue]:
 
     # walls
     ws = sorted(g.walls.values(), key=lambda w: w.id)
+    box = {w.id: w.core_bounds() for w in ws}
     for i, a in enumerate(ws):
         if not a.active:
             continue
         for b in ws[i + 1 :]:
-            if b.level != a.level or not b.active:
+            if b.level != a.level or not b.active or not boxes_touch(box[a.id], box[b.id]):
                 continue
             overlap = a.core.intersection(b.core)
             if (a.raw or b.raw) and not overlap.is_empty:

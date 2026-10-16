@@ -14,6 +14,7 @@ from uea.core.model import Model
 from uea.core.ops import Applied, OpsError, apply_ops, parse_ops
 from uea.derive import Derived, Report, report
 from uea.project import Entry, Project
+from uea.view import ViewError, check_base, check_scope
 
 
 @dataclass
@@ -130,7 +131,11 @@ def run(
     revert: int | None = None,
     ifc: Callable[[Applied], dict[str, Any]] | None = None,
     block: bool = True,
+    view: str | None = None,
+    base: int | None = None,
 ) -> Result:
+    """Apply a batch. With view, it may only write the slice the selector names; with base, it
+    is rejected if a batch after the base touched an element it changes or removes (0046)."""
     with project.lock():
         external = sync(project)
         model = project.load()
@@ -152,8 +157,20 @@ def run(
             return Result(False, errors=e.errors, external=external)
         if not applied.ops:
             return Result(True, None, applied, external=external, notes=["nothing changed"])
+        edited = {i for i in (*applied.changed, *applied.removed) if i in model}
+        if base is not None:
+            errors = check_base(project.history, base, edited, view)
+            if errors:
+                return Result(False, errors=errors, external=external)
         d_before, before = report(model)
         d_after, after = report(work)
+        if view is not None:
+            try:
+                errors = check_scope(d_before, d_after, view, edited, {i for _, i in applied.added})
+            except ViewError as e:
+                errors = [str(e)]
+            if errors:
+                return Result(False, errors=errors, external=external)
         before_keys = {i.key for i in before.issues}
         after_keys = {i.key for i in after.issues}
         written = applied.packs

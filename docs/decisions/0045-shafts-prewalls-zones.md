@@ -1,6 +1,6 @@
 # 0045: Shafts, pre-wall installations and installation zones
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-12
 
 ## Context

@@ -3,6 +3,7 @@
 import math
 from typing import Literal
 
+from uea.core.model import refs_of
 from uea.core.registry import natural
 from uea.core.schema import Element
 from uea.derive import Derived
@@ -353,7 +354,7 @@ def mounted_lines(d: Derived, level: str) -> list[str]:
     return [" · ".join(parts)] if parts else []
 
 
-def _level_of(d: Derived, el: Element) -> str | None:
+def _level_of(d: Derived, el: Element, depth: int = 0) -> str | None:
     g = d.arch
     at = d.mounts.get(el.id)
     if at is not None:
@@ -369,6 +370,14 @@ def _level_of(d: Derived, el: Element) -> str | None:
     slab = getattr(el, "slab", None)
     if slab is not None and slab.id in g.slabs:
         return g.slabs[slab.id].level
+    if depth < 8:
+        # what it hangs on: a manifold's niche, a loop's room, a circuit's board
+        for name, r in refs_of(el):
+            target = d.model.get(r)
+            if name != "type" and target is not None:
+                lv = _level_of(d, target, depth + 1)
+                if lv is not None:
+                    return lv
     return None
 
 

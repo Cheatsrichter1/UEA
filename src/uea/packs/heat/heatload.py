@@ -1,6 +1,6 @@
 """Heizlast room by room (DIN EN 12831-1 with DIN/TS 12831-1), decision 0033.
 
-A `norm` calculator, not yet reviewed. For each heated room i:
+A `norm` calculator. For each heated room i:
 
     Φ_HL,i = Φ_T,i + Φ_V,i
     Φ_T,i  = Σ_k A_k · U_k,c · f_k · (θ_int,i − θ_e)
@@ -16,7 +16,7 @@ The surfaces and their areas come from the envelope (`envelope.py`), U from DIN 
 θ_e and θ_m,e by postcode, θ_int and n_min by room use, e by exposed openings and shielding,
 ε by height, f_g1, G_w and ρc_p; ΔU_TB and n_50 are the planner's.
 
-Deviations, to be settled in the review (`docs/validation/heatload.md`): the ground with the
+Deviations (`docs/validation/heatload.md`): the ground with the
 component's U instead of U_equiv; infiltration by the room formula above instead of the
 building's air flow through q_env50; no reheat, no mechanical ventilation. The building's load
 is the sum over the heated rooms without the flows between them, with no reduction of the

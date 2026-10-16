@@ -26,7 +26,9 @@ def _row(t: data.Table, n: int) -> str:
 def run_data(
     ctx: "Ctx", out: Callable[[str | Sequence[str]], None], out_json: Callable[[Any], None]
 ) -> int:
-    specs = data.specs_of(builtin().values())
+    from uea.export.lv import TEXTS
+
+    specs = {**data.specs_of(builtin().values()), TEXTS.id: TEXTS}
     action: str | None = ctx.args.action
     rest: list[str] = ctx.args.rest
     if action is None:

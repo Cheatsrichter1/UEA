@@ -98,6 +98,12 @@ class LevelGeo:
         return self.z - self.fb
 
 
+def boxes_touch(a: tuple[float, ...], b: tuple[float, ...]) -> bool:
+    """Whether two bounding boxes (minx, miny, maxx, maxy) touch or overlap: a cheap test
+    before the exact geometry."""
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
 @dataclass
 class WallGeo:
     id: str
@@ -201,6 +207,12 @@ class WallGeo:
     def core(self) -> Polygon:
         """The wall between its ends a and b, without the joins."""
         return self.box(self.lo, self.hi, grown=False)
+
+    def core_bounds(self) -> tuple[float, float, float, float]:
+        """The bounding box of core, a centimetre larger, without building it."""
+        pts = [self.plan_point(s, c) for s in (self.s0, self.s1) for c in (self.lo, self.hi)]
+        xs, ys = [x for x, _ in pts], [y for _, y in pts]
+        return (min(xs) - 0.01, min(ys) - 0.01, max(xs) + 0.01, max(ys) + 0.01)
 
     def face_line(self, side: Side) -> LineString:
         c = self.lo if side == "lo" else self.hi
@@ -617,6 +629,10 @@ class ArchGeo:
     shafts: dict[str, ShaftGeo] = field(default_factory=dict[str, ShaftGeo])
     prewalls: dict[str, PrewallGeo] = field(default_factory=dict[str, PrewallGeo])
     zones: dict[str, ZoneGeo] = field(default_factory=dict[str, ZoneGeo])
+    _room_index: tuple[int, dict[str, list[tuple[str, Polygon, tuple[float, ...]]]]] = field(
+        default_factory=lambda: (-1, {}), repr=False, compare=False
+    )
+    """room_at's rooms per storey with their boxes, for the number of rooms it was built at."""
 
     def shafts_on(self, level: str) -> list[ShaftGeo]:
         """The shafts that run through a storey."""
@@ -626,9 +642,15 @@ class ArchGeo:
         return sorted(self.levels, key=lambda k: self.levels[k].z)
 
     def room_at(self, level: str, x: float, y: float) -> str | None:
+        if self._room_index[0] != len(self.rooms):
+            index: dict[str, list[tuple[str, Polygon, tuple[float, ...]]]] = {}
+            for rid, g in self.rooms.items():
+                index.setdefault(g.level, []).append((rid, g.poly, g.poly.bounds))
+            self._room_index = (len(self.rooms), index)
         p = SPoint(x, y)
-        for rid, g in self.rooms.items():
-            if g.level == level and g.poly.covers(p):
+        pt = (x, y, x, y)
+        for rid, poly, box in self._room_index[1].get(level, []):
+            if boxes_touch(box, pt) and poly.covers(p):
                 return rid
         return None
 
@@ -1526,7 +1548,8 @@ class Resolver:
     def _rooms(self) -> None:
         for lv in self.g.levels.values():
             walls = self.g.walls_on(lv.id)
-            wall_u = union(w.poly for w in walls)
+            wpoly = {w.id: w.poly for w in walls}
+            wall_u = union(wpoly.values())
             dom = self.g.domains.get(lv.id, Polygon())
             regions = polys(clean(dom.difference(wall_u)))
             for s in self.g.seps.values():
@@ -1541,7 +1564,8 @@ class Resolver:
                         bands.append(
                             w.box(w.lo - f, w.lo) if side == "lo" else w.box(w.hi, w.hi + f)
                         )
-            band_u = union(bands)
+            band_box = [(b, b.bounds) for b in bands]
+            shaft_box = [(sh.poly, sh.poly.bounds) for sh in self.g.shafts_on(lv.id)]
             ceiling = self._ceiling(lv)
             taken: dict[int, str] = {}
             for el in self.m.of_kind("room"):
@@ -1552,7 +1576,7 @@ class Resolver:
                 p = SPoint(x, y)
                 idx = next((i for i, reg in enumerate(regions) if reg.covers(p)), None)
                 if idx is None:
-                    inside = [w.id for w in walls if w.poly.covers(p)]
+                    inside = [w.id for w in walls if wpoly[w.id].covers(p)]
                     if inside:
                         self.d.add(
                             "E-ARCH-020",
@@ -1580,17 +1604,21 @@ class Resolver:
                     continue
                 taken[idx] = el.id
                 poly = regions[idx]
-                fin = clean(poly.difference(band_u))
+                # only what touches the room's box can change it: the storey's bands at once
+                # would make every room cost as much as the storey
+                box = poly.bounds
+                fin = clean(poly.difference(union(b for b, bb in band_box if boxes_touch(bb, box))))
                 # a shaft is not floor area of the room it stands in (decision 0045)
-                shafts = [sh.poly for sh in self.g.shafts_on(lv.id)]
+                shafts = [s for s, sb in shaft_box if boxes_touch(sb, box)]
                 if shafts:
                     fin = clean(fin.difference(union(shafts)))
                 edge = poly.exterior.buffer(1e-5)
                 bounds = [
                     w.id
                     for w in walls
-                    if w.poly.intersection(edge).area > 1e-6
-                    and w.poly.boundary.intersection(edge).length > 0.01
+                    if boxes_touch(wpoly[w.id].bounds, edge.bounds)
+                    and wpoly[w.id].intersection(edge).area > 1e-6
+                    and wpoly[w.id].boundary.intersection(edge).length > 0.01
                 ]
                 bounds += [
                     s.id

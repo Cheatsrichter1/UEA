@@ -1,6 +1,6 @@
 """Loads and their takedown to the foundation (decision 0040).
 
-A `norm` calculator, not yet reviewed. Characteristic actions per DIN EN 1991-1-1 (weights,
+A `norm` calculator. Characteristic actions per DIN EN 1991-1-1 (weights,
 imposed loads, partitions), DIN EN 1991-1-3 (snow) and DIN EN 1991-1-4 (wind) with the values
 from the office's tables, combined per DIN EN 1990 with the office's factors:
 
@@ -35,9 +35,9 @@ from uea.calc.data import Table
 from uea.core.registry import natural
 from uea.core.values import Layers
 from uea.derive import Derived
-from uea.export.tables import wall_qty
 from uea.packs.arch.geometry import ArchGeo, RoofGeo, WallGeo
 from uea.packs.arch.kinds import FloorType, Roof, RoofType, Room
+from uea.packs.arch.quantities import wall_qty
 from uea.packs.struct.actions import Act, Factors
 from uea.packs.struct.frame import Case, beam
 from uea.packs.struct.geometry import SAMPLE, BeamGeo, LoadGeo, StructGeo

@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from bench import large
 from uea.derive import report
 from uea.project import Project
 
@@ -32,7 +33,8 @@ class Task:
     steps: list[Step]
     check: Callable[[Project], list[str]]
     setup: str | None = None
-    """'house': start from the Haus Müller prototype; a task id: run that task's steps first."""
+    """'house': start from the Haus Müller prototype; 'block': the generated apartment block
+    (bench/large.py); a task id: run that task's steps first."""
     notes: list[str] = field(default_factory=list[str])
 
 
@@ -183,6 +185,32 @@ def check_wofl(p: Project) -> list[str]:
     return [] if round(total, 2) == 134.89 else [f"Wohnfläche {total}"]
 
 
+BEDROOM_LOOPS_OG3 = [f"uh{n}" for n in range(38, 49, 2)]
+"""The loops of the six bedrooms on OG3 of the block: storey 3, the second loop of each flat."""
+
+
+def check_view(p: Project) -> list[str]:
+    m = p.load()
+    left = [k for k in BEDROOM_LOOPS_OG3 if k in m]
+    out = [f"{' '.join(left)} still there"] if left else []
+    if len(m.of_kind("ufh")) != 96 - 6:
+        out.append(f"{len(m.of_kind('ufh'))} loops, expected 90")
+    return out
+
+
+def check_lv(p: Project) -> list[str]:
+    from uea.derive import report
+
+    d, rep = report(p.load())
+    out = [i.text() for i in rep.issues if "LV" in i.code]
+    want = {"p1": "m2", "p2": "St", "p3": "psch"}
+    for k, unit in want.items():
+        q = d.lv.qty.get(k)
+        if q is None or q.unit != unit:
+            out.append(f"{k}: expected a quantity in {unit}")
+    return out
+
+
 def check_nothing(p: Project) -> list[str]:
     return []
 
@@ -273,6 +301,42 @@ TASKS: list[Task] = [
         check_nothing,
         setup="house",
     ),
+    Task(
+        "lv",
+        "Start the Leistungsverzeichnis of the house: a title for the shell, a position for the"
+        " exterior masonry (36.5 cm), one for the windows and a lump sum for the site setup."
+        " Then read the masonry position.",
+        [
+            apply(
+                "lv-agent",
+                "LV Rohbau",
+                '+ title T01 "Rohbau"\n'
+                '+ pos _ T01 area sel="wall type=AW-365" "Außenmauerwerk 36,5 cm" kg=331\n'
+                '+ pos _ T01 n sel="win" "Fenster liefern und einbauen" kg=334\n'
+                '+ pos _ T01 fix=1 unit=psch "Baustelleneinrichtung" kg=391\n',
+            ),
+            Step(["get", "p1"]),
+        ],
+        check_lv,
+        setup="house",
+    ),
+    Task(
+        "view",
+        "In the apartment block (bench/large.py, 8 storeys of 6 flats), the bedrooms on OG3 get"
+        " no underfloor heating: remove their loops. Work on a view of the storey's heating.",
+        [
+            Step(["view", "heat:OG3"]),
+            Step(
+                [
+                    *("apply", "--by", "heat-agent", "-m", "OG3: Schlafzimmer ohne FBH"),
+                    *("--view", "heat:OG3", "--base", "1"),
+                ],
+                "- " + " ".join(BEDROOM_LOOPS_OG3) + "\n",
+            ),
+        ],
+        check_view,
+        setup="block",
+    ),
 ]
 
 HELP = [["help"], ["help", "start"], ["help", "ops"], ["help", "positions"], ["help", "arch"]]
@@ -284,6 +348,8 @@ def prepare(task: Task, root: Path, run_steps: Callable[[Path, list[Step]], obje
     if task.setup == "house":
         for name in ("project.uea", "arch.uea", "issues.uea"):
             shutil.copy(PROTOTYPE / name, root / name)
+    elif task.setup == "block":
+        large.write(root)
     elif task.setup is not None:
         before = next(t for t in TASKS if t.id == task.setup)
         prepare(before, root, run_steps)

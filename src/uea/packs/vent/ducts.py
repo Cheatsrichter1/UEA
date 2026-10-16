@@ -1,6 +1,6 @@
 """Duct sizing of the central units (decision 0038).
 
-A `norm` calculator, not yet reviewed. The flows come from `airflow` (DIN 1946-6): each supply
+A `norm` calculator. The flows come from `airflow` (DIN 1946-6): each supply
 and extract terminal its room's flow, the outdoor and exhaust air terminals what their unit
 supplies and extracts. For each section of the derived ducts:
 

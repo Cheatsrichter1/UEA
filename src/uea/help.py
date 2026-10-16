@@ -9,6 +9,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea show [scope]", "summary: project, EG, arch, arch:EG, or an id"),
     ("uea get <id>...", "elements with derived values"),
     ("uea find <kind> [filters]", "find wall ext lb · find door room=r3 · find win level=OG"),
+    ("uea view <selector>", "a slice as lines to edit: heat:OG, elec:r3, b2 (help ops)"),
     ("uea apply --by <who> -m <why>", "atomic batch of operations from stdin (help ops)"),
     ("uea revert <batch> --by <who>", "undo a batch as a new batch"),
     ("uea check [discipline]", "open issues, requests and waivers"),
@@ -25,7 +26,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | struct | <kind> | codes | calc"
+    "start | ops | positions | arch | elec | heat | plumb | vent | struct | lv | <kind> | codes"
+    " | calc"
     " | export | import"
 )
 
@@ -80,6 +82,10 @@ uea apply --by <who> -m <why> [--dry-run] < ops   (quote the heredoc: <<'EOF')
 A batch is atomic. Placeholders may be used before they are defined. It is rejected if it
 adds an error in a discipline it writes; nothing changes then. Errors it causes in other
 disciplines are reported (affects ...) and stay open there. --dry-run checks without writing.
+Big projects, a slice at a time: uea view heat:OG prints the slice's lines after the lines they
+reference (context, read-only) and its base batch. Then apply --view heat:OG --base <n>: it
+may only write the slice, and is rejected if a later batch touched what it edits. Selectors:
+heat, heat:OG, elec:r3 (a room), OG, or an id with all that references it; join with commas.
 Output: ok batch N (packs): +added changed -removed, the ids, new issues, what follows.
 """
 
@@ -264,9 +270,11 @@ uea export pdf <result>             a calculation report to sign: out/<result>.m
                                     heatload, struct); refused if the model changed since uea calc
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
                                     quantities, electrical, emitters, manifolds, fixtures, pipes,
-                                    ventilation units, air terminals, ducts
+                                    ventilation units, air terminals, ducts; the LV and its
+                                    costs per DIN 276 cost group (help lv)
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
+uea export gaeb [-o file]           the LV for bidders: GAEB DA XML 3.3, phase 83, no prices
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
 Files go to out/ unless -o says otherwise; the output names them. Sections: + section A x=W+5 look=w
 (uea help section). Sheets and tables are labelled in German, for the people who read them. The
@@ -319,6 +327,22 @@ def _field_doc(doc: str, unit: str | None, choices: tuple[str, ...]) -> str:
     return out
 
 
+def lv_notes() -> str:
+    from uea.packs.lv.geometry import MEANING
+
+    lines = [
+        "The LV (Leistungsverzeichnis): you decide titles, positions and texts; code counts.",
+        'sel= takes what uea find takes: sel="wall type=AW-365 level=OG", sel="sock room=r3".',
+        "Measures (a bare word), and what they count of each selected element:",
+        *(f"  {k:<6} {v}" for k, v in MEANING.items()),
+        "Units: n St, len m, area m2, vol m3, the networks m. uea get <pos> shows its number,",
+        "quantity and what it counts. text=<key> takes the long text from the office's table",
+        "lv-texts (uea data show lv-texts); ep= a unit price, kg= a DIN 276 cost group. Exports:",
+        "uea export gaeb (for bidders), uea export xlsx (sheets LV and Kosten).",
+    ]
+    return "\n".join(lines)
+
+
 def pack_help(reg: Registry, pack: str) -> str:
     p = reg.packs[pack]
     lines = [f"{p.name}: {p.title} ({p.file})"]
@@ -337,6 +361,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(VENT_NOTES.rstrip())
     if pack == "struct":
         lines.append(STRUCT_NOTES.rstrip())
+    if pack == "lv":
+        lines.append(lv_notes())
     if p.kinds:
         lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)

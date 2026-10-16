@@ -6,7 +6,7 @@
 | Standards | DIN EN 1991-1-1:2010-12 (actions), DIN EN 1991-1-3:2010-12 (snow), DIN EN 1991-1-4:2010-12 (wind), each with NA; DIN EN 1990:2010-12 with NA (combination) |
 | Code | `src/uea/packs/struct/loads.py`, `actions.py`; the load path in `model.py`; beams on `frame.py` |
 | Tests | `tests/test_struct.py` |
-| Review | **Not yet reviewed** by a licensed person (`docs/decisions/0040-structure.md`). The standards' worked examples have **not** been run. |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All values of the standards come from the office's tables. The soil's resistance, the snow load s_k and the wind pressure q_p are the planner's settings for the site. Every result names the edition of each table.
 

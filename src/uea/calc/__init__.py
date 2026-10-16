@@ -162,6 +162,7 @@ class Result:
 
 
 def builtin() -> dict[str, Calculator]:
+    from uea.packs.arch.din277 import DIN277
     from uea.packs.arch.wofl import WOFL
     from uea.packs.elec.cable import CABLE
     from uea.packs.elec.equip import EQUIP
@@ -181,6 +182,7 @@ def builtin() -> dict[str, Calculator]:
         c.name: c
         for c in (
             WOFL,
+            DIN277,
             CABLE,
             VDROP,
             EQUIP,

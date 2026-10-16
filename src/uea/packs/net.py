@@ -11,7 +11,7 @@ import heapq
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from itertools import pairwise
-from typing import Literal
+from typing import Any, Literal
 
 from shapely.geometry import LineString, Polygon
 from shapely.geometry import Point as SPoint
@@ -113,22 +113,29 @@ def grow(
 ) -> None:
     """Prim's algorithm: join each of left to the nearest node inside, ties to the lower id. A
     distance that follows the installation zones also gives the way (`Zoned.path`)."""
-    inside = sorted(inside, key=natural)
-    left = sorted(set(left) - done, key=natural)
-    while left:
-        best = min(
-            (dist(net.nodes[u], net.nodes[v]), natural(v), natural(u), u, v)
-            for u in inside
-            for v in left
-        )
-        (length, legs), _, _, u, v = best
+    keys = {k: natural(k) for k in (*inside, *left)}
+    waiting = set(left) - done
+    # for each node still waiting, its nearest node inside: (distance, its key, its id)
+    near: dict[str, tuple[tuple[float, int], tuple[Any, ...], str]] = {}
+
+    def offer(u: str) -> None:
+        for v in waiting:
+            cand = (dist(net.nodes[u], net.nodes[v]), keys[u], u)
+            if v not in near or cand < near[v]:
+                near[v] = cand
+
+    for u in inside:
+        offer(u)
+    while waiting:
+        v = min(waiting, key=lambda k: (near[k][0], keys[k], near[k][1]))
+        (length, legs), _, u = near.pop(v)
         sec = Section(u, v, length, legs, kind)
         if isinstance(dist, Zoned):
             sec.path = dist.path(net.nodes[u], net.nodes[v])
         net.sections.append(sec)
-        inside.append(v)
-        left.remove(v)
+        waiting.remove(v)
         done.add(v)
+        offer(v)
 
 
 def vertical(net: Net, done: set[str], a: str, b: str, kind: SectionKind) -> None:

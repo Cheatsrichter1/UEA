@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from bench import large
 from bench.tasks import HELP, ROOT, TASKS, Step, Task, prepare
 from uea.cli import main as uea
 from uea.project import Project
@@ -91,7 +92,18 @@ def help_tokens(count: Callable[[str], int]) -> int:
         return sum(count(call(Path(tmp), Step(args))[1]) for args in HELP)
 
 
-def table(results: list[TaskResult], help_n: int) -> str:
+def large_tokens(count: Callable[[str], int]) -> tuple[int, int, int]:
+    """The generated block: its elements, the tokens of all its files, and of one view."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "p"
+        Project.init(root)
+        large.write(root)
+        whole = sum(count(f.read_text(encoding="utf-8")) for f in root.glob("*.uea"))
+        part = count(call(root, Step(["view", "heat:OG3"]))[1])
+        return len(Project(root).load()), whole, part
+
+
+def table(results: list[TaskResult], help_n: int, big: tuple[int, int, int]) -> str:
     lines = [
         "| Task | Steps | Tokens in | Tokens out | Total | Check |",
         "|---|---:|---:|---:|---:|---|",
@@ -107,6 +119,12 @@ def table(results: list[TaskResult], help_n: int) -> str:
     lines.append(
         f"Reading the help once (`{'`, `'.join(' '.join(h) for h in HELP)}`): {help_n:,} tokens."
     )
+    n, whole, part = big
+    lines.append("")
+    lines.append(
+        f"The generated block (`bench/large.py`, 8 storeys of 6 flats, {n:,} elements):"
+        f" all its files {whole:,} tokens, `uea view heat:OG3` {part:,} tokens."
+    )
     return "\n".join(lines)
 
 
@@ -116,7 +134,7 @@ def main(argv: list[str]) -> int:
     tasks = [t for t in TASKS if not names or t.id in names]
     count = tokenizer()
     results = [run_task(t, count) for t in tasks]
-    text = table(results, help_tokens(count))
+    text = table(results, help_tokens(count), large_tokens(count))
     print(text)
     if "--transcripts" in argv:
         for r in results:

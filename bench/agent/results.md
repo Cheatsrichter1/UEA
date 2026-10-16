@@ -36,7 +36,7 @@ Fixed in the help after this run (and checked by `tests/test_cli.py`):
 
 Open: the Hebeschiebetür is drawn as a plain gap (doors need an operation type, like IFC's `OperationType`), and a window label can cover a wall label in the plan image.
 
-## The services run (prepared 2026-10-11, not yet run)
+## The services run (prepared 2026-10-11, run in private)
 
 The end-to-end run of phase 7: the agent gets the Haus Müller shell (the reference `project.uea` and `arch.uea` without their niches and holes, so it has to ask for them), the brief `haus-mueller-services.md` and the CLI. The brief reads like a Fachplaner's: the board and its circuits with what each serves, per room the number of outlets, lights, switches, data ports and smoke alarms, the heat pump, indoor unit, manifolds and towel radiator, the fixtures, meter, riser, stack and sewer connection, the central ventilation unit and its terminals, the product data, and the settings of four calculators. Where each device goes is left to the agent, as it would be to the Fachplaner; the checks (switches on the lock side, devices clear of openings, a hole for each pipe through a slab) hold it to the rules.
 

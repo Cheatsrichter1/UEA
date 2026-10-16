@@ -1,6 +1,6 @@
 """The hot-water circulation (DIN 1988-300), decision 0042.
 
-A `norm` calculator, not yet reviewed. It follows the short method of the standard: the
+A `norm` calculator. It follows the short method of the standard: the
 circulation flow carries the heat the hot-water pipes lose, at the temperature drop the hot water
 may have on its way.
 

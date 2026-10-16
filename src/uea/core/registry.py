@@ -25,6 +25,7 @@ DISCIPLINES: tuple[str, ...] = (
     "heat",
     "plumb",
     "vent",
+    "lv",
     "issues",
 )
 """Every planned discipline, in file order. Packs that are not built yet are still named here,
@@ -39,6 +40,7 @@ UPSTREAM: dict[str, frozenset[str]] = {
     "plumb": frozenset({"project", "arch", "heat"}),
     "vent": frozenset({"project", "arch"}),
     "elec": frozenset({"project", "arch", "light", "heat", "plumb", "vent"}),
+    "lv": frozenset({"project", "arch", "struct", "light", "elec", "heat", "plumb", "vent"}),
     "issues": frozenset(DISCIPLINES),
 }
 """Which disciplines each discipline may reference (references only point upstream)."""

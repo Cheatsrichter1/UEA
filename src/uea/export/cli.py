@@ -9,7 +9,7 @@ from uea.core.registry import natural
 if TYPE_CHECKING:
     from uea.cli import Ctx
 
-FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png", "bcf")
+FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png", "bcf", "gaeb")
 SHEETS = ("pdf", "dxf", "svg", "png")
 """The formats of the sheets: floor plans and sections."""
 
@@ -279,6 +279,33 @@ def _bcf(ctx: "Ctx", scope: str | None, out_path: str | None) -> str | list[str]
     return [f"{_rel(ctx, path)} BCF 2.1: {len(found)} topics, open: {' '.join(still) or 'none'}"]
 
 
+def _gaeb(ctx: "Ctx", out_path: str | None) -> str | list[str]:
+    """The LV as GAEB DA XML 3.3, phase 83, for bidders (decision 0048)."""
+    from uea.export.gaeb import write_gaeb
+    from uea.export.lv import LvError, build
+
+    d, rep = ctx.derived()
+    try:
+        lv = build(d, rep)
+    except LvError as e:
+        return str(e)
+    if not lv.positions:
+        return "no LV positions yet: add titles and positions to lv (uea help lv)"
+    name = d.model.project_name() or "project"
+    proj = d.model.of_kind("project")
+    label = (proj[0].label or proj[0].id) if proj else name
+    path = Path(out_path) if out_path else ctx.project.out / f"{name}.x83"
+    write_gaeb(lv, path, name, label)
+    nt, npos = len(lv.titles), len(lv.positions)
+    line = f"{_rel(ctx, path)} GAEB DA XML 3.3 (83): {nt} title{'s' * (nt != 1)}"
+    line += f", {npos} position{'s' * (npos != 1)}, no prices"
+    out = [line]
+    if lv.missing:
+        why = "not in lv-texts" if lv.texts else "table lv-texts not installed"
+        out.append(f"no long text ({why}): {' '.join(lv.missing)}")
+    return out
+
+
 def render(ctx: "Ctx", out: Callable[[Any], None]) -> int:
     res = _plans(ctx, ctx.args.scope, ctx.args.out)
     if isinstance(res, str):
@@ -295,6 +322,10 @@ def export(ctx: "Ctx", out: Callable[[Any], None]) -> int:
         return 1
     if fmt == "xlsx":
         res = _xlsx(ctx, ctx.args.scope, ctx.args.out)
+        out(res)
+        return 1 if isinstance(res, str) else 0
+    if fmt == "gaeb":
+        res = _gaeb(ctx, ctx.args.out)
         out(res)
         return 1 if isinstance(res, str) else 0
     if fmt == "bcf":

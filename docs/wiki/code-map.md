@@ -22,6 +22,8 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `help.py` | `uea help`, in layers |
 | `project.py` | A project folder: the `.uea` files and `log.jsonl` |
 | `batch.py` | Atomic batches, revert and the detection of edits made outside UEA |
+| `view.py` | Partial views: selectors, context, and the checks of a write to a view at a base |
+| `query.py` | What `uea find` selects; the LV's positions select the same way |
 | `derive.py` | Derived values: geometry and everything computed from the model |
 | `geom.py` | Small 2D helpers on top of Shapely |
 | `fmt.py` | Number formatting for CLI output |
@@ -34,14 +36,15 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `core/registry.py` | Domain packs and the registry of element kinds |
 | `core/issues.py` | Issues: element, numbers and a fix |
 | `packs/project.py` | Project data, levels and grids |
-| `packs/arch/` | Architecture: kinds, geometry, stairs, checks, views, the Wohnfläche |
+| `packs/arch/` | Architecture: kinds, geometry, stairs, checks, views, quantities, the Wohnfläche and DIN 277 |
 | `packs/elec/`, `packs/light/` | Electrical devices, circuits, boards and feeds; luminaires |
 | `packs/heat/`, `packs/plumb/`, `packs/vent/` | Heating, plumbing and ventilation |
 | `packs/struct/` | The load path, loads and the Statische Berechnung |
+| `packs/lv/` | The Leistungsverzeichnis: titles, positions and their derived quantities (`lv.uea`) |
 | `packs/issues.py` | Requests and waivers (`issues.uea`) |
 | `packs/net.py`, `pipes.py`, `hydraulics.py`, `mount.py` | Shared by the services: derived networks, pipe sizes, hydraulics formulas, wall-mounted things |
 | `calc/` | The calculator framework and `uea data` for the office's norm tables |
-| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`), tables and calculation reports |
+| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), tables and calculation reports |
 | `importer/` | IFC import: reading the file, fitting stairs and roofs, building the batch |
 
 ## Around the code

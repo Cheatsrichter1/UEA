@@ -33,7 +33,7 @@ Phase 7 is ventilation: units, ducts, outlets. Its "done when" is that the Einfa
 - `W-VENT-005`: a central unit missing outdoor, exhaust, supply or extract air.
 - `E-VENT-002`: a wall without a usable face, or outdoor or exhaust air in a room.
 
-**The flows are not a check:** they need the office's tables, and `uea check` reads the same on every machine (`0033`). Two `norm` calculators, not yet reviewed:
+**The flows are not a check:** they need the office's tables, and `uea check` reads the same on every machine (`0033`). Two `norm` calculators:
 
 - **`uea calc airflow n50= insulation=high|low`** (DIN 1946-6), the Lüftungskonzept:
   - **The dwelling:** every room whose use the table `vent-room` does not mark `none`; A_NE and V_NE from the finished sizes.

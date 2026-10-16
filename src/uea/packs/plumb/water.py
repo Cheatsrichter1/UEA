@@ -1,6 +1,6 @@
 """Drinking-water pipe sizing (DIN 1988-300), decision 0035.
 
-A `norm` calculator, not yet reviewed. For each section (Teilstrecke) of the cold and hot
+A `norm` calculator. For each section (Teilstrecke) of the cold and hot
 networks derived from the model (`geometry.py`):
 
     ΣV̇_R  the design flows of the fixtures beyond it (cold, or hot; a tank that heats drinking

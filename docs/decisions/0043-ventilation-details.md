@@ -1,6 +1,6 @@
 # 0043: Inlets, overflow openings, terminal losses, heat recovery and ventilation in the IFC
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-12
 
 ## Context

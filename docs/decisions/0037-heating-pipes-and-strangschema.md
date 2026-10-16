@@ -21,7 +21,7 @@ Slice 6e (`0036-heating-and-plumbing-sheets.md`) left three things of phase 6 op
 - The underfloor type's loop pipe and roughness: `pipe=16x2 k=0.007`.
 - The generator's loss on the heating side: `dp=` (hPa).
 
-**`uea calc hydronic tb= n50= shielding= spread= vmax=`**, a `norm` calculator, not yet reviewed (`docs/validation/hydronic.md`). It follows Verfahren B of the hydraulic balance:
+**`uea calc hydronic tb= n50= shielding= spread= vmax=`**, a `norm` calculator (`docs/validation/hydronic.md`). It follows Verfahren B of the hydraulic balance:
 - **Load:** each room's Heizlast from `heatload`, with its settings and tables, shared among the room's emitters by their output.
 - **Flow:** V̇ = Φ / (ρ c_p Δθ), with the spread `spread=` (the planner's, no default) and water at 40 °C.
 - **Loops:** an underfloor heating's flow is shared equally by its loops; each loses R · l over its whole length.

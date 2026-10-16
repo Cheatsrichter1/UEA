@@ -43,7 +43,7 @@ Phase 6 plans the plumbing and the heating of the Einfamilienhaus. Slices 6a to 
 - `W-PLUMB-005`: a second meter or sewer connection.
 - `E-PLUMB-002`: a wall without a usable face.
 
-**The sizing is not a check.** It needs the office's tables, and `uea check` must read the same on every machine (`0033`). Two `norm` calculators do it, not yet reviewed:
+**The sizing is not a check.** It needs the office's tables, and `uea check` must read the same on every machine (`0033`). Two `norm` calculators do it:
 
 - **`uea calc water`** (DIN 1988-300) sizes both drinking-water networks:
   - **Peak flow:** ΣV̇_R per section. A tank counts on the cold side with the hot flows of its fixtures. Then V̇_S = a · (ΣV̇_R)^b − c, at most ΣV̇_R and at least the largest single V̇_R.

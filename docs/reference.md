@@ -12,6 +12,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea show [scope]` | summary: project, EG, arch, arch:EG, or an id |
 | `uea get <id>...` | elements with derived values |
 | `uea find <kind> [filters]` | find wall ext lb · find door room=r3 · find win level=OG |
+| `uea view <selector>` | a slice as lines to edit: heat:OG, elec:r3, b2 (help ops) |
 | `uea apply --by <who> -m <why>` | atomic batch of operations from stdin (help ops) |
 | `uea revert <batch> --by <who>` | undo a batch as a new batch |
 | `uea check [discipline]` | open issues, requests and waivers |
@@ -31,7 +32,8 @@ uea init dir
 uea show [scope]
 uea get id [id ...]
 uea find [--skip N] [--ids] kind [filters ...]
-uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run]
+uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run] [--view SELECTOR] [--base N]
+uea view [--skip N] selector
 uea revert [--by WHO] [-m WHY] batch
 uea check [discipline]
 uea log [n]
@@ -56,6 +58,10 @@ uea apply --by <who> -m <why> [--dry-run] < ops   (quote the heredoc: <<'EOF')
 A batch is atomic. Placeholders may be used before they are defined. It is rejected if it
 adds an error in a discipline it writes; nothing changes then. Errors it causes in other
 disciplines are reported (affects ...) and stay open there. --dry-run checks without writing.
+Big projects, a slice at a time: uea view heat:OG prints the slice's lines after the lines they
+reference (context, read-only) and its base batch. Then apply --view heat:OG --base <n>: it
+may only write the slice, and is rejected if a later batch touched what it edits. Selectors:
+heat, heat:OG, elec:r3 (a room), OG, or an id with all that references it; join with commas.
 Output: ok batch N (packs): +added changed -removed, the ids, new issues, what follows.
 ```
 
@@ -1087,6 +1093,38 @@ An overflow opening (Überströmöffnung) in or under a door, for the air betwee
 | cut | `cut=` | m | the door's undercut |
 | area | `area=` | cm² | free area of an overflow element |
 
+### Leistungsverzeichnis: titles and positions (`lv.uea`)
+
+Kinds: `title`, `pos`.
+
+#### `title`
+
+A title of the LV (a trade or a part of one), named by you: title T01 "Mauerarbeiten". Titles are numbered 01, 02 in the order of their names; oz= pins a number once the LV went out.
+
+`title <name>`
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| oz | `oz=` |  | pinned number, digits: 03 |
+
+#### `pos`
+
+A position of the LV: pos _ T01 area sel="wall type=AW-365" "Außenmauerwerk 36,5" kg=331. The label is its short text. measure and sel= say what code counts (uea help lv); or fix=<quantity> unit=<unit> for work no element carries: fix=1 unit=psch.
+
+`pos <id> <title>` · ids `p1`, `p2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| title | positional |  | title it belongs to |
+| sel | `sel=` |  | the elements it counts, as uea find takes them: sel="win level=OG" |
+| fix | `fix=` |  | a fixed quantity instead of a measure |
+| unit | `unit=` |  | unit of a fixed quantity: psch, h, St, t |
+| text | `text=` |  | key of its long text in the office's table lv-texts |
+| ep | `ep=` | € | unit price (Einheitspreis) |
+| kg | `kg=` |  | cost group per DIN 276, three digits: 331 |
+| oz | `oz=` |  | pinned number within its title, digits: 0010 |
+| measure | flag | `n` `len` `area` `vol` `heat` `water` `drain` `duct` | what it counts of each selected element, a bare word (uea help lv) |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -1099,7 +1137,7 @@ A request from one discipline to the owner of its targets: req _ elec w7 "Schlit
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
-| disc | positional | `arch` `struct` `light` `elec` `heat` `plumb` `vent` | discipline that asks |
+| disc | positional | `arch` `struct` `light` `elec` `heat` `plumb` `vent` `lv` | discipline that asks |
 | targets | positional |  | elements the request is about |
 | done | `done=` |  | batch that resolved it |
 | rejected | `rejected=` |  | reason the owner rejected it |
@@ -1199,6 +1237,11 @@ E is an error, W a warning.
 | W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
 | W-VENT-006 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, with no hole through its wall |
 | W-VENT-007 | ducts that change storey through a slab with no hole for them |
+| E-LV-001 | position whose selector or measure cannot be used |
+| W-LV-002 | position that counts nothing |
+| W-LV-003 | element counted by two positions with the same measure |
+| E-LV-004 | two titles or positions with the same number |
+| W-LV-005 | selected elements the measure gives nothing for yet |
 
 ## Calculators
 
@@ -1207,6 +1250,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
+| `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
@@ -1337,6 +1381,17 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 ### Norm tables
 
 One CSV file for each table, the first line the header: `uea data add <id> <file.csv> --edition <e>`. Comma or semicolon separated; with a semicolon, a decimal comma is read. Numbers must be more than 0 unless the column says otherwise. No two rows may have the same key.
+
+#### `din277-uses`: Room uses in the usage groups of DIN 277 (DIN 277)
+
+One row per room use. A use with no row stops the split of the NRF and is named.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `use` | text | room use as UEA names it (one of living, dining, kitchen, bedroom, office, bath, wc, hall, utility, storage, laundry, technical, cellar, attic, garage, other) |
+| `group` | num > 0 | usage group: 1 to 7 NUF, 8 TF, 9 VF |
+
+One row for each: use.
 
 #### `ampacity`: Current-carrying capacity Iz (DIN VDE 0298-4)
 
@@ -1846,4 +1901,4 @@ One row for each: material.
 
 ## Exports
 
-`uea export` writes `ifc`, `xlsx`, `pdf`, `dxf`, `svg`, `png`, `bcf`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.
+`uea export` writes `ifc`, `xlsx`, `pdf`, `dxf`, `svg`, `png`, `bcf`, `gaeb`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.

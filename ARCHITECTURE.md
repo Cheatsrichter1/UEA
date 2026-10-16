@@ -48,13 +48,14 @@ haus-mueller/
   heat.uea        heating: heat generators, tanks, manifolds with their mixers, emitters; pipes derived
   vent.uea        ventilation: units, terminals, inlets, overflow openings; ducts derived
   light.uea       Lighting: luminaires; after v1 also lighting design and requirements
+  lv.uea          the Leistungsverzeichnis: titles and positions; quantities derived (§9)
   issues.uea      requests between disciplines and waivers (shared, §5)
   calc/           project-specific calculators written by agents (custom)
   log.jsonl       history: every batch, revertible; every id ever assigned (§5)
   out/            exports (not canonical, not committed)
 ```
 
-A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format. For an agent that must not read the whole project, partial views are planned (`FUTURE.md`).
+A discipline file only exists once the discipline has elements. If one file gets too large for a big building, it can be split by storey (`elec/EG.uea`, `elec/OG.uea`) without changing the format. An agent that must not read the whole project works on a partial view (§5).
 
 ### Reference direction
 
@@ -71,6 +72,7 @@ project ─▶ arch ─┬─▶ struct
 
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair. So far: `plumb` may reference `heat`, whose storage tank heats the drinking water (`docs/decisions/0035-plumbing.md`).
+- `lv.uea` sits below all of them: a position may count the elements of every discipline, and no discipline references the LV (`docs/decisions/0048-leistungsverzeichnis.md`).
 - `issues.uea` is outside the graph: requests and waivers may reference anything, and nothing references them.
 
 The exact graph is fixed per pack and checked by the core. It must stay acyclic.
@@ -154,8 +156,13 @@ A batch is atomic:
 
 - `uea revert <batch>` applies the inverse operations as a new batch, so the history only ever grows.
 - Ids are never reused, because the history records every id ever assigned.
+- The history is checked on every read: batches count 1, 2, 3, and a plain batch never assigns an id an earlier batch assigned (a revert or an external batch may bring a removed one back). Both break when two clones' histories are merged by hand; UEA then stops and names the lines.
 - An agent with a shell can still edit a `.uea` file directly. The next command notices through the file hashes: a valid edit is recorded as an external batch (the difference to the replayed history, so it can be reverted too), an invalid one stops UEA with the errors.
 - A revert is rejected when a later batch changed the same elements; the error names the batch.
+
+### Partial views
+
+A big project does not fit in an agent's context, so an agent reads and writes a slice of it (`docs/decisions/0046-partial-views.md`). `uea view heat:OG` prints the slice's lines after the lines they reference (context, read-only, so every reference resolves) with the base, the batch number it read at. `uea apply --view heat:OG --base 41` then may only change and remove elements of the slice and add elements that fall in it, and is rejected when a batch after 41 touched an element it changes or removes. Otherwise it is an ordinary batch: derived values and validation stay those of the whole model. Selectors are those of `uea show`: a discipline, a discipline on a level or in a room, a level, or an id with everything that references it; terms join with commas. Agents on views that do not overlap cannot conflict.
 
 ### Changes that affect other disciplines
 
@@ -197,13 +204,14 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea show [scope]` | Summary at a scope: `project`, `EG`, `r3`, `elec`, `elec:EG`, any id |
 | `uea get <id>...` | Elements with their derived values |
 | `uea find <kind> [filters]` | Query, for example `uea find sock room=r3`, `uea find wall ext lb` |
-| `uea apply --by <who> -m <why> [--dry-run] [-f file]` | Atomic batch from stdin or a file (§5) |
+| `uea view <selector>` | A slice as lines to edit, with its context and base (§5, Partial views) |
+| `uea apply --by <who> -m <why> [--dry-run] [-f file] [--view <selector> --base <n>]` | Atomic batch from stdin or a file, optionally limited to a view (§5) |
 | `uea revert <batch> --by <who>` | Undo a batch as a new batch (§5) |
 | `uea check [discipline]` | Open issues, requests and waivers |
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
 | `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
 | `uea import ifc <file>` | Architecture from an architect's IFC (§9) |
-| `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf` |
+| `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf`, `gaeb` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
 
@@ -240,7 +248,7 @@ A calculator is a small typed Python module with declared inputs and outputs:
 - **`norm` calculators** ship with a pack. Each implements one method of one standard (for example Heizlast per DIN EN 12831-1), cites its clauses, and is tested against hand-computed cases with our own data. Each has a validation report a Prüfingenieur could read.
 - **Norm tables** a method needs (for example current-carrying capacities or Norm-Außentemperaturen) are supplied by the office from its own licensed copy (`uea data add`). They stay outside the repo and the project; the standard's worked examples run locally against them (`docs/decisions/0008-office-supplied-norm-data.md`).
 - **`custom` calculators** are written by agents for a project (for example "lighting at 1.5 × the norm level") and live in the project's `calc/` folder: a module `calc/<name>.py` that defines `CALCULATOR = Calculator(...)`. UEA runs it as `custom`, whatever it declares.
-- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables. The electrical ones are `cable` (cable against its breaker), `vdrop` (voltage drop) and `equip` (the minimum equipment of a room, `0041-minimum-equipment.md`). The heating ones are `uvalue` (U-values per DIN EN ISO 6946), `heatload` (Heizlast per DIN EN 12831-1, `docs/decisions/0033-u-values-and-heizlast.md`) and `hydronic` (heating pipes and the hydraulic balance on the Heizlast, `0037-heating-pipes-and-strangschema.md`). The plumbing ones are `water` (drinking-water pipes per DIN 1988-300), `drain` (waste-water pipes per DIN 1986-100, `docs/decisions/0035-plumbing.md`) and `recirc` (the hot-water circulation, `0042-heating-and-hot-water-details.md`). The ventilation ones are `airflow` (the Lüftungskonzept and room flows per DIN 1946-6) and `ducts` (duct sizes and fan pressure, `0038-ventilation.md`). The structural ones are `loads` (actions per DIN EN 1991 with snow and wind, and their takedown to the foundation) and `struct` (the Statische Berechnung: slabs, beams and rafters on the solver PyNite, columns, masonry walls per DIN EN 1996-3 with the bracing against wind, lintels, footings, `0040-structure.md`, `0044-structure-completion.md`).
+- Each `norm` calculator has a validation report in `docs/validation/`. The first one is the Wohnfläche per WoFlV (`uea calc wofl`), which needs no norm tables; beside it, `din277` gives BGF, NRF with NUF, TF and VF, KGF and BRI per DIN 277 (`docs/decisions/0047-din277-areas.md`). The electrical ones are `cable` (cable against its breaker), `vdrop` (voltage drop) and `equip` (the minimum equipment of a room, `0041-minimum-equipment.md`). The heating ones are `uvalue` (U-values per DIN EN ISO 6946), `heatload` (Heizlast per DIN EN 12831-1, `docs/decisions/0033-u-values-and-heizlast.md`) and `hydronic` (heating pipes and the hydraulic balance on the Heizlast, `0037-heating-pipes-and-strangschema.md`). The plumbing ones are `water` (drinking-water pipes per DIN 1988-300), `drain` (waste-water pipes per DIN 1986-100, `docs/decisions/0035-plumbing.md`) and `recirc` (the hot-water circulation, `0042-heating-and-hot-water-details.md`). The ventilation ones are `airflow` (the Lüftungskonzept and room flows per DIN 1946-6) and `ducts` (duct sizes and fan pressure, `0038-ventilation.md`). The structural ones are `loads` (actions per DIN EN 1991 with snow and wind, and their takedown to the foundation) and `struct` (the Statische Berechnung: slabs, beams and rafters on the solver PyNite, columns, masonry walls per DIN EN 1996-3 with the bracing against wind, lintels, footings, `0040-structure.md`, `0044-structure-completion.md`).
 
 Every result records the calculator, its kind (`norm` or `custom`), its version, its inputs and settings (`name=value` after the scope), the norm tables it used with edition and file hash, and the model state it ran on. A `custom` result is never presented as norm-compliant. Results are derived, not stored in the model. The norm tables are the office's: it installs each from its own licensed copy as a CSV file with `uea data add`, they live on the machine outside the project, and a calculator without its table stops and names it (`docs/decisions/0028-norm-tables-and-electrical-calculators.md`). `uea calc` writes a report for humans (`out/<name>.md`, in German) and the record (`out/<name>.json`).
 
@@ -256,11 +264,16 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
 | PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation, the electrical, heating and plumbing sheets, the Heizungsschema (`0036-heating-and-plumbing-sheets.md`), the Strangschema (`0037`), the ventilation plans (`0038`) and the Positionsplan (`0040`) |
 | PDF reports | reportlab (BSD), DejaVu Sans (free licence, shipped) | Built. A calculation result's report on A4 with an empty signature block, refused when the model has changed since (`0036`) |
-| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`) |
+| XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`); the LV and its costs per DIN 276 cost group (`0048`) |
+| GAEB DA XML 3.3 | Python's standard library (XML) | Built. The LV for bidders, phase 83, without prices (`0048-leistungsverzeichnis.md`); not yet validated against the official schema |
 | BCF 2.1 | Python's standard library (zip, XML) | Built. The requests to a discipline as topics for the programs of people outside UEA (`0032-bcf-requests.md`) |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
 New exports are a good place for outside contributions: each one only needs the read API.
+
+### The Leistungsverzeichnis
+
+The LV is part of the model (`lv.uea`, `docs/decisions/0048-leistungsverzeichnis.md`): agents decide its titles and positions, and code counts. A position names the elements it counts with the selector of `uea find` and a measure whose meaning per kind is fixed in code (a wall's `area` is its net elevation area, a circuit's `len` its cable length, a heat generator's `heat` the heating pipes from it); work no element carries is `fix=` with a unit. Quantities are derived, so they follow every change of the model, and a batch names the positions that follow it. The numbers (OZ) follow the order of the ids and can be pinned with `oz=`. Long texts come from the office's table `lv-texts`, unit prices (`ep=`) and DIN 276 cost groups (`kg=`) from the position.
 
 ### IFC import
 

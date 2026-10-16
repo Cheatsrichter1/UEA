@@ -6,7 +6,7 @@
 | Standard | Wohnflächenverordnung (WoFlV) of 25 November 2003 |
 | Code | `src/uea/packs/arch/wofl.py`; room outlines and heights from `src/uea/packs/arch/geometry.py` |
 | Tests | `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` |
-| Review | **Not yet reviewed** by a licensed person |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The WoFlV is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. It needs no office-supplied tables (`docs/decisions/0008-office-supplied-norm-data.md`).
 

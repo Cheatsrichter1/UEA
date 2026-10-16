@@ -43,12 +43,15 @@ One file per major decision: what was decided, what else was considered, and why
 | 0037 | [Heating pipes, the hydraulic balance and the Strangschema, slice 6f](0037-heating-pipes-and-strangschema.md) | Accepted (slice 6f built) |
 | 0038 | [Ventilation, phase 7](0038-ventilation.md) | Accepted (phase 7 built) |
 | 0039 | [Openings without a fill](0039-openings-without-a-fill.md) | Accepted (built) |
-| 0040 | [Structure, phase 8](0040-structure.md) | Proposed (slices 8a to 8d built, not reviewed) |
-| 0041 | [Minimum electrical equipment of a room](0041-minimum-equipment.md) | Proposed |
-| 0042 | [Emitter output, mixing circuits and the hot-water circulation](0042-heating-and-hot-water-details.md) | Proposed |
-| 0043 | [Inlets, overflow openings, terminal losses, heat recovery and ventilation in the IFC](0043-ventilation-details.md) | Proposed |
-| 0044 | [The rest of the structure: slab checks, rafters, columns, bracing](0044-structure-completion.md) | Proposed (built, not reviewed) |
-| 0045 | [Shafts, pre-wall installations and installation zones](0045-shafts-prewalls-zones.md) | Proposed |
+| 0040 | [Structure, phase 8](0040-structure.md) | Accepted (slices 8a to 8d built, reviewed) |
+| 0041 | [Minimum electrical equipment of a room](0041-minimum-equipment.md) | Accepted |
+| 0042 | [Emitter output, mixing circuits and the hot-water circulation](0042-heating-and-hot-water-details.md) | Accepted |
+| 0043 | [Inlets, overflow openings, terminal losses, heat recovery and ventilation in the IFC](0043-ventilation-details.md) | Accepted |
+| 0044 | [The rest of the structure: slab checks, rafters, columns, bracing](0044-structure-completion.md) | Accepted (built, reviewed) |
+| 0045 | [Shafts, pre-wall installations and installation zones](0045-shafts-prewalls-zones.md) | Accepted |
+| 0046 | [Partial views](0046-partial-views.md) | Accepted (built) |
+| 0047 | [Areas and volumes per DIN 277](0047-din277-areas.md) | Accepted (built) |
+| 0048 | [The Leistungsverzeichnis from the model](0048-leistungsverzeichnis.md) | Accepted (built) |
 
 Template:
 

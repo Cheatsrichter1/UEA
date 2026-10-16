@@ -1,6 +1,6 @@
 # 0044: The rest of the structure: slab checks, rafters, columns, bracing
 
-Status: Proposed; built, not reviewed (with 0040)
+Status: Accepted; built and reviewed (with 0040)
 Date: 2026-10-12
 
 ## Context

@@ -7,7 +7,7 @@ from uea.core.registry import Registry
 
 @cache
 def default_registry() -> Registry:
-    from uea.packs import arch, elec, heat, issues, light, plumb, project, struct, vent
+    from uea.packs import arch, elec, heat, issues, light, lv, plumb, project, struct, vent
 
     return Registry(
         [
@@ -19,6 +19,7 @@ def default_registry() -> Registry:
             heat.PACK,
             plumb.PACK,
             vent.PACK,
+            lv.PACK,
             issues.PACK,
         ]
     )

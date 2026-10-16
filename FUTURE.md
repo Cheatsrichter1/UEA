@@ -1,12 +1,12 @@
 # Future
 
-What is open for the first version, what comes after it and in which order, and the ideas and backlog behind them. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for what is built see `CHANGELOG.md` and `docs/decisions/`.
+What comes after the first version and in which order, and the ideas and backlog behind them. For what UEA is see `VISION.md`; for how it is built see `ARCHITECTURE.md`; for what is built see `CHANGELOG.md` and `docs/decisions/`.
 
 ## Versions
 
 | Version | Content | Section |
 |---|---|---|
-| v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | Open for v1 |
+| v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, bids, fees | Partial views, From model to tender |
 | v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
@@ -14,15 +14,15 @@ What is open for the first version, what comes after it and in which order, and 
 
 The order is fixed; the content of each version is not.
 
-## Open for v1
+## v1 done
 
-What 0.1.0 still lacks is people's work, not code (`CHANGELOG.md`, "Not in this release"):
+Version 1 is done. What 0.1.0 lacked was people's work, not code (`CHANGELOG.md`, "Not in this release"), and it was done outside this repository; its records are private:
 
-- **Reviews by licensed people** of the `norm` calculators (`docs/validation/`) and of the structure, which needs an engineer partner (`docs/decisions/0040-structure.md`).
-- **The test with an office's IFC:** it imports, an agent plans its electrics on it, and the BCF opens in the architect's program (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`).
-- **The agent runs end to end:** a rerun of the shell on the English format, and the services run (`bench/agent/results.md`). Open on the shell run: how to model the attic over the eaves walls.
-- **The benchmark:** the fixed task set (`bench/`) through UEA, through a conventional tool driven by an agent, and by a human drafter, with tokens, time and errors counted. Which tool to compare against is open (below).
-- **The standards' worked examples** as a private test suite per office.
+- the reviews by licensed people of the `norm` calculators (`docs/validation/`) and of the structure (`docs/decisions/0040-structure.md`);
+- the test with an office's IFC (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`);
+- the agent runs end to end (`bench/agent/results.md`);
+- the benchmark against a conventional tool and a human drafter (`bench/`);
+- the standards' worked examples as a private test suite.
 
 The decision records and the code comments refer to the work of v1 by phase number: 0 foundation, 1 core and architecture, 2 plans and tables, 3 electrical, 4 IFC import, 5 benchmark, 6 plumbing and heating, 7 ventilation, 8 structure.
 
@@ -32,20 +32,13 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-Sketch, on the parts that exist (`ARCHITECTURE.md` §2 to §5):
-
-- **A view is a selector and a base.** The selector names the slice: a discipline and a level (`heat:OG`), an element with what hangs on it (a board with its circuits, devices and cables), a room with everything in it. The base is the batch number of the history at the time of reading.
-- **What the view shows.** The selected elements in the usual line format, and the upstream elements they reference (host walls, rooms, levels, types) as read-only context lines, marked as such, so every reference resolves and the checks that need only the slice can run. Ids are the project's own, stable and never reused, so an edit names the same elements as the model.
-- **Edits are ordinary batches.** The agent writes operations in the same syntax (`ARCHITECTURE.md` §5) with a scope and a base, for example `uea apply --view <selector> --base 41`. A batch that touches an element outside the slice is rejected. A batch whose base is older than the last change to an element it edits is rejected with the batch that changed it, like a revert (§5). New elements get their ids at the merge, through placeholders as today. History, revert and the issues for other disciplines work unchanged, because the merge is a batch.
-- **Several agents.** Agents on views that do not overlap cannot conflict, so they can write in parallel. This also narrows the open question on parallel branches (`docs/decisions/0009-history-revert-ids.md`).
-- **Cost.** The read costs what the slice costs, not what the project costs, and the same holds for the write. It is measured on a large synthetic project in `bench/` before it lands, like every change to the output (`CLAUDE.md`).
+Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On the generated block in `bench/` (`bench/large.py`, 8 storeys of 6 flats, 1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/results.md`).
 
 Open:
 
-- The selector grammar, and how much upstream context a view carries (one step, or all that the checks need).
-- Derived values that need the whole model, such as a room's area when a wall of it lies outside the slice. The view could carry them as read-only values.
-- Incremental validation: checking only what a batch can have changed, so a batch on a big model does not validate all of it (`ARCHITECTURE.md` §5, step 3).
-- Whether an agent works on a file extract, which could also be handed to a person, or only on scoped reads and writes against the project folder.
+- **Incremental validation:** checking only what a batch can have changed. Every batch still checks the whole model twice, before and after. The check used to grow faster than the model, through four spots that compared everything with everything: the pipe networks' tree (Prim's algorithm rescanned every pair on each step), the finished area of each room (cut by all of its storey's finishes), the wall overlaps and the walls a wall stands on. With those fixed, a batch through a view on the generated block takes 0.5 s at 1,073 elements, 1.6 s at 3,469 and 6.4 s at 10,239 (24 storeys of 20 flats; before: 0.8 s, 6.8 s and 111 s). The rest grows about with the model, at roughly 0.3 ms per element and check. True incremental validation means tracking which derived values each element feeds across the packs; it is worth it once real projects go well past 10,000 elements.
+- **Context size:** on `heat:OG3` the context is 63 lines for 18 elements, most of them the walls the storey's walls stand on (`on=`). Context could stop at what a line's position needs.
+- **Elements without a level:** a type cannot be added through a level view (`heat:OG`), since it has no level; it is written with the discipline's view (`heat`) or without `--view`.
 
 ### Agents on several machines
 
@@ -53,14 +46,13 @@ The project lock (`.uea.lock`) covers one filesystem. Agents on several PCs each
 
 - Files of different disciplines merge cleanly.
 - `log.jsonl` conflicts on every concurrent push, because every batch appends there and both clones take the same next batch number.
-- Keeping both lines by hand is accepted without a word: two batch 2 entries, so reverting by number is ambiguous. Elements created on both sides would also get the same ids.
+- Keeping both lines by hand gives two batch 2 entries, so reverting by number is ambiguous, and elements created on both sides get the same ids. UEA now stops on such a history and names the lines (`ARCHITECTURE.md` §5).
 - What works today: pull, apply, commit, push; if the push is rejected, `git reset --hard origin/main` and run the same ops again (they use placeholders, not ids, so a replay is safe). The push is the lock and every agent runs the loop itself.
 
 To solve, probably together with partial views:
 
 - A merge strategy for the history: the batch numbers and the ids each side assigned.
 - `uea sync`, which does the loop above (pull, replay, push, retry) so an agent does not.
-- A check on load for duplicate batch numbers and ids, which today passes silently.
 - Or a host model: one machine holds the project, remote agents reach it through ssh or the MCP server (`ARCHITECTURE.md`, MCP), and GitHub is the mirror and the review trail. The lock keeps working and nothing has to merge.
 
 ## More engineering domains
@@ -82,8 +74,8 @@ Until then, an agent defines every type in the project file.
 
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
-- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276, with quantities taken from the model. Needs the areas and volumes per DIN 277 (Backlog, Calculations).
-- **Leistungsverzeichnis and Ausschreibung:** generate the LV from the model and export it as GAEB, for public Vergabe (VOB/A, VgV) and private tenders. Compare the bids that come back.
+- **Cost estimation:** Kostenschätzung and Kostenberechnung structured per DIN 276. The priced LV already sums up per cost group (`kg=` on the positions, sheet Kosten). Open: a Kostenschätzung before there is an LV, from reference quantities (BGF, BRI from `uea calc din277`) and the office's reference prices.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. Open: reading the bids (GAEB 84) and comparing them; phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
 - **Fees:** an Honorar calculation per HOAI for the offer.
 
 ## Office workflows
@@ -158,7 +150,7 @@ Work on what exists, to be scheduled into a version.
 
 ### Calculations
 
-- **Areas and volumes per DIN 277** (BGF, NRF, BRI) as a `norm` calculator. The building application needs them, and they are the basis of a cost estimate per DIN 276.
+- **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/0047-din277-areas.md`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
 - **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
 - **Setbacks and plot ratios:** Abstandsflächen per Landesbauordnung, GRZ and GFZ per BauNVO. Needs the site plan below; the rules differ per Land.
 - **GEG compliance** and the Energieausweis, later.
@@ -208,8 +200,6 @@ The answers can reorder the versions.
 
 ## Open questions
 
-- **Benchmark baseline:** which conventional tool to compare against. Revit with an MCP bridge is the most convincing for offices but needs Windows and a licence. Archicad, or Bonsai (BlenderBIM) as an open-source option, are alternatives.
 - **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/0008-office-supplied-norm-data.md`).
-- **Engineer partner:** who reviews the `norm` calculators and the structure (`docs/decisions/0040-structure.md`).
 - **Type catalogues:** where realistic product and build-up data comes from (manufacturer data, BIM libraries) without licence trouble.
 - **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`). What was tested and the options are under Partial views, Agents on several machines.
