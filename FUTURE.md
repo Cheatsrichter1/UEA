@@ -36,7 +36,7 @@ Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a s
 
 Open:
 
-- **Incremental validation:** checking only what a batch can have changed. Every batch still checks the whole model twice, before and after. On the block that takes 0.4 s per check; on a block of 16 storeys of 10 flats (3,469 elements) 3.1 s, and a batch 6.8 s. It grows faster than the model, so bigger projects need it first.
+- **Incremental validation:** checking only what a batch can have changed. Every batch still checks the whole model twice, before and after. The check used to grow faster than the model, through four spots that compared everything with everything: the pipe networks' tree (Prim's algorithm rescanned every pair on each step), the finished area of each room (cut by all of its storey's finishes), the wall overlaps and the walls a wall stands on. With those fixed, a batch through a view on the generated block takes 0.5 s at 1,073 elements, 1.6 s at 3,469 and 6.4 s at 10,239 (24 storeys of 20 flats; before: 0.8 s, 6.8 s and 111 s). The rest grows about with the model, at roughly 0.3 ms per element and check. True incremental validation means tracking which derived values each element feeds across the packs; it is worth it once real projects go well past 10,000 elements.
 - **Context size:** on `heat:OG3` the context is 63 lines for 18 elements, most of them the walls the storey's walls stand on (`on=`). Context could stop at what a line's position needs.
 - **Elements without a level:** a type cannot be added through a level view (`heat:OG`), since it has no level; it is written with the discipline's view (`heat`) or without `--view`.
 

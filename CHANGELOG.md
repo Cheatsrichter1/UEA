@@ -4,6 +4,7 @@ What each release contains. What comes next is in `FUTURE.md`; the reasons are i
 
 ## Unreleased
 
+- **Faster checks on big models:** the pipe networks' tree, the finished area of rooms, the wall overlaps and the walls a wall stands on no longer compare everything with everything. A batch on a generated block of 10,239 elements takes 6.4 s instead of 111 s, on 3,469 elements 1.6 s instead of 6.8 s. Results are unchanged.
 - **Partial views** (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice of the model as lines to edit, after the lines it references (read-only context), with its base batch. `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a batch after the base touched an element it changes or removes; `--base` also works alone. Selectors: `heat`, `heat:OG`, `elec:r3`, `OG`, an id with everything that references it, joined by commas.
 - **Levels of hanging elements:** a manifold, a loop, a tank, a circuit or an RCD has the level of what it hangs on, so `show heat:OG` and `find ... level=OG` count them. Before, they had none.
 - **Bench:** a generated apartment block (`bench/large.py`, 8 storeys of 6 flats, 1,073 elements) and the task `view` on it.

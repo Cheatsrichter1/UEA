@@ -14,7 +14,7 @@ from shapely.geometry import Point as SPoint
 from shapely.geometry.base import BaseGeometry
 
 from uea.core.registry import natural
-from uea.packs.arch.geometry import ArchGeo, SlabGeo, WallGeo
+from uea.packs.arch.geometry import ArchGeo, SlabGeo, WallGeo, boxes_touch
 from uea.packs.struct.geometry import BeamGeo, ColumnGeo, StructGeo
 
 TOUCH = 1e-3
@@ -74,7 +74,10 @@ def stands_on(g: ArchGeo, w: WallGeo, sg: StructGeo | None = None) -> list[tuple
     if below is None:
         return []
     hits: list[tuple[str, float]] = []
+    box = w.core_bounds()
     for o in bearing(g, below):
+        if not boxes_touch(box, o.core_bounds()):
+            continue
         a = w.core.intersection(o.core).area
         if a > MIN_OVERLAP:
             hits.append((o.id, a / w.t))

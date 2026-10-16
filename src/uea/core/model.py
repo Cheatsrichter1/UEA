@@ -46,6 +46,7 @@ class Model:
         self.reg = reg
         self.els: dict[str, Element] = {}
         self._referrers: dict[str, list[str]] | None = None
+        self._kinds: dict[tuple[str, str | None], list[Element]] = {}
         for el in elements:
             self.els[el.id] = el
 
@@ -70,20 +71,25 @@ class Model:
     def put(self, el: Element) -> None:
         self.els[el.id] = el
         self._referrers = None
+        self._kinds.clear()
 
     def remove(self, key: str) -> Element:
         self._referrers = None
+        self._kinds.clear()
         return self.els.pop(key)
 
     def sorted(self, els: Iterable[Element] | None = None) -> list[Element]:
         return sorted(self.els.values() if els is None else els, key=self.reg.sort_key)
 
     def of_kind(self, kind: str, category: str | None = None) -> list[Element]:
-        return self.sorted(
-            e
-            for e in self.els.values()
-            if e.kind == kind and (category is None or e.category == category)
-        )
+        key = (kind, category)
+        if key not in self._kinds:
+            self._kinds[key] = self.sorted(
+                e
+                for e in self.els.values()
+                if e.kind == kind and (category is None or e.category == category)
+            )
+        return list(self._kinds[key])
 
     def pack_of(self, key: str) -> str:
         return type(self.els[key]).pack
