@@ -1,6 +1,7 @@
 """Operations, atomic batches, history, revert and edits made outside UEA."""
 
 import json
+import shutil
 
 import pytest
 
@@ -209,3 +210,42 @@ def test_comment_and_blank_lines_in_ops(empty: Project) -> None:
 def test_empty_batch(empty: Project) -> None:
     res = run(empty, "# nothing\n", "t", "x")
     assert not res.ok and "no operations" in res.errors[0]
+
+
+def test_merged_histories_stop(empty: Project) -> None:
+    # two clones each run a batch 3 that adds a window; git keeps both log lines
+    setup(empty)
+    other = Project(empty.root.parent / "clone")
+    shutil.copytree(empty.root, other.root)
+    assert run(empty, "+ win _ w1 1x1 x=W+1", "a", "window").batch == 3
+    assert run(other, "+ win _ w2 1x1 y=S+1", "b", "window").batch == 3
+    log = empty.root / "log.jsonl"
+    theirs = (other.root / "log.jsonl").read_text().splitlines()[-1]
+    log.write_text(log.read_text() + theirs + "\n")
+    with pytest.raises(LoadError) as e:
+        Project(empty.root).history.entries()
+    assert e.value.errors[:2] == [
+        "log.jsonl:4: batch 3 again, first on line 3",
+        "log.jsonl:4: f1 assigned again, first on line 3",
+    ]
+    assert "two histories merged by hand" in e.value.errors[2]
+
+
+def test_missing_batch_stops(empty: Project) -> None:
+    setup(empty)
+    assert run(empty, "~ w1 lb=", "t", "x").ok
+    log = empty.root / "log.jsonl"
+    lines = log.read_text().splitlines()
+    log.write_text("\n".join([lines[0], lines[2]]) + "\n")
+    with pytest.raises(LoadError) as e:
+        Project(empty.root).history.entries()
+    assert e.value.errors[0] == "log.jsonl:2: batch 3 where batch 2 belongs"
+
+
+def test_revert_may_bring_an_id_back(empty: Project) -> None:
+    setup(empty)
+    assert run(empty, "- r1", "t", "remove").ok
+    assert revert(empty, 3, "t").ok
+    entries = Project(empty.root).history.entries()
+    assert [e.batch for e in entries] == [1, 2, 3, 4]
+    assert "r1" in entries[1].ids and "r1" in entries[3].ids

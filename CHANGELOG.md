@@ -4,6 +4,7 @@ What each release contains. What comes next is in `FUTURE.md`; the reasons are i
 
 ## Unreleased
 
+- **History check:** every command checks `log.jsonl` on read. A batch number twice or out of order, or an id a plain batch assigned twice, stops UEA with the lines and a hint; both happen when two clones' histories are merged by hand. Before, such a history passed silently and the next batch could take a used number again.
 - **v1 done:** the reviews by licensed people of the `norm` calculators and the structure, the test with an office's IFC, the agent runs end to end, the benchmark and the standards' worked examples were done outside this repository; their records are private. The validation reports and decision records 0040 to 0045 say so. The norm tables in the repo stay synthetic test data, and every result still needs the signature of the Fachplaner, Tragwerksplaner or Prüfingenieur responsible.
 - **Docs:** `ROADMAP.md` is gone; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard), the backlog and the plan for partial views are in `FUTURE.md`. Mechanical parts are left to UMEA, a separate program.
 - **Split levels:** a hall beside a storeyed wing reaches up to its own roof where the slab above has a void; its height and volume follow, and the airspace over it raises no W-ARCH-022 or W-ARCH-042.

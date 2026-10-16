@@ -97,6 +97,38 @@ def file_hash(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest() if data else ""
 
 
+def check_history(entries: list[Entry], lines: list[int]) -> None:
+    """Batches count 1, 2, 3, and no id is assigned twice; `lines` are the entries' line numbers.
+
+    Both break when two clones' histories are merged by hand (FUTURE.md, Agents on several
+    machines): each side takes the same next batch number and the same next ids. Reverts and
+    external batches may bring back an id that was removed, so only the ids a plain batch
+    assigned count as new.
+    """
+    errors: list[str] = []
+    batch_line: dict[int, int] = {}
+    id_line: dict[str, int] = {}
+    expected = 1
+    for e, n in zip(entries, lines, strict=True):
+        if e.batch in batch_line:
+            errors.append(f"{LOG}:{n}: batch {e.batch} again, first on line {batch_line[e.batch]}")
+        elif e.batch != expected:
+            errors.append(f"{LOG}:{n}: batch {e.batch} where batch {expected} belongs")
+        batch_line.setdefault(e.batch, n)
+        expected = max(expected, e.batch + 1)
+        fresh = e.revert is None and not e.external
+        for i in e.ids:
+            if fresh and i in id_line:
+                errors.append(f"{LOG}:{n}: {i} assigned again, first on line {id_line[i]}")
+            id_line.setdefault(i, n)
+    if errors:
+        errors.append(
+            "two histories merged by hand? Keep one side's log.jsonl and .uea files,"
+            " then apply the other side's batches again"
+        )
+        raise LoadError(errors)
+
+
 class History:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -105,6 +137,7 @@ class History:
     def entries(self) -> list[Entry]:
         if self._entries is None:
             out: list[Entry] = []
+            lines: list[int] = []
             if self.path.exists():
                 for n, line in enumerate(self.path.read_text(encoding="utf-8").splitlines(), 1):
                     if not line.strip():
@@ -113,6 +146,8 @@ class History:
                         out.append(Entry.from_json(line))
                     except (ValueError, KeyError, TypeError) as e:
                         raise LoadError([f"{LOG}:{n}: cannot read history entry: {e}"]) from None
+                    lines.append(n)
+            check_history(out, lines)
             self._entries = out
         return self._entries
 

@@ -53,14 +53,13 @@ The project lock (`.uea.lock`) covers one filesystem. Agents on several PCs each
 
 - Files of different disciplines merge cleanly.
 - `log.jsonl` conflicts on every concurrent push, because every batch appends there and both clones take the same next batch number.
-- Keeping both lines by hand is accepted without a word: two batch 2 entries, so reverting by number is ambiguous. Elements created on both sides would also get the same ids.
+- Keeping both lines by hand gives two batch 2 entries, so reverting by number is ambiguous, and elements created on both sides get the same ids. UEA now stops on such a history and names the lines (`ARCHITECTURE.md` §5).
 - What works today: pull, apply, commit, push; if the push is rejected, `git reset --hard origin/main` and run the same ops again (they use placeholders, not ids, so a replay is safe). The push is the lock and every agent runs the loop itself.
 
 To solve, probably together with partial views:
 
 - A merge strategy for the history: the batch numbers and the ids each side assigned.
 - `uea sync`, which does the loop above (pull, replay, push, retry) so an agent does not.
-- A check on load for duplicate batch numbers and ids, which today passes silently.
 - Or a host model: one machine holds the project, remote agents reach it through ssh or the MCP server (`ARCHITECTURE.md`, MCP), and GitHub is the mirror and the review trail. The lock keeps working and nothing has to merge.
 
 ## More engineering domains

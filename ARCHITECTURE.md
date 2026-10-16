@@ -154,6 +154,7 @@ A batch is atomic:
 
 - `uea revert <batch>` applies the inverse operations as a new batch, so the history only ever grows.
 - Ids are never reused, because the history records every id ever assigned.
+- The history is checked on every read: batches count 1, 2, 3, and a plain batch never assigns an id an earlier batch assigned (a revert or an external batch may bring a removed one back). Both break when two clones' histories are merged by hand; UEA then stops and names the lines.
 - An agent with a shell can still edit a `.uea` file directly. The next command notices through the file hashes: a valid edit is recorded as an external batch (the difference to the replayed history, so it can be reverted too), an invalid one stops UEA with the errors.
 - A revert is rejected when a later batch changed the same elements; the error names the batch.
 
