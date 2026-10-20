@@ -1,4 +1,5 @@
-"""The light pack: luminaires (placed and wired by the electrical design)."""
+"""The light pack: luminaires (placed and wired by the electrical design) and illuminance
+targets, which `uea calc light` checks."""
 
 from uea.core.registry import Pack
 from uea.packs.light.geometry import derive_light, light_signatures

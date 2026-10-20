@@ -200,6 +200,12 @@ uea calc equip grade=<g> [scope] [combos=one|each]
                         each room's sockets, lighting, data outlets and connections against its
                         minimum (DIN 18015-2, norm; table elec-minimum by use, grade and area).
                         Scope: a storey or a room. A waiver of W-ELEC-010 on a room accepts it
+uea calc light refl=<r> mf=<f> [scope]
+                        each room's average illuminance against its illum targets (norm,
+                        utilisation factor method): k from the room and each luminaire's height
+                        over the plane, the factor from the office's table light-uf by dist= and
+                        refl= (e.g. 753); mf: maintenance factor. Low: how many to add. Scope: a
+                        storey, a room or a target; task areas (area=) are listed, not checked
 uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]

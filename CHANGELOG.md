@@ -2,6 +2,10 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
+## Unreleased
+
+- **Illuminance targets and the average illuminance of a room** (`docs/decisions/0050-illuminance.md`): `illum il1 r2 em=150 h=0.75` in `light.uea` (with `at=` and `area=` a task area), and `uea calc light refl=<r> mf=<f> [scope]`, a `norm` calculator by the utilisation factor method: each luminaire's room index from its height over the working plane, the utilisation factor from the office's table `light-uf` (the maker's data or the LiTG's), how many luminaires to add in a low room. Task areas are listed, not checked. **Not yet reviewed** by a licensed person; the factors in the tests are synthetic.
+
 ## 0.2.0 (2026-10-16): from the model to the tender
 
 Version 2 without the bids: big projects a slice at a time, and the way from the model to the tender and the offer. Version 1 is done; its reviews, the test with an office's IFC, the agent runs and the benchmark were done outside this repository, and their records are private. The calculators new in this release (`din277`, `costs`, `hoai`) are **not yet reviewed** by a licensed person, and the norm tables, prices and fee tables in the repo are synthetic test data. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.

@@ -388,9 +388,7 @@ def test_haus_mueller_plumbing() -> None:
     out: list[str] = []
     for name in ("project.uea", "arch.uea", "light.uea", "elec.uea", "heat.uea", "plumb.uea"):
         for line in (PROTOTYPE / name).read_text().splitlines():
-            if line.split(" ")[0] != "illum" and not line.startswith(
-                ("feed fd3", "feed fd4", "feed fd5", "feed fd6")
-            ):
+            if not line.startswith(("feed fd3", "feed fd4", "feed fd5", "feed fd6")):
                 out.append(line)
     d, rep = derive_text("\n".join(out) + "\n")
     assert [i for i in rep.issues if i.code.startswith(("E-", "W-PLUMB", "W-HEAT"))] == []

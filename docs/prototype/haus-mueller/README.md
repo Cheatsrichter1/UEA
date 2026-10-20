@@ -2,7 +2,7 @@
 
 A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`bench/`).
 
-Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent` (the `illum` targets wait for the lighting design), and the holes the services asked for. The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
+Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent`, and the holes the services asked for; since 2026-10-20 the `illum` targets too, which `uea calc light` checks (`docs/decisions/0050-illuminance.md`). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
 ## The house
 
@@ -28,7 +28,7 @@ Electrical: SLS, SPD, 5 RCDs, 19 circuits, 30 socket boxes (45 outlets), 18 swit
 
 Drawings are SVG with a PNG copy; labels are German, because German offices read them.
 
-**Drawn by UEA.** The services sheets and the Positionspläne come from UEA itself: `uea export svg <name>` and `uea export png <name>` on a copy of these files without the two `illum` lines (their pack is not built yet). The PDF of the same sheet is `uea export pdf <name>`. Pipe and duct sizes are in the calculation reports, not on the plans. Holes (`docs/decisions/0039-openings-without-a-fill.md`) show on every floor plan: KB a core drilling, DD a hole through a slab, dashed when it is in the slab above.
+**Drawn by UEA.** The services sheets and the Positionspläne come from UEA itself: `uea export svg <name>` and `uea export png <name>` on these files. The PDF of the same sheet is `uea export pdf <name>`. Pipe and duct sizes are in the calculation reports, not on the plans. Holes (`docs/decisions/0039-openings-without-a-fill.md`) show on every floor plan: KB a core drilling, DD a hole through a slab, dashed when it is in the slab above.
 
 | Export | Name | Content |
 |---|---|---|

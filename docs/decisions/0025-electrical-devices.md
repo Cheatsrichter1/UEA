@@ -29,7 +29,7 @@ Haus Müller's draft (`docs/prototype/haus-mueller/elec.uea`, `light.uea`) alrea
 | `smoke` | `rm` | `smoke rm1 r5`: in a room, at the ceiling |
 | `feed` | `fd` | `feed fd1 g1 c7`: a circuit feeding an element of another discipline |
 
-The light pack holds the luminaires, as `0006-pack-order.md` says: `type … lum` (`flux`, `w`, `dist`, `default`) and `lum l1 r1` (in a room, `at=` and `z=`, by default the middle at the ceiling) or `lum l7 w1.s x=d5-0.3 z=2.4` (on a wall). `illum` (illuminance targets) belongs to the later light design and is not built.
+The light pack holds the luminaires, as `0006-pack-order.md` says: `type … lum` (`flux`, `w`, `dist`, `default`) and `lum l1 r1` (in a room, `at=` and `z=`, by default the middle at the ceiling) or `lum l7 w1.s x=d5-0.3 z=2.4` (on a wall). `illum` (illuminance targets) belongs to the later light design and is not built (built since: `0050-illuminance.md`).
 
 **Values.** A cable is its designation, `NYM-J3x2.5` (type, cores, mm²), a breaker `B16`, an RCD `40/0.03`; they are parsed, not defined as types. The standard library of FUTURE.md would add data (current-carrying capacity) later. `p=3` needs a cable with four or five cores.
 

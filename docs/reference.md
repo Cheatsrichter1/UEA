@@ -517,7 +517,7 @@ The rafters of a gable roof (Sparren of a Sparren- or Kehlbalkendach): rafter sp
 
 Types: `type … lum`.
 
-Kinds: `lum`.
+Kinds: `lum`, `illum`.
 
 #### `type … lum`
 
@@ -547,6 +547,20 @@ A luminaire. In a room (host r2): at= a point, z= its height; by default the mid
 | s | `s=` | m | centre along a wall in any direction |
 | z | `z=` | m | height of its centre above the FFL |
 | type | `type=` |  | luminaire type; default type if left out |
+
+#### `illum`
+
+An illuminance target (Wartungswert) on a working plane h= above the FFL: of the whole room, or with at= and area= of a task area centred there (x by y).
+
+`illum <id> <room>` · ids `il1`, `il2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| room | positional |  | room |
+| em | `em=` | lx | maintained illuminance the plane must reach (required) |
+| h | `h=` | m | height of the working plane above the FFL (required) |
+| at | `at=` | m | centre of a task area, x,y |
+| area | `area=` | m | task area, x by y |
 
 ### Electrical (`elec.uea`)
 
@@ -1256,6 +1270,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
+| `light` | norm | 0.1.0 | Wirkungsgradverfahren (LiTG-Publikation 3.5, CIE 40); Wartungswert nach DIN EN 12464-1 | Mittlere Beleuchtungsstärke (Wirkungsgradverfahren) |
 | `uvalue` | norm | 0.1.0 | DIN EN ISO 6946:2018-03 | U-Werte der Bauteile |
 | `heatload` | norm | 0.3.0 | DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04 | Heizlast raumweise |
 | `hydronic` | norm | 0.2.0 | Verfahren B des hydraulischen Abgleichs; Heizlast nach DIN EN 12831-1:2017-09 | Rohrnetz und hydraulischer Abgleich |
@@ -1316,6 +1331,13 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|
 | `grade` | str | required | the equipment grade the client chose, as your table names it |
 | `combos` | str | one | a socket or data frame with several outlets counts as one, or each outlet counts (one / each) |
+
+### `light` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `refl` | str | required | reflectances of ceiling, walls and floor as light-uf names them |
+| `mf` | float | required | maintenance factor of the installation, more than 0 and at most 1 |
 
 ### `heatload` settings
 
@@ -1510,6 +1532,19 @@ One row per use, grade and area range. A use with no rows is not checked.
 | `conn` | num ≥ 0 | dedicated connections (cooker, washing machine, ...) |
 
 One row for each: use, grade, upto.
+
+#### `light-uf`: Utilisation factor by distribution, reflectances and room index (luminaire maker's data or LiTG-Publikation 3.5)
+
+One row per distribution, reflectances and room index; k in between is interpolated.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `dist` | text | light distribution as the luminaire types name it: cos1, cos3, ... |
+| `refl` | text | reflectances of ceiling, walls and floor as you name them, e.g. 753 |
+| `k` | num > 0 | room index |
+| `uf` | num > 0 | utilisation factor for the type's flux= (LED: the room utilance) |
+
+One row for each: dist, refl, k.
 
 #### `material`: Thermal conductivity of building materials (DIN 4108-4, DIN EN ISO 10456, or the manufacturer's declared design value)
 
