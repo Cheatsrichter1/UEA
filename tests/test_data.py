@@ -137,6 +137,7 @@ def test_uea_data_lists_shows_adds_and_removes(sh: Shell, tmp_path: Path) -> Non
         "group-factor",
         "conductor",
         "elec-minimum",
+        "light-uf",
         "material",
         "surface",
         "outdoor",

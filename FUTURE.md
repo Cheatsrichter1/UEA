@@ -154,7 +154,7 @@ Work on what exists, to be scheduled into a version.
 - **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
 - **Setbacks and plot ratios:** Abstandsflächen per Landesbauordnung, GRZ and GFZ per BauNVO. Needs the site plan below; the rules differ per Land.
 - **GEG compliance** and the Energieausweis, later.
-- **Lighting.** The light pack grows from luminaires into lighting design and photometric calculation (`docs/decisions/0006-pack-order.md`).
+- **Lighting.** Illuminance targets and the average illuminance of a room are built (`uea calc light`, `docs/decisions/0050-illuminance.md`). Open: the point calculation with photometric files (task areas, uniformity), glare (UGR), daylight, emergency lighting, the reflectances from the finishes.
 
 ### Checks
 

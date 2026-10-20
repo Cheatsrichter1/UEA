@@ -331,11 +331,11 @@ def test_references_follow_the_discipline_graph() -> None:
 
 def prototype_text() -> str:
     """Haus Müller's electrics. Heat and vent do not exist yet, so the feeds to them are left
-    out, and the illuminance targets belong to the later light design."""
+    out."""
     out: list[str] = []
     for name in ("project.uea", "arch.uea", "light.uea", "elec.uea"):
         for line in (PROTOTYPE / name).read_text().splitlines():
-            if line.split(" ")[0] not in ("illum", "feed"):
+            if line.split(" ")[0] != "feed":
                 out.append(line)
     return "\n".join(out) + "\n"
 

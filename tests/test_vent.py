@@ -250,9 +250,7 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
 def test_haus_mueller_ventilation() -> None:
     out: list[str] = []
     for name in ("project", "arch", "light", "elec", "heat", "plumb", "vent"):
-        for line in (PROTOTYPE / f"{name}.uea").read_text().splitlines():
-            if line.split(" ")[0] != "illum":  # the illuminance targets wait for their pack
-                out.append(line)
+        out += (PROTOTYPE / f"{name}.uea").read_text().splitlines()
     d, rep = derive_text("\n".join(out) + "\n")
     assert [i for i in rep.issues if i.code.startswith(("E-", "W-VENT"))] == []
     # a central unit in the HWR, its four kinds of air, a terminal in every room with a flow

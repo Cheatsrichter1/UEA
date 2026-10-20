@@ -1,8 +1,8 @@
-"""Lighting kinds (`light.uea`): luminaire types and luminaires.
+"""Lighting kinds (`light.uea`): luminaire types, luminaires and illuminance targets.
 
-In v1 the light pack only holds the luminaires, which the electrical design places in rooms and
-wires through the switches that control them (decision 0025). Lighting design and photometric
-calculation come later (decision 0006).
+The electrical design places the luminaires in rooms and wires them through the switches that
+control them (decision 0025). An illuminance target states what a room, or a task area in it,
+must reach; `uea calc light` checks the room's average against it (decision 0050).
 """
 
 from typing import Annotated, ClassVar, Self
@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar, Self
 from pydantic import model_validator
 
 from uea.core.schema import Element, F
-from uea.core.values import Anchor, Point, Ref
+from uea.core.values import Anchor, Point, Ref, Size
 
 
 class LumType(Element):
@@ -67,4 +67,30 @@ class Lum(Element):
         return 0.2
 
 
-KINDS: tuple[type[Element], ...] = (LumType, Lum)
+class Illum(Element):
+    kind: ClassVar[str] = "illum"
+    pack: ClassVar[str] = "light"
+    prefix: ClassVar[str | None] = "il"
+    positional: ClassVar[tuple[str, ...]] = ("room",)
+    doc: ClassVar[str] = (
+        "An illuminance target (Wartungswert) on a working plane h= above the FFL: of the whole"
+        " room, or with at= and area= of a task area centred there (x by y)."
+    )
+    room: Annotated[Ref, F("room", targets=("room",))]
+    em: Annotated[float, F("maintained illuminance the plane must reach", unit="lx")]
+    h: Annotated[float, F("height of the working plane above the FFL", unit="m")]
+    at: Annotated[Point | None, F("centre of a task area, x,y", unit="m")] = None
+    area: Annotated[Size | None, F("task area, x by y", unit="m")] = None
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.em <= 0:
+            raise ValueError("em must be larger than 0")
+        if self.h < 0:
+            raise ValueError("h must be 0 or more")
+        if (self.at is None) != (self.area is None):
+            raise ValueError("a task area needs both at= and area=")
+        return self
+
+
+KINDS: tuple[type[Element], ...] = (LumType, Lum, Illum)

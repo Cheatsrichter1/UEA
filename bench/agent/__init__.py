@@ -346,8 +346,8 @@ class Comparison:
 
 
 def reference(full: bool = False) -> Project:
-    """The reference: the shell, or the whole house (without the illuminance targets, which
-    wait for the lighting design)."""
+    """The reference: the shell, or the whole house (without the illuminance targets, which the
+    services brief does not ask for)."""
     root = Path(tempfile.mkdtemp()) / "reference"
     Project.init(root)
     for name in PACKS if full else ("project", "arch"):
