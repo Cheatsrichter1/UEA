@@ -8,7 +8,7 @@ What comes after the first version and in which order, and the ideas and backlog
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 (0.2.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids after the release | Partial views, From model to tender |
-| v3 | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
+| v3 | The agent dashboard: what each agent is doing right now, for the engineer; built, not yet released | Agent dashboard |
 | v4 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v5 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 
@@ -80,27 +80,15 @@ Version 2. The model already holds what a tender needs: the quantities, per elem
 
 ## Agent dashboard
 
-Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/0001-no-own-agent.md`). Per agent on a project, one line of what it works on ("planning the lighting on the OG", "running the Heizlast", "exporting the plans") and a simple animation for its state:
+Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/0001-no-own-agent.md`).
 
-| State | When |
-|---|---|
-| planning | it applies a batch |
-| calculating | `uea calc` |
-| exporting | `uea export` |
-| reading | `uea show`, `get`, `find`, `view` |
-| thinking | after its last command, until it goes quiet |
-| idle | quiet for some minutes |
+Built (`docs/decisions/0053-agent-dashboard.md`): UEA infers the activity from the commands an agent runs anyway, so no agent reports a status. The CLI writes a line per command to an activity log on the machine, out of git, and `uea dashboard` serves a local page that reads it: per project and agent, its state (plant, rechnet, exportiert, liest, denkt nach, ruht) with an animation, a line such as "plant die Beleuchtung im OG", its last batch and its last commands.
 
-The proposal: UEA infers all of it from the commands an agent runs anyway, so no agent reports a status. "Planning the lighting on the OG" follows from a batch by `elec` that writes `light.uea` on the OG, "running the Heizlast" from `uea calc heatload`. The CLI appends a line per command to an activity log beside the history, and `uea dashboard` serves a local page that reads it. It only reads, so it never slows the agents down, and agents never use it.
+Open:
 
-Open, for the decision record:
-
-- **Who runs a command.** Only `apply` names its agent (`--by`); reading, calculating and exporting would need `--by` on every command or a variable the agent sets once (`UEA_BY=elec`).
-- **Thinking.** UEA cannot tell an agent thinking from one that is done; the gap since its last command is all it sees.
-- **Where the log lives:** in the project and in git like `log.jsonl`, or local to the machine and out of git.
-- **0001 says no status features.** An activity log the CLI writes by itself adds nothing an agent has to call; a `uea status "<text>"` an agent calls would, and stays out unless the inference falls short.
-
-Later, beyond the small first version: how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/0010-requests-in-the-model.md`). Questions waiting for a human answer need question events that UEA does not have.
+- **Agents on other machines.** The log is per machine; a dashboard across machines needs the logs shipped to one place, perhaps together with a host model (Partial views, Agents on several machines).
+- **Thinking** is the gap since an agent's last command; UEA cannot tell it from an agent that is done or waiting for its human. An optional `uea status "<text>"` stays out unless that falls short.
+- **More than the moment:** how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/0010-requests-in-the-model.md`). Questions waiting for a human answer need question events that UEA does not have.
 
 ## Office workflows
 

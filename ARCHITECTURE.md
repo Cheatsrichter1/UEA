@@ -2,7 +2,7 @@
 
 How UEA is built. For the why see `VISION.md`; for what comes next see `FUTURE.md`; for the reasoning behind individual choices see `docs/decisions/`.
 
-Status: release 0.2.0 (`CHANGELOG.md`): version 1 and version 2; the bids are built since, not yet released. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
+Status: release 0.2.0 (`CHANGELOG.md`): version 1 and version 2; the bids and the agent dashboard are built since, not yet released. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
 
 ## 1. Overview
 
@@ -217,6 +217,7 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf`, `gaeb` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
+| `uea dashboard [--port n]` | For the engineer, not for agents: a local page of what each agent is doing (Dashboard below) |
 
 Output rules:
 
@@ -234,6 +235,10 @@ For anything the CLI does not cover, agents write Python against the API: read-o
 ### MCP
 
 Later, a thin MCP server wrapping the CLI for agents that prefer tools over a shell. No features of its own.
+
+### Dashboard
+
+The engineer sees what each agent is doing right now (`docs/decisions/0053-agent-dashboard.md`). Agents report nothing: the CLI writes a line to an activity log on the machine when a command starts and when it ends (`activity.py`, `~/.local/state/uea/activity.jsonl`, out of git; `UEA_ACTIVITY=off` stops it). `uea dashboard` serves a local page that reads it and shows, per project and agent, its state (planning, calculating, exporting, reading, thinking, idle) with an animation, a line such as "plant die Beleuchtung im OG", its last batch and its last commands. Agents name themselves with `UEA_BY`.
 
 ## 7. Validation
 

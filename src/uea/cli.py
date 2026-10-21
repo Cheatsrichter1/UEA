@@ -56,6 +56,8 @@ class Ctx:
         self._d: Derived | None = None
         self._rep: Report | None = None
         self.note: str | None = None
+        self.act: dict[str, Any] = {}
+        """What the command adds to its end line in the activity log (`activity.py`)."""
 
     @property
     def project(self) -> Project:
@@ -433,6 +435,7 @@ def _by(ctx: Ctx) -> str | None:
 
 
 def _print_result(ctx: Ctx, res: Result) -> int:
+    _note_batch(ctx, res)
     if ctx.json:
         out_json(result_json(res))
     else:
@@ -440,6 +443,20 @@ def _print_result(ctx: Ctx, res: Result) -> int:
             out(res.external)
         out(result_lines(res, res.after))
     return 0 if res.ok else 1
+
+
+def _note_batch(ctx: Ctx, res: Result) -> None:
+    """The packs and storeys a batch wrote, for the activity log."""
+    from uea.packs.arch.views import level_of
+
+    msg = getattr(ctx.args, "m", None)
+    ctx.act.update(batch=res.batch, msg=msg, dry=res.dry or None, revert=res.revert)
+    a, d = res.applied, res.derived
+    if a is None or d is None:
+        return
+    ctx.act["packs"] = [p for p in a.model.reg.packs if p in a.packs]
+    got = {lv for i in a.touched if i in d.model and (lv := level_of(d, d.model[i]))}
+    ctx.act["levels"] = [e.id for e in d.model.of_kind("level") if e.id in got]
 
 
 def cmd_apply(ctx: Ctx) -> int:
@@ -593,6 +610,12 @@ def cmd_import(ctx: Ctx) -> int:
     return run_import(ctx, by, out, out_json, issue_lines, result_json)
 
 
+def cmd_dashboard(ctx: Ctx) -> int:
+    from uea.dashboard import serve
+
+    return serve(ctx.args.port)
+
+
 def cmd_version(ctx: Ctx) -> int:
     out(f"uea {__version__}")
     return 0
@@ -663,6 +686,7 @@ def build_parser() -> Parser:
     im.add_argument("--dry-run", action="store_true")
     im.add_argument("--building", metavar="NAME")
     im.add_argument("--bidder", metavar="NAME")
+    add("dashboard", cmd_dashboard).add_argument("--port", type=int, default=8770, metavar="N")
     return p
 
 
@@ -675,8 +699,13 @@ def main(argv: list[str] | None = None) -> int:
         args.topic = None
         args.func = cmd_help
     ctx = Ctx(args)
+    from uea import activity
+
+    run = activity.start(args, ctx.dir)
+    code = 2
     try:
-        return int(args.func(ctx))
+        code = int(args.func(ctx))
+        return code
     except NotAProject as e:
         out(f"uea: {e}")
         return 2
@@ -689,3 +718,7 @@ def main(argv: list[str] | None = None) -> int:
             ]
         )
         return 2
+    finally:
+        if run is not None:
+            run.info = ctx.act
+            run.end(code)

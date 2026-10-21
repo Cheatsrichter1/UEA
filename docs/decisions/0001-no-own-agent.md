@@ -20,5 +20,5 @@ UEA does not build an agent, an agent router or a multi-agent framework. It prov
 
 - Coordination between several agents (for example a lead agent over discipline agents) is the agents' job. UEA only guarantees atomic, validated changes and reports cross-discipline effects.
 - UEA's output must work for agents of very different quality, so error messages and help must be self-explanatory.
-- No chat, status or question features in UEA. Each batch carries a message explaining why it was made.
+- No chat, status or question features in UEA. Each batch carries a message explaining why it was made. The activity log behind the dashboard is written by the CLI as a side effect of commands, so no agent reports a status (`0053-agent-dashboard.md`).
 - What one discipline needs from another is a request in the model (`0010-requests-in-the-model.md`), not a message. Agents may still talk to each other directly.

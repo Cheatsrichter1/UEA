@@ -21,6 +21,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export)"),
     ("uea import <format> <file>", "an architect's IFC (ifc), a bid (gaeb) (help import)"),
     ("uea log [n]", "recent batches"),
+    ("uea dashboard [--port n]", "for the engineer: a local page of what each agent is doing"),
     ("uea help [topic]", "this help, or a topic"),
 )
 """Every command with a one-line description: the root help and docs/reference.md."""
@@ -41,6 +42,7 @@ areas, heights and checks; you decide. A human reviews the exports and signs.
     + "\n".join(f"  {u:<31} {d}" for u, d in COMMANDS[:-1])
     + f"""
   Options: -C <dir> run in another folder · --json machine-readable output
+  Set UEA_BY=<who> once: it names you on every command, for the history and the dashboard
 
 Topics: uea help {TOPICS}
 """

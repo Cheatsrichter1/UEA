@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UEA Agenten</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
+  --plan: #2f6fde; --calc: #c4730f; --export: #2e9459; --read: #7a5bd1; --think: #8a8880;
+  --bad: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161614; --card: #22221f; --ink: #ecebe6; --muted: #a09e96; --line: #34332f;
+    --plan: #6b9cf0; --calc: #e19a3c; --export: #57c084; --read: #a68ef0; --think: #9a988f;
+    --bad: #e66b5c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+h2 { font-size: 16px; margin: 28px 0 10px; }
+h2 small { color: var(--muted); font-weight: normal; font-size: 12px; margin-left: 8px; }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; display: grid; grid-template-columns: 56px 1fr; gap: 4px 14px; }
+.icon { grid-row: span 3; width: 56px; height: 56px; color: var(--c); }
+.who { font-weight: 600; }
+.state { color: var(--c); font-weight: 600; margin-left: 6px; }
+.text { font-size: 15px; }
+.meta { color: var(--muted); font-size: 12px; }
+.bad { color: var(--bad); }
+details { grid-column: 1 / -1; margin-top: 6px; font-size: 13px; color: var(--muted); }
+details ul { list-style: none; margin: 6px 0 0; padding: 0; }
+details li { padding: 2px 0; }
+details b { font-weight: 500; color: var(--ink); margin-right: 6px; }
+.empty { color: var(--muted); margin-top: 40px; }
+.s-plan { --c: var(--plan); } .s-calc { --c: var(--calc); } .s-export { --c: var(--export); }
+.s-read { --c: var(--read); } .s-think { --c: var(--think); } .s-idle { --c: var(--think); }
+.s-idle .icon { opacity: .5; }
+svg * { vector-effect: non-scaling-stroke; }
+.draw { stroke-dasharray: 120; animation: draw 2.4s linear infinite; }
+.pencil { animation: pencil 2.4s linear infinite; }
+@keyframes draw { from { stroke-dashoffset: 120; } to { stroke-dashoffset: 0; } }
+@keyframes pencil { 0% { transform: translate(0, 0); } 25% { transform: translate(28px, 0); }
+  50% { transform: translate(28px, 28px); } 75% { transform: translate(0, 28px); }
+  100% { transform: translate(0, 0); } }
+.bar { transform-box: fill-box; transform-origin: bottom; animation: bar 1s ease-in-out infinite; }
+.bar:nth-child(2) { animation-delay: .2s; } .bar:nth-child(3) { animation-delay: .4s; }
+@keyframes bar { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+.sheet { animation: sheet 1.8s ease-in-out infinite; }
+@keyframes sheet { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; }
+  80% { transform: translateY(-16px); opacity: 1; } 100% { transform: translateY(-18px); opacity: 0; } }
+.lens { animation: lens 2.2s ease-in-out infinite; }
+@keyframes lens { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(18px, 8px); } }
+.dot { animation: dot 1.4s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: .2s; } .dot:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+.z { animation: z 3s ease-in-out infinite; }
+@keyframes z { 0% { transform: translate(0, 0); opacity: 0; } 50% { opacity: 1; }
+  100% { transform: translate(6px, -10px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Was die Agenten gerade tun</h1>
+<div class="sub" id="sub">UEA · nur Anzeige, ändert nichts am Modell</div>
+<div id="root"></div>
+</main>
+<script>
+const ICON = {
+  plan: '<svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2">'
+    + '<rect x="12" y="12" width="28" height="28" class="draw" stroke-linejoin="round"/>'
+    + '<g class="pencil"><path d="M12 12 l-5 -9 l4 -2 l5 9 z" fill="currentColor" stroke="none"/></g></svg>',
+  calc: '<svg viewBox="0 0 56 56" fill="currentColor">'
+    + '<g><rect class="bar" x="12" y="14" width="8" height="30" rx="2"/>'
+    + '<rect class="bar" x="24" y="14" width="8" height="30" rx="2"/>'
+    + '<rect class="bar" x="36" y="14" width="8" height="30" rx="2"/></g></svg>',
+  export: '<svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2">'
+    + '<rect class="sheet" x="18" y="22" width="20" height="18" fill="var(--card)"/>'
+    + '<rect x="10" y="34" width="36" height="12" rx="3" fill="var(--card)"/></svg>',
+  read: '<svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2">'
+    + '<path d="M10 16h36M10 24h36M10 32h28M10 40h32" opacity=".4"/>'
+    + '<g class="lens"><circle cx="18" cy="22" r="8"/><path d="M24 28l7 7"/></g></svg>',
+  think: '<svg viewBox="0 0 56 56" fill="currentColor"><g>'
+    + '<circle class="dot" cx="16" cy="28" r="4"/><circle class="dot" cx="28" cy="28" r="4"/>'
+    + '<circle class="dot" cx="40" cy="28" r="4"/></g></svg>',
+  idle: '<svg viewBox="0 0 56 56" fill="currentColor" font-family="system-ui" font-weight="700">'
+    + '<text class="z" x="20" y="38" font-size="18">z</text></svg>',
+};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function card(a, root) {
+  const meta = [];
+  if (a.ago) meta.push('letzter Befehl ' + esc(a.ago));
+  if (a.batch) meta.push('Batch ' + esc(a.batch.n) + (a.batch.msg ? ': „' + esc(a.batch.msg) + '“' : '') + ' · ' + esc(a.batch.ago));
+  const recent = a.recent.map(r => '<li><b>' + esc(r.time) + '</b>' + esc(r.text)
+    + (r.ok ? '' : ' <span class="bad">(abgelehnt oder Fehler)</span>') + '</li>').join('');
+  const k = esc(root + '|' + a.by);
+  return '<div class="card s-' + a.state + '"><div class="icon">' + ICON[a.state] + '</div>'
+    + '<div><span class="who">' + esc(a.by) + '</span><span class="state">' + esc(a.label) + '</span></div>'
+    + '<div class="text">' + esc(a.text) + (a.ok ? '' : ' <span class="bad">(abgelehnt oder Fehler)</span>') + '</div>'
+    + '<div class="meta">' + meta.join(' · ') + '</div>'
+    + '<details data-k="' + k + '"' + (open.has(root + '|' + a.by) ? ' open' : '') + '><summary>Zuletzt</summary><ul>' + recent + '</ul></details></div>';
+}
+let open = new Set();
+async function tick() {
+  try {
+    const r = await fetch('state', {cache: 'no-store'});
+    const s = await r.json();
+    open = new Set([...document.querySelectorAll('details[open]')].map(d => d.dataset.k));
+    const html = s.projects.map(p => '<h2>' + esc(p.name) + '<small>' + esc(p.root) + '</small></h2>'
+      + '<div class="grid">' + p.agents.map(a => card(a, p.root)).join('') + '</div>').join('');
+    document.getElementById('root').innerHTML = html || '<p class="empty">Noch keine Agenten. Sobald ein Agent einen uea-Befehl ausführt, erscheint er hier.</p>';
+    document.getElementById('sub').textContent = 'UEA · nur Anzeige, ändert nichts am Modell · Stand ' + new Date().toLocaleTimeString('de-DE');
+  } catch (e) {
+    document.getElementById('sub').textContent = 'UEA · keine Verbindung zum Dashboard';
+  }
+}
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>
