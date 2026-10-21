@@ -7,7 +7,7 @@ the office's table `lv-texts`, its own texts, installed like a norm table (`uea 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from uea.calc import data
+from uea.calc import data, de
 from uea.calc.data import Col, Spec
 from uea.derive import Derived, Report
 from uea.packs.lv.kinds import Pos, Title
@@ -169,4 +169,115 @@ def lv_tables(d: Derived) -> list["Table"]:
         ktotal: list[Cell] = ["Summe", None, round(sum(gps), 2)]
         knotes = ["Summen der bepreisten Positionen je Kostengruppe; netto, ohne Umsatzsteuer."]
         out.append(Table("Kosten", f"Kosten nach DIN 276 – {name}", kcols, krows, ktotal, knotes))
+    return out
+
+
+def bid_tables(d: Derived) -> list["Table"]:
+    """The bids after the arithmetic check (0051): one row per bid, and the Preisspiegel with
+    each bid's unit and total price per position. The flags of `uea calc bids` depend on its
+    threshold (dev=) and stay in its report."""
+    from uea.calc.bids import ranks
+    from uea.export.tables import M2, Cell, M, Table
+    from uea.export.tables import Col as TCol
+    from uea.packs.bid.geometry import QTY_TOL, gp
+    from uea.packs.bid.kinds import Bid
+
+    all_bids = d.bid.bids
+    if not all_bids:
+        return []
+    proj = d.model.of_kind("project")
+    name = (proj[0].label or proj[0].id) if proj else "UEA"
+    rk = ranks(all_bids)
+    keys = list(all_bids)
+    rows: list[list[Cell]] = []
+    notes: list[str] = []
+    for k, s in all_bids.items():
+        b = d.model[k]
+        assert isinstance(b, Bid)
+        rank = f"{rk[k][0]} von {rk[k][1]}" if k in rk else "unvollständig"
+        rows.append(
+            [
+                k,
+                b.label,
+                b.date,
+                " ".join(d.lv.oz[t] for t in s.titles) or None,
+                round(s.checked, 2),
+                b.total,
+                s.disc or None,
+                round(s.net, 2),
+                rank,
+            ]
+        )
+        if s.unpriced:
+            notes.append(f"{k}: ohne Preis für {', '.join(d.lv.oz[p] for p in s.unpriced)}")
+        if b.total is not None and abs(b.total - s.checked) > 0.005:
+            notes.append(
+                f"{k}: angegebene Summe {de(b.total)} €, rechnerisch geprüft {de(s.checked)} €."
+            )
+    cols = [
+        TCol("Angebot", 9),
+        TCol("Bieter", 30),
+        TCol("Datum", 11),
+        TCol("Titel", 10),
+        TCol("Summe geprüft €", 15, M2),
+        TCol("Summe angegeben €", 15, M2),
+        TCol("Nachlass %", 10, M2),
+        TCol("Wertungssumme €", 15, M2),
+        TCol("Rang", 13),
+    ]
+    notes += [
+        "Rechnerische Prüfung nach VOB/A § 16c Abs. 2: Menge des Angebots × Einheitspreis;"
+        " weicht der Gesamtpreis des Bieters ab, ist der Einheitspreis maßgebend.",
+        "Rang nach der Wertungssumme unter den vollständigen Angeboten auf dieselben Titel,"
+        " nur nach dem Preis; über den Zuschlag entscheidet der Auftraggeber.",
+    ]
+    out = [Table("Angebote", f"Angebote – {name}", cols, rows, None, notes)]
+
+    mcols = [TCol("OZ", 10), TCol("Kurztext", 40), TCol("Menge", 12, M), TCol("Einheit", 8)]
+    for k in keys:
+        mcols += [TCol(f"EP {k} €", 11, M2), TCol(f"GP {k} €", 13, M2)]
+    mrows: list[list[Cell]] = []
+    mnotes: list[str] = []
+    for t, pids in d.lv.positions.items():
+        if not any(t in all_bids[k].titles for k in keys):
+            continue
+        el = d.model[t]
+        assert isinstance(el, Title)
+        row: list[Cell] = [d.lv.oz[t], el.label or t, None, None]
+        for k in keys:
+            v = all_bids[k].by_title.get(t)
+            row += [None, round(v, 2) if v is not None else None]
+        mrows.append(row)
+        for pid in pids:
+            q = d.lv.qty.get(pid)
+            if q is None:
+                continue
+            p = d.model[pid]
+            row = [d.lv.oz[pid], p.label or pid, round(q.value, 3), q.unit]
+            for k in keys:
+                pr = all_bids[k].prices.get(pid)
+                if pr is None:
+                    row += ["–" if t in all_bids[k].titles else None, None]
+                    continue
+                row += [pr.ep, gp(d, pr)]
+                if pr.qty is not None and abs(pr.qty - q.value) > QTY_TOL:
+                    mnotes.append(
+                        f"{k}, {d.lv.oz[pid]}: Menge des Angebots {de(pr.qty, 3)} {q.unit},"
+                        f" im LV jetzt {de(q.value, 3)} {q.unit}."
+                    )
+                if pr.gp is not None:
+                    mnotes.append(
+                        f"{k}, {d.lv.oz[pid]}: Gesamtpreis des Bieters {de(pr.gp)} €;"
+                        " der Einheitspreis ist maßgebend."
+                    )
+            mrows.append(row)
+    total: list[Cell] = ["Summe geprüft", None, None, None]
+    for k in keys:
+        total += [None, round(all_bids[k].checked, 2)]
+    mnotes += [
+        "GP = Menge des Angebots × EP, auf Cent gerundet; Titelzeilen tragen die Summe je Titel.",
+        "– : Position eines angebotenen Titels ohne Preis.",
+        "Einheitspreise fern vom Median: uea calc bids (Schwelle dev=, Sache des Büros).",
+    ]
+    out.append(Table("Preisspiegel", f"Preisspiegel – {name}", mcols, mrows, total, mnotes))
     return out

@@ -282,7 +282,8 @@ uea export pdf <result>             a calculation report to sign: out/<result>.m
 uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs, stairs,
                                     quantities, electrical, emitters, manifolds, fixtures, pipes,
                                     ventilation units, air terminals, ducts; the LV and its
-                                    costs per DIN 276 cost group (help lv)
+                                    costs per DIN 276 cost group (help lv); the bids and
+                                    their Preisspiegel (help bid)
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export gaeb [-o file]           the LV for bidders: GAEB DA XML 3.3, phase 83, no prices
@@ -368,6 +369,7 @@ covers the titles it prices; a position of those titles without a price makes it
 where the bidder's total price differs, the unit price counts (VOB/A § 16c Abs. 2 Nr. 1).
 uea get <bid> shows its sum and discount, uea get <pos> every bid's price.
 uea calc bids                         the comparison (Preisspiegel), ranks and flags, never awards
+uea export xlsx                       sheets Angebote and Preisspiegel
 uea calc costs stage=offer bid=bd2    the Kostenanschlag: the model's quantities times the prices
                                       of the bids awarded (bd2,bd5 for one per title), less
                                       their discount; the LV's own prices for the rest
