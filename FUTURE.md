@@ -7,8 +7,8 @@ What comes after the first version and in which order, and the ideas and backlog
 | Version | Content | Section |
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
-| v2 (0.2.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids after the release | Partial views, From model to tender |
-| v3 | The agent dashboard: what each agent is doing right now, for the engineer; built, not yet released | Agent dashboard |
+| v2 (0.2.0, 0.3.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids in 0.3.0 | Partial views, From model to tender |
+| v3 (0.3.0) | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
 | v4 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
 | v5 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 

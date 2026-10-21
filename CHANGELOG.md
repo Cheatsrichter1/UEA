@@ -2,12 +2,35 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
-## Unreleased
+## 0.3.0 (2026-10-21): the bids and the agent dashboard
 
-- **The agent dashboard** (`docs/decisions/0053-agent-dashboard.md`), version 3: `uea dashboard` serves a local page that shows the engineer, per project and agent, what it is doing right now ("plant die Beleuchtung im OG", "berechnet die Heizlast · OG") with an animation for its state (planning, calculating, exporting, reading, thinking, idle), its last batch and its last commands. UEA infers it from the commands: the CLI writes a line per command to an activity log on the machine, out of git (`~/.local/state/uea/activity.jsonl`, `UEA_ACTIVITY=off` stops it). Agents set `UEA_BY` once to be named on every command.
-- **No test suite and no token bench** (`docs/decisions/0052-no-tests-in-the-repo.md`): `tests/` and `bench/` are removed, and CI runs ruff and pyright only. Everything passed at commit `517c07e`; the validation reports keep their cases as the record of what was verified there.
+Version 2 is complete with the bids, and version 3 is the agent dashboard. The calculators new in this release (`bids`, `light`) are **not yet reviewed** by a licensed person, nor are those of 0.2.0 (`din277`, `costs`, `hoai`), and the norm tables, prices and factors in the repo are synthetic test data. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.
+
+### From the tender to the award
+
 - **The bids** (`docs/decisions/0051-bids.md`): `uea import gaeb <file.x84>` reads a bidder's GAEB DA XML, phase 84, into a new discipline file `bid.uea`: a `bid` line per bidder and a `price` line per priced position, matched by the ids UEA wrote into the phase 83 file, else by number. Checks E-BID-001 to W-BID-005: incomplete bids, quantities the LV no longer has, a total price that is not quantity times unit price, a stated total that is not the sum. `uea calc bids` (`norm`, the arithmetic check of VOB/A § 16c Abs. 2) compares them: checked sums, discount, rank among the complete bids on the same titles, sums per title beside the office's own prices, unit prices far from the median; its report is the Preisspiegel. `uea calc costs stage=offer bid=<ids>` is the Kostenanschlag from the bids awarded. `uea export xlsx` gets the sheets Angebote and Preisspiegel. **Not yet reviewed** by a licensed person; the GAEB reader is tested on files made from UEA's own export, not on an AVA program's.
+
+### Lighting
+
 - **Illuminance targets and the average illuminance of a room** (`docs/decisions/0050-illuminance.md`): `illum il1 r2 em=150 h=0.75` in `light.uea` (with `at=` and `area=` a task area), and `uea calc light refl=<r> mf=<f> [scope]`, a `norm` calculator by the utilisation factor method: each luminaire's room index from its height over the working plane, the utilisation factor from the office's table `light-uf` (the maker's data or the LiTG's), how many luminaires to add in a low room. Task areas are listed, not checked. **Not yet reviewed** by a licensed person; the factors in the tests are synthetic.
+
+### The agent dashboard
+
+- **The agent dashboard** (`docs/decisions/0053-agent-dashboard.md`): `uea dashboard` serves a local page that shows the engineer, per project and agent, what it is doing right now ("plant die Beleuchtung im OG", "berechnet die Heizlast · OG") with an animation for its state (planning, calculating, exporting, reading, thinking, idle), its last batch and its last commands. UEA infers it from the commands: the CLI writes a line per command to an activity log on the machine, out of git (`~/.local/state/uea/activity.jsonl`, `UEA_ACTIVITY=off` stops it). Agents set `UEA_BY` once to be named on every command.
+
+### Code
+
+- **No test suite and no token bench** (`docs/decisions/0052-no-tests-in-the-repo.md`): `tests/` and `bench/` are removed, and CI runs ruff and pyright only. Everything passed at commit `517c07e`; the validation reports keep their cases as the record of what was verified there.
+- The stale references to `bench/` and `tests/` in `FUTURE.md` and `tools/README.md` point to commit `517c07e`.
+
+### Not in this release
+
+- Any review of `din277`, `costs`, `hoai`, `bids` and `light` by a licensed person.
+- Side offers (Nebenangebote), GAEB phases 81 and 86, a check of the GAEB files against the official schema or in an AVA program, and a first real tender.
+- The Kostenfeststellung.
+- The point calculation of lighting with photometric files, glare (UGR), daylight and emergency lighting.
+- A dashboard across machines, and questions from agents waiting for a human.
+- Incremental validation (`FUTURE.md`, Partial views).
 
 ## 0.2.0 (2026-10-16): from the model to the tender
 
