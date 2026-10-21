@@ -8,9 +8,9 @@ What comes after the first version and in which order, and the ideas and backlog
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 (0.2.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids after the release | Partial views, From model to tender |
-| v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
-| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
-| v5 | The agent dashboard | Agent dashboard |
+| v3 | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
+| v4 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
+| v5 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 
 The order is fixed; the content of each version is not.
 
@@ -78,17 +78,41 @@ Version 2. The model already holds what a tender needs: the quantities, per elem
 - **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
 - **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs.
 
+## Agent dashboard
+
+Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/0001-no-own-agent.md`). Per agent on a project, one line of what it works on ("planning the lighting on the OG", "running the Heizlast", "exporting the plans") and a simple animation for its state:
+
+| State | When |
+|---|---|
+| planning | it applies a batch |
+| calculating | `uea calc` |
+| exporting | `uea export` |
+| reading | `uea show`, `get`, `find`, `view` |
+| thinking | after its last command, until it goes quiet |
+| idle | quiet for some minutes |
+
+The proposal: UEA infers all of it from the commands an agent runs anyway, so no agent reports a status. "Planning the lighting on the OG" follows from a batch by `elec` that writes `light.uea` on the OG, "running the Heizlast" from `uea calc heatload`. The CLI appends a line per command to an activity log beside the history, and `uea dashboard` serves a local page that reads it. It only reads, so it never slows the agents down, and agents never use it.
+
+Open, for the decision record:
+
+- **Who runs a command.** Only `apply` names its agent (`--by`); reading, calculating and exporting would need `--by` on every command or a variable the agent sets once (`UEA_BY=elec`).
+- **Thinking.** UEA cannot tell an agent thinking from one that is done; the gap since its last command is all it sees.
+- **Where the log lives:** in the project and in git like `log.jsonl`, or local to the machine and out of git.
+- **0001 says no status features.** An activity log the CLI writes by itself adds nothing an agent has to call; a `uea status "<text>"` an agent calls would, and stays out unless the inference falls short.
+
+Later, beyond the small first version: how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/0010-requests-in-the-model.md`). Questions waiting for a human answer need question events that UEA does not have.
+
 ## Office workflows
 
-Version 3. An agent works the business side, with a human approving every outgoing step:
+Version 4. An agent works the business side, with a human approving every outgoing step:
 
-1. A job comes in, from a client or from the tender watching of version 4. The agent summarizes it for the senior engineer: scope, deadlines, requirements, rough effort.
+1. A job comes in, from a client or from the tender watching of version 5. The agent summarizes it for the senior engineer: scope, deadlines, requirements, rough effort.
 2. When the senior engineer approves, it prepares the offer, the fee calculation (version 2) and a first draft of the plan.
 3. The senior engineer checks it and signs. Nothing goes out without that signature.
 
 ## Plot evaluation
 
-Version 4. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
+Version 5. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
 
 - What the Bebauungsplan, BauNVO (GRZ, GFZ, storeys) or §34 BauGB and the Landesbauordnung allow.
 - Building options: social housing, regular apartments, single-family houses, mixed use.
@@ -98,22 +122,11 @@ The result is a decision basis for a human, not a decision. Needs the site plan 
 
 ## Tender watching
 
-Version 4. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and hands each match to the office workflow (version 3). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
+Version 5. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and hands each match to the office workflow (version 4). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
 
 ## Existing buildings
 
 - **Survey into a model:** turn point clouds from a laser scanner, or photos, into a model of the existing building (status `existing`) for conversions and refurbishments.
-
-## Agent dashboard
-
-Version 5. A small, friendly dashboard for the senior engineer, a cherry on top. It is not a viewer and does not show the model one-to-one. It shows the state of the work:
-
-- What each agent is doing right now ("planning the electrics on the EG", "running Heizlast"), with a simple animation.
-- How far along each project is.
-- Open questions from the agents that are waiting for a human answer.
-- Drafts that are ready for review, and approvals that are pending.
-
-Much of this UEA records anyway: the history, open issues, requests and waivers. What each agent is doing right now, and the questions waiting for a human, would need status and question events that UEA deliberately does not have today (`docs/decisions/0001-no-own-agent.md`). Building the dashboard means revisiting that decision. Either way, it only reads, so it never slows the agents down.
 
 ## Backlog
 
