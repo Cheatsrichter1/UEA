@@ -5,7 +5,7 @@
 | Calculator | `recirc` 0.1.0, kind `norm` |
 | Standards | DIN 1988-300:2012-05, the short method of the circulation; the limit of water without circulation is the planner's (DVGW W 551 sets 3 l) |
 | Code | `src/uea/packs/plumb/recirc.py`; the circulated pipes from `src/uea/packs/plumb/geometry.py` (`circulated`); the hot-water sizes from `water.py`; the hydraulics in `src/uea/packs/hydraulics.py` |
-| Tests | `tests/test_plumb.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The settings `loss` (W/m), `dt` (K) and `dead` (l) are the planner's. The tables are those of `water`, whose hot-water pipe sizes this calculator uses.
@@ -34,7 +34,7 @@ For each circulation (`recirc` in `plumb.uea`): for each circulated hot-water se
 - That the circulation runs to every branch as derived, and the branches are as short as the plan.
 - The loss per metre for the insulation built, the allowed temperature drop.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 The 10 × 8 box of `test_plumb`, the tank t1 with the sink sa1 on the EG and the shower sa2 up the riser sr1; pipe 16x2 (d_i 12 mm) first; v_max 2 m/s; q = 10 W/m, Δθ = 5 K.
 

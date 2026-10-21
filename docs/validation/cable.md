@@ -5,7 +5,7 @@
 | Calculator | `cable` 0.1.0, kind `norm` |
 | Standards | DIN VDE 0100-430 (IEC 60364-4-43), 433.1, protection against overload; DIN VDE 0100-520 (IEC 60364-5-52) and DIN VDE 0298-4, current-carrying capacity and correction factors |
 | Code | `src/uea/packs/elec/cable.py`; lengths and circuits from `src/uea/packs/elec/geometry.py`; tables from `src/uea/calc/data.py` |
-| Tests | `tests/test_calc_elec.py`, `tests/test_data.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_calc_elec.py`, `tests/test_data.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The tables of the standards are licensed and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`). The code holds the formulas; the office supplies the numbers with `uea data add`, and every result names the edition of each table it used. The tests use tables of our own with invented values that are not any standard's.
@@ -39,7 +39,7 @@ A cross-section, temperature or group the table does not list is `no table data`
 - The insulation is PVC unless `insulation=` says otherwise; the model's cable designation (NYM-J, ...) is not interpreted.
 - The table is exactly what the office entered. UEA checks its shape (columns, numbers, duplicates), not its content.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 All expected values are computed by hand from our own invented table: B2 PVC with two loaded conductors 1.5 mm² → 12 A, 2.5 mm² → 16 A, 4 mm² → 22 A; three loaded conductors 2.5 mm² → 14 A; C PVC two loaded 1.5 mm² → 15 A; at 40 °C PVC factor 0.8; three grouped, bundled, factor 0.7.
 

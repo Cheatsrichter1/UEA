@@ -5,7 +5,7 @@
 | Calculator | `ducts` 0.2.0, kind `norm` |
 | Method | Flows per DIN 1946-6:2019-12 (`airflow`); pressure loss by Darcy-Weisbach with Colebrook-White |
 | Code | `src/uea/packs/vent/ducts.py`; the ducts from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py` |
-| Tests | `tests/test_vent.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_vent.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 `vmax` is the planner's; the flows come from `airflow` with its settings and tables; the diameters, roughness and ζ from the default duct type (`docs/decisions/0038-ventilation.md`).
@@ -31,7 +31,7 @@ For each section of each central unit's ducts: the flow, the diameter, the veloc
 - Round ducts only; no rectangular ducts, no routes along shafts.
 - Air at one temperature for all four kinds of air.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 The box with a central unit in r1 (`tests/test_vent.py`), ducts of Ø80, 100, 125, 160 with k 0.15 mm, ζ 0.3 for a bend and 0.6 for a tee, v_max 3 m/s.
 

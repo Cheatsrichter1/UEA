@@ -303,7 +303,7 @@ The IFC GlobalId of each element is kept in the history entry of the import, wit
 |---|---|
 | Language | Python 3.12+, typed throughout, pyright in strict mode |
 | Schemas and validation | Pydantic v2 |
-| Packaging and tooling | uv, ruff, pytest |
+| Packaging and tooling | uv, ruff, pyright |
 | Geometry | Shapely |
 | Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl, ezdxf, reportlab; Blender and DWG converters as separate processes |
 | Structural solver | PyNite (MIT, optional extra `uea[struct]`): plates, continuous beams and plane frames (`0040-structure.md`, `0044-structure-completion.md`) |
@@ -313,10 +313,10 @@ Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) co
 
 ## 12. Token efficiency
 
-Token use is a design constraint, measured by the token task set from phase 1 on (`bench/`):
+Token use is a design constraint, measured by the token task set from phase 1 to commit `517c07e` (`bench/` there; removed since, `docs/decisions/0052-no-tests-in-the-repo.md`):
 
 - The file format and the operation syntax are the cheapest readable form we can find.
 - `uea help` is layered, so an agent's starting context stays small.
 - Read commands default to the smallest useful answer.
 - Agents get pictures only when they ask for them.
-- Every change to the file format or output is checked on the task set for token cost and error rate. Saving tokens does not count if agents make more mistakes. The task set lives in `bench/` (`uv run python -m bench`); its last results are in `bench/results.md`.
+- A change to the file format or output keeps it as short as it is or shorter. Saving tokens does not count if agents make more mistakes. The task set's last results are in `bench/results.md` at commit `517c07e`.

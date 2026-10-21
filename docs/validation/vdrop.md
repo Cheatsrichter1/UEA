@@ -5,7 +5,7 @@
 | Calculator | `vdrop` 0.1.0, kind `norm` |
 | Standard | DIN VDE 0100-520 (IEC 60364-5-52), Annex G, voltage drop in consumers' installations |
 | Code | `src/uea/packs/elec/vdrop.py`; lengths from `src/uea/packs/elec/routes.py`; tables from `src/uea/calc/data.py` |
-| Tests | `tests/test_calc_elec.py`, `tests/test_routes.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_calc_elec.py`, `tests/test_routes.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The standard's constants are licensed and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`). The code holds the formula; the office supplies ρ and λ in the table `conductor`, and every result names the edition of the table it used. The tests use values of our own that are not any standard's.
@@ -42,7 +42,7 @@ b = 2 for a single-phase and 1 for a three-phase circuit; U₀ = 230 V (phase to
 - The current on socket circuits is a planning assumption (In times `demand`), recorded in the result.
 - ρ must be the resistivity at the temperature the planner designs for, as the standard defines it; UEA does not adjust it.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 All expected values are computed by hand with our own invented table (`Cu`: ρ 0.02 Ω·mm²/m, λ 0.1 mΩ/m; `Al`: ρ 0.036, λ 0.1). The circuits are on a 10 × 8 box house, the board 1.4 m above the floor on the west wall, sockets 0.3 m above it.
 

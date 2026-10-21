@@ -11,16 +11,15 @@ uv sync --all-extras
 uv run ruff format
 uv run ruff check
 uv run pyright          # strict
-uv run pytest
 ```
 
 And depending on what changed:
 
 | Changed | Also run |
 |---|---|
-| CLI output or the file format | `uv run python -m bench --write`, then compare with the committed `bench/results.md`: token cost and error rate must not get worse |
-| Commands, kinds, fields, help or issue codes | `uv run python -m uea.reference` to regenerate `docs/reference.md` (a test fails otherwise) |
-| Behaviour | A test, with expected values computed by hand, not copied from program output |
+| CLI output or the file format | Run it on a project; output and format stay as short as they are or get shorter |
+| Commands, kinds, fields, help or issue codes | `uv run python -m uea.reference` to regenerate `docs/reference.md` |
+| A `norm` calculator | Its validation report: the new case worked out by hand, marked as not verified by a test |
 
 ## Where a change gets written down
 

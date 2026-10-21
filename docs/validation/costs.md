@@ -5,7 +5,7 @@
 | Calculator | `costs` 0.3.0, kind `norm` |
 | Standard | DIN 276:2018-12, Kosten im Bauwesen (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
 | Code | `src/uea/calc/din276.py`; reference quantities from `src/uea/packs/arch/din277.py` |
-| Tests | `tests/test_costs_hoai.py`; the Kostenanschlag in `tests/test_bids.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_costs_hoai.py`; the Kostenanschlag in `tests/test_bids.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. The clause numbers of DIN 276 are not given here: the reviewer adds them with the text at hand, which is not in this repository. |
 
 DIN 276 is licensed; the titles of its cost groups are not in the repository. The office supplies its reference prices per cost group, with its own names for the groups, in the table `cost-ref` (`docs/decisions/0008-office-supplied-norm-data.md`, `0049-cost-estimate-and-hoai-fee.md`).
@@ -24,7 +24,7 @@ DIN 276 is licensed; the titles of its cost groups are not in the repository. Th
 - A row priced on NUF needs the use table of DIN 277; a row priced on BRI needs a roof over the top storey.
 - A cost group and one of its subgroups may not both have a row: 300 covers 300 to 399, 330 covers 330 to 339.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 | Test | Case | Expected |
 |---|---|---|

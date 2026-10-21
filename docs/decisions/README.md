@@ -55,6 +55,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0049 | [The cost estimate per DIN 276 and the fee per HOAI](0049-cost-estimate-and-hoai-fee.md) | Accepted (built) |
 | 0050 | [Illuminance targets and the average illuminance of a room](0050-illuminance.md) | Accepted (built) |
 | 0051 | [Reading the bids, comparing them and the Kostenanschlag](0051-bids.md) | Accepted (built) |
+| 0052 | [No test suite and no token bench in the repository](0052-no-tests-in-the-repo.md) | Accepted |
 
 Template:
 

@@ -52,7 +52,5 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 
 | Path | What it holds |
 |---|---|
-| `tests/` | pytest, one file per area; expected values computed by hand |
-| `bench/` | The token task set (`uv run python -m bench`); `bench/agent/` has the briefs for an agent to build Haus Müller |
 | `docs/prototype/haus-mueller/` | The reference house as `.uea` files, with its exports |
 | `tools/` | Throwaway prototype scripts, not held to the code rules |

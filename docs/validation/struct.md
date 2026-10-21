@@ -6,7 +6,7 @@
 | Standards | DIN EN 1996-3:2010-12 with NA (masonry, simplified method); DIN EN 1996-1-1 with NA (shear walls); DIN EN 1992-1-1:2011-01 with NA (slabs: bending, shear, minimum reinforcement, slenderness); DIN EN 1993-1-1 with NA (beams, columns); DIN EN 1995-1-1 with NA (beams, rafters, collar beams); DIN EN 1991-1-4 with NA (wind on the walls); the loads of `loads` 0.3.0 (`loads.md`) |
 | Code | `src/uea/packs/struct/design.py`, `plate.py`, `frame.py`, `bracing.py`, `positions.py`; the Positionsplan `src/uea/export/positionsplan.py` |
 | Solver | PyNite (MIT), optional extra `uea[struct]`; the version is in the report |
-| Tests | `tests/test_struct.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_struct.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 ## What it computes
@@ -144,7 +144,7 @@ For each it gives the design and its utilisation. The holes in load-bearing memb
 - **The roof:** the rafters' section and spacing, the collar's height, and how the feet's thrust is taken.
 - **The bracing:** which walls brace, and that the slabs act as diaphragms.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 **The test house:**
 

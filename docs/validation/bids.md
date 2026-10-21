@@ -5,7 +5,7 @@
 | Calculator | `bids` 0.1.0, kind `norm` |
 | Standard | VOB/A 2019, § 16c Abs. 2 (rechnerische Prüfung der Angebote) |
 | Code | `src/uea/calc/bids.py`; the checked sums in `src/uea/packs/bid/geometry.py`; reading GAEB 84 in `src/uea/importer/gaeb.py` |
-| Tests | `tests/test_bids.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_bids.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. |
 
 `norm` covers the arithmetic check only. The rank by price, the median and the threshold `dev` are tools for the planner, not rules of the VOB, and the report says so. The Wertung beyond the price and the award are not computed (`docs/decisions/0051-bids.md`).
@@ -24,7 +24,7 @@
 - The discount applies to the whole bid. Discounts on titles or conditional discounts (Skonto) are not read.
 - A unit price of 0 is a price; a missing unit price is none.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 | Test | Case | Expected |
 |---|---|---|

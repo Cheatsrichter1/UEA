@@ -20,8 +20,8 @@ Version 1 is done. What 0.1.0 lacked was people's work, not code (`CHANGELOG.md`
 
 - the reviews by licensed people of the `norm` calculators (`docs/validation/`) and of the structure (`docs/decisions/0040-structure.md`);
 - the test with an office's IFC (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`);
-- the agent runs end to end (`bench/agent/results.md`);
-- the benchmark against a conventional tool and a human drafter (`bench/`);
+- the agent runs end to end (`bench/agent/results.md` at commit `517c07e`);
+- the benchmark against a conventional tool and a human drafter (the task set in `bench/`, removed after commit `517c07e`);
 - the standards' worked examples as a private test suite.
 
 The decision records and the code comments refer to the work of v1 by phase number: 0 foundation, 1 core and architecture, 2 plans and tables, 3 electrical, 4 IFC import, 5 benchmark, 6 plumbing and heating, 7 ventilation, 8 structure.
