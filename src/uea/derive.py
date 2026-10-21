@@ -15,6 +15,7 @@ from uea.core.values import Ref, RefList
 
 if TYPE_CHECKING:
     from uea.packs.arch.geometry import ArchGeo
+    from uea.packs.bid.geometry import BidGeo
     from uea.packs.elec.geometry import ElecGeo
     from uea.packs.heat.geometry import HeatGeo
     from uea.packs.issues import Req, Waive
@@ -66,6 +67,7 @@ class Derived:
         self.vent: VentGeo
         self.struct: StructGeo
         self.lv: LvGeo
+        self.bid: BidGeo
         self.mounts: dict[str, Mounted] = {}
         """What is mounted on a wall or in a room: luminaires and electrical devices."""
 

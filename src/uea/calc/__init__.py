@@ -162,6 +162,7 @@ class Result:
 
 
 def builtin() -> dict[str, Calculator]:
+    from uea.calc.bids import BIDS
     from uea.calc.din276 import COSTS
     from uea.calc.hoai import HOAI
     from uea.packs.arch.din277 import DIN277
@@ -187,6 +188,7 @@ def builtin() -> dict[str, Calculator]:
             WOFL,
             DIN277,
             COSTS,
+            BIDS,
             HOAI,
             CABLE,
             VDROP,

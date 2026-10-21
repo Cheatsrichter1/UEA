@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** version 1 is done: phases 0 to 8, with the reviews by licensed people, the agent runs end to end, the test with an office's IFC and the benchmark done in private. Release 0.2.0 is v2 without the bids: partial views (`uea view`, `apply --view --base`), areas per DIN 277 (`uea calc din277`) the Leistungsverzeichnis (`lv.uea`, `uea export gaeb`), the costs per DIN 276 (`uea calc costs`) and the fee per HOAI (`uea calc hoai`); reading the bids is deferred; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
+**Status:** version 1 is done: phases 0 to 8, with the reviews by licensed people, the agent runs end to end, the test with an office's IFC and the benchmark done in private. Release 0.2.0 is v2 without the bids: partial views (`uea view`, `apply --view --base`), areas per DIN 277 (`uea calc din277`) the Leistungsverzeichnis (`lv.uea`, `uea export gaeb`), the costs per DIN 276 (`uea calc costs`) and the fee per HOAI (`uea calc hoai`); reading the bids (`uea import gaeb`, `uea calc bids`, `uea calc costs stage=offer`) is built since, not yet released; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
 
 ## Docs
 

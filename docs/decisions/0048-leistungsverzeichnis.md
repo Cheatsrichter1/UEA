@@ -32,7 +32,8 @@ pos p4 T02 fix=1 unit=psch "Baustelleneinrichtung" kg=391
 - **OZ** are derived from the order of titles and positions by id: `01.0010`, `01.0020`. Once an LV went out, `oz=` pins a position's or title's number so later positions do not renumber it.
 - **Checks:** a selector or measure that cannot be used (E-LV-001), a position that counts nothing (W-LV-002), an element counted by two positions with the same measure (W-LV-003, double counting), two titles or positions with the same number (E-LV-004), selected elements the measure gives nothing for yet, such as a wall with no height (W-LV-005).
 - **Exports:** `uea export gaeb` writes GAEB DA XML 3.3, phase 83, with titles, positions, short and long texts, units and quantities (prices left out, for bidders); `uea export xlsx` gets a sheet LV, priced if prices are given; the calculation report for humans is German.
-- **Not yet:** reading bids (GAEB 84) and comparing them, the GAEB phases 81 and 86, pipe lengths per size, STLB-Bau texts, and a Kostenschätzung per DIN 276 by reference quantities (BGF, BRI from `din277`) before there is an LV.
+- **Not yet:** the GAEB phases 81 and 86, pipe lengths per size, STLB-Bau texts, and a Kostenschätzung per DIN 276 by reference quantities (BGF, BRI from `din277`) before there is an LV.
+- **The bids** (GAEB 84) are read and compared since `0051-bids.md`.
 - **Built as decided,** with these details: the measure is a bare word at the end of the canonical line; a batch lists the positions whose quantity it changed (`follows`); `uea get` on a title gives its positions and its priced sum.
 
 ## Alternatives

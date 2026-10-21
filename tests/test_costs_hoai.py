@@ -177,7 +177,7 @@ def test_on_the_command_line(sh: Shell, tmp_path: Path) -> None:
     assert code == 1 and "uea data add cost-ref" in text
     tables(tmp_path)
     code, text = sh("calc", "costs", "stand=2026-Q3")
-    assert code == 0 and "norm costs 0.2.0" in text and "DIN 276:2018-12" in text
+    assert code == 0 and "norm costs 0.3.0" in text and "DIN 276:2018-12" in text
     code, text = sh("calc", "hoai", "zone=III", "lph=1-4")
     assert code == 0 and "norm hoai 0.2.0" in text and "HOAI 2021" in text
     report = (sh.root / "out" / "hoai.md").read_text()

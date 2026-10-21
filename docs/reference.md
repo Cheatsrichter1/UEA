@@ -19,7 +19,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea calc [name] [scope]` | calculators, e.g. calc wofl; their norm tables: uea data (help calc) |
 | `uea render <level>` | plan image (PNG) to look at (help export) |
 | `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export) |
-| `uea import ifc <file> --by <who>` | an architect's IFC into arch (help import) |
+| `uea import <format> <file>` | an architect's IFC (ifc), a bid (gaeb) (help import) |
 | `uea log [n]` | recent batches |
 | `uea help [topic]` | this help, or a topic |
 
@@ -41,7 +41,7 @@ uea calc [name] [scope|name=value ...]
 uea data [--edition E] [--source S] [action] [rest ...]
 uea render [-o FILE] scope [view]
 uea export [-o FILE] format [scope]
-uea import [--by WHO] [-m WHY] [--dry-run] [--building NAME] format file
+uea import [--by WHO] [-m WHY] [--dry-run] [--building NAME] [--bidder NAME] format file
 ```
 
 ## Operations
@@ -1139,6 +1139,37 @@ A position of the LV: pos _ T01 area sel="wall type=AW-365" "Außenmauerwerk 36,
 | oz | `oz=` |  | pinned number within its title, digits: 0010 |
 | measure | flag | `n` `len` `area` `vol` `heat` `water` `drain` `duct` | what it counts of each selected element, a bare word (uea help lv) |
 
+### Bids on the LV and their unit prices (`bid.uea`)
+
+Kinds: `bid`, `price`.
+
+#### `bid`
+
+A bid on the LV (Angebot), as uea import gaeb reads it: bid bd1 "Muster Bau GmbH" date=2026-11-02 total=48231.5 disc=3. The label is the bidder. Its unit prices are price lines; uea calc bids compares the bids.
+
+`bid <id>` · ids `bd1`, `bd2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| date | `date=` |  | date of the bid: 2026-11-02 |
+| total | `total=` | € | the net total the bidder states, before the discount |
+| disc | `disc=` | % | discount on the whole bid (Nachlass) |
+| file | `file=` |  | the file it was read from |
+
+#### `price`
+
+A bid's unit price for a position: price _ bd1 p3 ep=52.1 qty=124.5. qty= is the quantity the bidder priced; gp= only where the bidder's total price differs from qty × ep.
+
+`price <id> <bid> <pos>` · ids `pr1`, `pr2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| bid | positional |  | the bid |
+| pos | positional |  | the LV position it prices |
+| ep | `ep=` | € | unit price (Einheitspreis) (required) |
+| qty | `qty=` |  | the quantity the bidder priced |
+| gp | `gp=` | € | the bidder's total price, where it differs from qty × ep |
+
 ### Requests and waivers (`issues.uea`)
 
 Kinds: `req`, `waive`.
@@ -1256,6 +1287,11 @@ E is an error, W a warning.
 | W-LV-003 | element counted by two positions with the same measure |
 | E-LV-004 | two titles or positions with the same number |
 | W-LV-005 | selected elements the measure gives nothing for yet |
+| E-BID-001 | a bid prices a position twice |
+| W-BID-002 | bid without prices for some positions of the titles it bids on |
+| W-BID-003 | bid priced other quantities than the LV has now |
+| W-BID-004 | bidder's total price of a position is not quantity times unit price |
+| W-BID-005 | bidder's stated total is not the sum of its prices |
 
 ## Calculators
 
@@ -1265,7 +1301,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
-| `costs` | norm | 0.2.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung) |
+| `costs` | norm | 0.3.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
+| `bids` | norm | 0.1.0 | VOB/A 2019 § 16c Abs. 2 (rechnerische Prüfung) | Comparison of the bids (Preisspiegel) |
 | `hoai` | norm | 0.2.0 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
@@ -1286,9 +1323,16 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
-| `stage` | str | estimate | estimate (Kostenschätzung, by reference prices) or calculation (Kostenberechnung, from the priced LV, the estimate for what it does not price) (estimate / calculation) |
+| `stage` | str | estimate | estimate (Kostenschätzung, by reference prices), calculation (Kostenberechnung, from the priced LV, the estimate for what it does not price) or offer (Kostenanschlag, from the bids awarded, the calculation for the rest) (estimate / calculation / offer) |
+| `bid` | str |  | stage=offer: the bids awarded, by id, comma-separated: bd2 or bd2,bd5 (uea calc bids) |
 | `ust` | float | 19.0 | VAT in percent, for the gross total |
 | `stand` | str |  | the price level (Kostenstand) of the prices, e.g. 2026-Q3 |
+
+### `bids` settings
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `dev` | float | 30.0 | flag a unit price this many % above or below the median of the bids on its position |
 
 ### `hoai` settings
 

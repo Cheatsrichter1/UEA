@@ -41,11 +41,12 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `packs/heat/`, `packs/plumb/`, `packs/vent/` | Heating, plumbing and ventilation |
 | `packs/struct/` | The load path, loads and the Statische Berechnung |
 | `packs/lv/` | The Leistungsverzeichnis: titles, positions and their derived quantities (`lv.uea`) |
+| `packs/bid/` | The bids on the LV and their unit prices, with their checked sums (`bid.uea`) |
 | `packs/issues.py` | Requests and waivers (`issues.uea`) |
 | `packs/net.py`, `pipes.py`, `hydraulics.py`, `mount.py` | Shared by the services: derived networks, pipe sizes, hydraulics formulas, wall-mounted things |
-| `calc/` | The calculator framework and `uea data` for the office's norm tables |
+| `calc/` | The calculator framework and `uea data` for the office's norm tables; the costs, the bids' comparison and the fee (`din276`, `bids`, `hoai`) |
 | `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), tables and calculation reports |
-| `importer/` | IFC import: reading the file, fitting stairs and roofs, building the batch |
+| `importer/` | IFC import: reading the file, fitting stairs and roofs, building the batch; `gaeb.py` reads a bid (GAEB 84) |
 
 ## Around the code
 

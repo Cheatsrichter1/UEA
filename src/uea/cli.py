@@ -662,6 +662,7 @@ def build_parser() -> Parser:
     im.add_argument("-m", metavar="WHY")
     im.add_argument("--dry-run", action="store_true")
     im.add_argument("--building", metavar="NAME")
+    im.add_argument("--bidder", metavar="NAME")
     return p
 
 

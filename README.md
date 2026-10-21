@@ -112,7 +112,7 @@ Development: `uv run pytest`, `uv run ruff check`, `uv run pyright`, and `uv run
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Version 2 (0.2.0) added partial views and the way from the model to the tender; reading the bids follows. The next versions are office workflows, plot evaluation with tender watching, and an agent dashboard (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Version 2 (0.2.0) added partial views and the way from the model to the tender; reading and comparing the bids is built since, for the next release. The next versions are office workflows, plot evaluation with tender watching, and an agent dashboard (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 

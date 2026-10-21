@@ -30,4 +30,5 @@ DIN 276 is licensed. The HOAI is a federal ordinance and so an amtliches Werk: i
 
 - Two calculators, two office tables, validation reports `docs/validation/costs.md` and `hoai.md`.
 - The technical equipment's fee per group of systems (Anlagengruppe, § 54 Abs. 1) takes the groups' rows of the calculation; with the estimate it needs reference prices per group (410, 420, ... in `cost-ref`).
+- The Kostenanschlag from the bids awarded is `stage=offer` since `0051-bids.md`.
 - The structure's chargeable costs per § 50 Abs. 2 (shares of KG 300 and KG 400) could follow from the estimate; open.

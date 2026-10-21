@@ -11,7 +11,9 @@ groups (100 to 800) and to the total, net and with VAT.
 Where the LV (`lv.uea`) has priced positions with a cost group, the sum of those inside each
 row's group is shown beside the estimate, for comparison; it is not added. The calculation
 (Kostenberechnung, stage=calculation) takes the priced LV per cost group instead, and keeps a
-reference price's row only where no priced position falls in its group.
+reference price's row only where no priced position falls in its group. The Kostenanschlag
+(stage=offer) takes the unit prices of the bids awarded (`bid=`, decision 0051), less their
+discount, for the positions they price, and the calculation for the rest.
 """
 
 from dataclasses import dataclass
@@ -23,7 +25,7 @@ from uea.fmt import ar
 from uea.packs.arch.din277 import USES, reference
 from uea.packs.lv.kinds import Pos
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 NORM = "DIN 276:2018-12"
 BASES = ("bgf", "nrf", "nuf", "kgf", "bri")
 UNIT = {"bgf": "m²", "nrf": "m²", "nuf": "m²", "kgf": "m²", "bri": "m³"}
@@ -48,9 +50,17 @@ PARAMS = (
         "stage",
         str,
         "estimate",
-        "estimate (Kostenschätzung, by reference prices) or calculation (Kostenberechnung, from"
-        " the priced LV, the estimate for what it does not price)",
-        ("estimate", "calculation"),
+        "estimate (Kostenschätzung, by reference prices), calculation (Kostenberechnung, from"
+        " the priced LV, the estimate for what it does not price) or offer (Kostenanschlag,"
+        " from the bids awarded, the calculation for the rest)",
+        ("estimate", "calculation", "offer"),
+    ),
+    Param(
+        "bid",
+        str,
+        None,
+        "stage=offer: the bids awarded, by id, comma-separated: bd2 or bd2,bd5 (uea calc bids)",
+        optional=True,
     ),
     Param("ust", float, 19.0, "VAT in percent, for the gross total"),
     Param(
@@ -126,9 +136,9 @@ class Cost:
     name: str
     cost: float
     source: str
-    """estimate (a reference price) or lv (priced positions)."""
+    """estimate (a reference price), lv (priced positions) or a bid's id (its prices)."""
     how: str
-    """How it was found: `161.44 m² BGF × 1000.00`, `LV p1 p4`."""
+    """How it was found: `161.44 m² BGF × 1000.00`, `LV p1 p4`, `bd2 p1 p4`."""
 
 
 def priced(d: Derived) -> list[Pos]:
@@ -141,51 +151,88 @@ def priced(d: Derived) -> list[Pos]:
     return out
 
 
-def calculation(d: Derived, env: Env) -> tuple[list[Cost], list[str]]:
+Award = dict[str, tuple[str, float]]
+"""Per position the bid awarded it and its unit price less the bid's discount."""
+
+
+def award(d: Derived, given: str | None) -> Award:
+    """The prices of the bids awarded (bid=bd2,bd5). ValueError if one is unknown or two
+    price the same position."""
+    if not given:
+        raise ValueError("stage=offer needs bid=<id>: the bids awarded (uea calc bids)")
+    out: Award = {}
+    for b in given.split(","):
+        s = d.bid.bids.get(b)
+        if s is None:
+            known = " ".join(d.bid.bids) or "none; uea import gaeb <file.x84>"
+            raise ValueError(f"bid={b}: no such bid. Bids: {known}")
+        for pid, pr in s.prices.items():
+            if pid in out:
+                raise ValueError(f"{out[pid][0]} and {b} both price {pid}; award each title once")
+            out[pid] = (b, pr.ep * (1 - s.disc / 100))
+    return out
+
+
+def calculation(d: Derived, env: Env, won: Award | None = None) -> tuple[list[Cost], list[str]]:
     """The Kostenberechnung: the priced LV per cost group; a reference price's row stays
-    where no priced position falls in its group. Also what is left out, and why."""
-    lv = priced(d)
-    if not lv:
+    where no priced position falls in its group. With the prices of the bids awarded, the
+    Kostenanschlag: their prices where they have one. Also what is left out, and why."""
+    won = won or {}
+    price: dict[str, tuple[str, float]] = {}
+    nokg: list[str] = []
+    unpriced: list[str] = []
+    for p in d.model.of_kind("pos"):
+        assert isinstance(p, Pos)
+        if p.id not in d.lv.qty:
+            continue
+        got = won.get(p.id) or (("lv", p.ep) if p.ep is not None else None)
+        if got is None:
+            unpriced.append(p.id)
+        elif p.kg is None:
+            nokg.append(p.id)
+        else:
+            price[p.id] = got
+    if not price:
         raise ValueError(
             "the LV has no positions with ep= and kg=, so there is no calculation yet;"
             " use stage=estimate"
         )
-    by_kg: dict[int, list[Pos]] = {}
-    for p in lv:
-        assert p.kg is not None
-        by_kg.setdefault(p.kg, []).append(p)
+    by_kg: dict[tuple[int, str], list[Pos]] = {}
+    for pid, (source, _) in price.items():
+        p = d.model[pid]
+        assert isinstance(p, Pos) and p.kg is not None
+        by_kg.setdefault((p.kg, source), []).append(p)
     est = estimate(d, env) if data.load(REF) is not None else []
     notes: list[str] = []
     rows: list[Cost] = []
     for e in est:
         lo, hi = span(e.kg)
-        if any(lo <= k <= hi for k in by_kg):
+        if any(lo <= k <= hi for k, _ in by_kg):
             notes.append(f"{e.kg}: priced in the LV; its estimate of {ar(e.cost)} € is not used")
         else:
             rows.append(Cost(e.kg, e.name, e.cost, "estimate", _how(e)))
-    for kg, ps in by_kg.items():
+    for (kg, source), ps in by_kg.items():
         name = next((e.name for e in est if span(e.kg)[0] <= kg <= span(e.kg)[1]), "")
-        cost = sum(d.lv.qty[p.id].value * (p.ep or 0.0) for p in ps)
-        rows.append(Cost(kg, name, cost, "lv", "LV " + " ".join(p.id for p in ps)))
-    unpriced = [
-        p.id for p in d.model.of_kind("pos") if getattr(p, "ep", None) is None and p.id in d.lv.qty
-    ]
+        cost = sum(d.lv.qty[p.id].value * price[p.id][1] for p in ps)
+        how = ("LV " if source == "lv" else f"{source} ") + " ".join(p.id for p in ps)
+        rows.append(Cost(kg, name, cost, source, how))
     if unpriced:
-        notes.append(f"no price (ep=), not in it: {' '.join(unpriced)}")
-    nokg = [
-        p.id
-        for p in d.model.of_kind("pos")
-        if getattr(p, "ep", None) is not None and getattr(p, "kg", None) is None
-    ]
+        why = "ep= or a bid awarded" if won else "ep="
+        notes.append(f"no price ({why}), not in it: {' '.join(unpriced)}")
     if nokg:
         notes.append(f"no cost group (kg=), not in it: {' '.join(nokg)}")
-    return sorted(rows, key=lambda r: r.kg), notes
+    return sorted(rows, key=lambda r: (r.kg, r.source != "lv", r.source)), notes
 
 
-def cost_rows(d: Derived, env: Env, stage: str) -> tuple[list[Cost], list[str]]:
-    """The rows of the estimate or of the calculation, and notes on what is left out."""
+def cost_rows(
+    d: Derived, env: Env, stage: str, bids: str | None = None
+) -> tuple[list[Cost], list[str]]:
+    """The rows of the estimate, the calculation or the Kostenanschlag, and notes on what is
+    left out."""
     if stage == "calculation":
         return calculation(d, env)
+    if stage == "offer":
+        return calculation(d, env, award(d, bids))
     return [Cost(e.kg, e.name, e.cost, "estimate", _how(e)) for e in estimate(d, env)], []
 
 
@@ -207,7 +254,10 @@ def costs(d: Derived, scope: str | None, env: Env) -> Output:
     if scope is not None:
         raise ValueError("the costs cover the whole project; give no scope")
     stage = str(env.param("stage"))
-    rows, notes = cost_rows(d, env, stage)
+    bids: str | None = env.param("bid")
+    if bids is not None and stage != "offer":
+        raise ValueError("bid= is for stage=offer, the Kostenanschlag")
+    rows, notes = cost_rows(d, env, stage, bids)
     if not rows:
         raise ValueError("cost-ref has no rows")
     lv_beside: dict[int, float] = {}
@@ -267,14 +317,15 @@ def _report(
 ) -> str:
     proj = d.model.of_kind("project")
     title = proj[0].label or proj[0].id if proj else "Projekt"
-    kind = "Kostenschätzung" if stage == "estimate" else "Kostenberechnung"
-    source = {"estimate": "Kennwert", "lv": "LV"}
+    kind = {"estimate": "Kostenschätzung", "calculation": "Kostenberechnung"}.get(
+        stage, "Kostenanschlag"
+    )
     head = ["KG", "Bezeichnung", "Grundlage", "Ermittlung", "Kosten €"]
     if lv_beside:
         head.append("aus LV €")
     body: list[list[str]] = []
     for r in rows:
-        row = [str(r.kg), r.name, source[r.source], r.how.replace(".", ","), de(r.cost)]
+        row = [str(r.kg), r.name, _source(d, r.source), r.how.replace(".", ","), de(r.cost)]
         if lv_beside:
             row.append(de(lv_beside[r.kg]) if r.kg in lv_beside else "")
         body.append(row)
@@ -305,8 +356,11 @@ def _report(
         " des Büros (Tabelle cost-ref).",
         "- LV: Summe der bepreisten Positionen des Leistungsverzeichnisses mit dieser"
         " Kostengruppe (Menge aus dem Modell × Einheitspreis).",
-        "- In der Kostenberechnung ersetzt das LV den Kennwert einer Kostengruppe, sobald es eine"
-        " bepreiste Position darin hat; in der Kostenschätzung steht es nur zum Vergleich daneben.",
+        "- Angebot: Menge aus dem Modell × Einheitspreis des beauftragten Angebots, abzüglich"
+        " seines Nachlasses (Kostenanschlag).",
+        "- In der Kostenberechnung und im Kostenanschlag ersetzt das LV den Kennwert einer"
+        " Kostengruppe, sobald es eine bepreiste Position darin hat; in der Kostenschätzung"
+        " steht es nur zum Vergleich daneben.",
         "",
         "Berechnet aus dem Modell. Prüfung und Verantwortung liegen bei der unterzeichnenden"
         " fachkundigen Person.",
@@ -315,9 +369,16 @@ def _report(
     return "\n".join(out)
 
 
+def _source(d: Derived, source: str) -> str:
+    if source in ("estimate", "lv"):
+        return {"estimate": "Kennwert", "lv": "LV"}[source]
+    b = d.model.get(source)
+    return f"Angebot {source} ({b.label})" if b is not None and b.label else f"Angebot {source}"
+
+
 COSTS = Calculator(
     name="costs",
-    title="Costs per DIN 276 (Kostenschätzung, Kostenberechnung)",
+    title="Costs per DIN 276 (Kostenschätzung, Kostenberechnung, Kostenanschlag)",
     kind="norm",
     version=VERSION,
     fn=costs,
