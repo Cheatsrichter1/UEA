@@ -5,7 +5,7 @@
 | Calculator | `light` 0.1.0, kind `norm` |
 | Method | Utilisation factor method (Wirkungsgradverfahren), LiTG-Publikation 3.5, CIE 40; maintained illuminance per DIN EN 12464-1 |
 | Code | `src/uea/packs/light/illuminance.py`; the targets in `src/uea/packs/light/kinds.py`, the luminaires' places from `src/uea/packs/mount.py` |
-| Tests | `tests/test_light.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_light.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. |
 
 The utilisation factors are the luminaire maker's data or the LiTG's tables and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`). The office supplies them as the table `light-uf`; the tests use invented values.
@@ -38,7 +38,7 @@ For each illuminance target of a whole room (`illum`): the average maintained il
 - The maintenance factor and the reflectances.
 - That the table's utilisation factors belong to the luminaires used, with the flux they assume.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Table cos1, 753: UF 0.60 at k 2, 0.65 at 2.5, 0.70 at 3, 0.75 at 4. Room r1: 9.38 × 7.38 m, A 69.2244 m², U 33.52 m, ceiling 2.54 m.
 

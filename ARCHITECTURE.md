@@ -2,7 +2,7 @@
 
 How UEA is built. For the why see `VISION.md`; for what comes next see `FUTURE.md`; for the reasoning behind individual choices see `docs/decisions/`.
 
-Status: release 0.2.0 (`CHANGELOG.md`): version 1 and version 2 without the bids. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
+Status: release 0.2.0 (`CHANGELOG.md`): version 1 and version 2; the bids are built since, not yet released. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
 
 ## 1. Overview
 
@@ -49,6 +49,7 @@ haus-mueller/
   vent.uea        ventilation: units, terminals, inlets, overflow openings; ducts derived
   light.uea       Lighting: luminaires, their types and the illuminance targets
   lv.uea          the Leistungsverzeichnis: titles and positions; quantities derived (§9)
+  bid.uea         the bids on the LV and their unit prices, read from GAEB 84 (§9)
   issues.uea      requests between disciplines and waivers (shared, §5)
   calc/           project-specific calculators written by agents (custom)
   log.jsonl       history: every batch, revertible; every id ever assigned (§5)
@@ -73,6 +74,7 @@ project ─▶ arch ─┬─▶ struct
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair. So far: `plumb` may reference `heat`, whose storage tank heats the drinking water (`docs/decisions/0035-plumbing.md`).
 - `lv.uea` sits below all of them: a position may count the elements of every discipline, and no discipline references the LV (`docs/decisions/0048-leistungsverzeichnis.md`).
+- `bid.uea` sits below the LV: a price references its bid and its position, and nothing references a bid (`docs/decisions/0051-bids.md`).
 - `issues.uea` is outside the graph: requests and waivers may reference anything, and nothing references them.
 
 The exact graph is fixed per pack and checked by the core. It must stay acyclic.
@@ -211,6 +213,7 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea calc <name> [scope] [name=value]` | Run a calculator with its settings (§8) |
 | `uea data [show\|add\|remove]` | List, check and install the office's norm tables (§8) |
 | `uea import ifc <file>` | Architecture from an architect's IFC (§9) |
+| `uea import gaeb <file>` | A bidder's GAEB 84 into `bid.uea` (§9, The Leistungsverzeichnis) |
 | `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf`, `gaeb` |
 | `uea render <level>` | A plan image (PNG) for vision models |
 | `uea log [n]` | Recent batches |
@@ -265,7 +268,7 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation, the electrical, heating and plumbing sheets, the Heizungsschema (`0036-heating-and-plumbing-sheets.md`), the Strangschema (`0037`), the ventilation plans (`0038`) and the Positionsplan (`0040`) |
 | PDF reports | reportlab (BSD), DejaVu Sans (free licence, shipped) | Built. A calculation result's report on A4 with an empty signature block, refused when the model has changed since (`0036`) |
 | XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`); the LV and its costs per DIN 276 cost group (`0048`) |
-| GAEB DA XML 3.3 | Python's standard library (XML) | Built. The LV for bidders, phase 83, without prices (`0048-leistungsverzeichnis.md`); not yet validated against the official schema |
+| GAEB DA XML 3.3 | Python's standard library (XML) | Built. The LV for bidders, phase 83, without prices (`0048-leistungsverzeichnis.md`); the bids, phase 84, are read back with `uea import gaeb` (`0051-bids.md`); not yet validated against the official schema |
 | BCF 2.1 | Python's standard library (zip, XML) | Built. The requests to a discipline as topics for the programs of people outside UEA (`0032-bcf-requests.md`) |
 | Render | Blender headless, run as a separate process (GPL) | Pictures for humans and for vision models |
 
@@ -274,6 +277,8 @@ New exports are a good place for outside contributions: each one only needs the 
 ### The Leistungsverzeichnis
 
 The LV is part of the model (`lv.uea`, `docs/decisions/0048-leistungsverzeichnis.md`): agents decide its titles and positions, and code counts. A position names the elements it counts with the selector of `uea find` and a measure whose meaning per kind is fixed in code (a wall's `area` is its net elevation area, a circuit's `len` its cable length, a heat generator's `heat` the heating pipes from it); work no element carries is `fix=` with a unit. Quantities are derived, so they follow every change of the model, and a batch names the positions that follow it. The numbers (OZ) follow the order of the ids and can be pinned with `oz=`. Long texts come from the office's table `lv-texts`, unit prices (`ep=`) and DIN 276 cost groups (`kg=`) from the position.
+
+The bids come back as GAEB 84 and are not UEA's own export, so they are read into the model: `uea import gaeb` writes a `bid` and its `price` lines to `bid.uea` (`docs/decisions/0051-bids.md`). Code checks the arithmetic (VOB/A § 16c Abs. 2: the unit price counts), `uea calc bids` compares the bids, and `uea calc costs stage=offer bid=` takes the prices of the bids awarded into the Kostenanschlag. The award is the client's; UEA ranks and flags.
 
 ### IFC import
 
@@ -298,7 +303,7 @@ The IFC GlobalId of each element is kept in the history entry of the import, wit
 |---|---|
 | Language | Python 3.12+, typed throughout, pyright in strict mode |
 | Schemas and validation | Pydantic v2 |
-| Packaging and tooling | uv, ruff, pytest |
+| Packaging and tooling | uv, ruff, pyright |
 | Geometry | Shapely |
 | Exports | IfcOpenShell (optional extra `uea[ifc]`), Pillow, openpyxl, ezdxf, reportlab; Blender and DWG converters as separate processes |
 | Structural solver | PyNite (MIT, optional extra `uea[struct]`): plates, continuous beams and plane frames (`0040-structure.md`, `0044-structure-completion.md`) |
@@ -308,10 +313,10 @@ Dependency licences follow `docs/decisions/0002-apache-2.0.md`. Rust (or C++) co
 
 ## 12. Token efficiency
 
-Token use is a design constraint, measured by the token task set from phase 1 on (`bench/`):
+Token use is a design constraint, measured by the token task set from phase 1 to commit `517c07e` (`bench/` there; removed since, `docs/decisions/0052-no-tests-in-the-repo.md`):
 
 - The file format and the operation syntax are the cheapest readable form we can find.
 - `uea help` is layered, so an agent's starting context stays small.
 - Read commands default to the smallest useful answer.
 - Agents get pictures only when they ask for them.
-- Every change to the file format or output is checked on the task set for token cost and error rate. Saving tokens does not count if agents make more mistakes. The task set lives in `bench/` (`uv run python -m bench`); its last results are in `bench/results.md`.
+- A change to the file format or output keeps it as short as it is or shorter. Saving tokens does not count if agents make more mistakes. The task set's last results are in `bench/results.md` at commit `517c07e`.

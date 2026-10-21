@@ -1,6 +1,6 @@
 # Prototype: Haus Müller
 
-A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It is the first candidate for the token task set (`bench/`).
+A normal Einfamilienhaus, written by hand in the draft format before any code exists, to test the format and to settle the open datum questions. It was the first case of the token task set (`bench/`, removed after commit `517c07e`).
 
 Status: draft, 2026-10-07. Since 2026-10-09 `project`, `arch`, `light` and `elec` load in UEA, since 2026-10-10 `heat` too, since 2026-10-11 `plumb` and `vent`, and the holes the services asked for; since 2026-10-20 the `illum` targets too, which `uea calc light` checks (`docs/decisions/0050-illuminance.md`). The syntax will change. Types, cables, protective devices and products are illustrative placeholders, not design data. No Fachplaner has checked the design.
 
@@ -151,7 +151,7 @@ Whether a wall is exterior, wall joins, room outlines (from the seed point), sta
 13. The heating pipes needed three values from the manufacturer: the copper pipe system (`hpipe`), the loop pipe of the underfloor type and the heat pump's loss. UEA derives 3.9 m from the heat pump to the indoor unit and 12.7 m on to both manifolds. With synthetic tables, `uea calc hydronic` makes the bath's loop the index circuit at hv2 and gives every other loop its valve setting.
 14. The ventilation first had two pairs of decentral units. With synthetic tables, `uea calc airflow` found that infiltration alone covers moisture protection, but the two pairs gave 60 of the 164 m³/h of the nominal level, and kitchen, HWR, WC and bath had no extract. Following the calculator, the design changed to a central unit (KWL) in the HWR: supply in Wohnen/Essen and the three bedrooms, extract in Küche, HWR, WC and Bad, outdoor and exhaust air on two facades. Every room now gets its flow at the nominal level, and `uea calc ducts` sizes the ducts from Ø80 to Ø160 at 28 Pa of the unit's 150. The core drillings (q4) moved to the HWR's walls, and the ducts to the OG need a slab penetration (q7).
 15. With the central unit the services' checks asked for six holes: the core drillings for outdoor and exhaust air, and slab penetrations for the stack, the riser, the heating pipes to hv2 and the ducts to the OG (`docs/decisions/0039-openings-without-a-fill.md`). Two more requests (q8, q9) went to the architect, who answered all five open ones with holes ho1 to ho6 in one batch. The tank and the unit name the hole they go through (`via=`), and their pipes and ducts follow it. Only q6 stays open.
-16. For the end-to-end agent test (`bench/agent/haus-mueller-services.md`) the reference had to meet its calculations. With that test's synthetic tables `uea calc heatload` found the Bad 15 W short, as finding 11 had foreseen; a towel radiator of 300 W on hv2 covers it, and `heatload`, `hydronic`, `airflow` and `ducts` are all met.
+16. For the end-to-end agent test (`bench/agent/haus-mueller-services.md` at commit `517c07e`) the reference had to meet its calculations. With that test's synthetic tables `uea calc heatload` found the Bad 15 W short, as finding 11 had foreseen; a towel radiator of 300 W on hv2 covers it, and `heatload`, `hydronic`, `airflow` and `ducts` are all met.
 
 ## Not in the prototype
 

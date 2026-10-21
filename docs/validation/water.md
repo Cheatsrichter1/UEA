@@ -5,7 +5,7 @@
 | Calculator | `water` 0.1.0, kind `norm` |
 | Standard | DIN 1988-300:2012-05 |
 | Code | `src/uea/packs/plumb/water.py`; sections from `geometry.py`, the hydraulics in `hydraulics.py` |
-| Tests | `tests/test_plumb.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standard come from the office's tables or the planner's settings, and the product values from the model's types (`docs/decisions/0035-plumbing.md`). Every result names the edition of each table.
@@ -51,7 +51,7 @@ For each section (Teilstrecke) of the cold-water network (from the meter) and of
 - The fixtures' outlet heights.
 - The rows of `fixture-flow` against the fittings chosen, and the building use.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Synthetic tables of our own (`tests/test_plumb.py`): sink 0.1/0.1 l/s, shower 0.2/0.2 l/s, WC 0.1/0 l/s; p_min,Fl 1000 hPa, the WC 500 hPa; a = 1, b = 0.5, c = 0; v_max 2 m/s. The pipe type has 16x2, 20x2, 26x3 and 32x3, with k 0.007 mm and ζ 1 for a bend and a tee. The meter supplies 4 bar with 400 hPa of apparatus, and the tank loses 100 hPa.
 

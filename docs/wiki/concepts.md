@@ -44,10 +44,9 @@ The words UEA uses, each with where it is defined.
 
 | Term | Meaning | Defined in |
 |---|---|---|
-| `norm` calculator | Ships with a pack, implements one method of one standard, has hand-computed tests and a validation report | [0007](../decisions/0007-norm-and-custom-calculators.md), reports in [`docs/validation/`](../validation/) |
+| `norm` calculator | Ships with a pack, implements one method of one standard, has a validation report with cases worked out by hand | [0007](../decisions/0007-norm-and-custom-calculators.md), reports in [`docs/validation/`](../validation/) |
 | `custom` calculator | Written by an agent for one project in its `calc/` folder; never presented as norm-compliant | [0007](../decisions/0007-norm-and-custom-calculators.md) |
 | Norm tables | Values a method needs from a licensed standard; the office installs them with `uea data add`, never the repo | [0008](../decisions/0008-office-supplied-norm-data.md), [0028](../decisions/0028-norm-tables-and-electrical-calculators.md) |
 | Export | A view for humans (IFC, PDF, DXF, XLSX, BCF); never read back into the model | [`ARCHITECTURE.md` §9](../../ARCHITECTURE.md#9-import-exports-and-renders) |
 | Render | A plan image for an agent to check its own layout | [`ARCHITECTURE.md` §9](../../ARCHITECTURE.md#9-import-exports-and-renders) |
 | IFC import | An architect's IFC mapped into `project.uea` and `arch.uea`, re-importable by GlobalId | [0029](../decisions/0029-ifc-import.md) to [0031](../decisions/0031-ifc-import-files.md) |
-| Token task set | Fixed agent tasks measured in tokens; every format or output change is checked on it | [`ARCHITECTURE.md` §12](../../ARCHITECTURE.md#12-token-efficiency), [`bench/`](../../bench/results.md) |

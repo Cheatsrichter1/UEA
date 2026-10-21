@@ -5,7 +5,7 @@
 | Calculator | `uvalue` 0.1.0, kind `norm` |
 | Standard | DIN EN ISO 6946:2018-03, thermal resistance and U-value of building components |
 | Code | `src/uea/packs/heat/uvalue.py`, `thermal.py`; surfaces from `envelope.py`; tables from `src/uea/calc/data.py` |
-| Tests | `tests/test_heatload.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_heatload.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The conductivities and surface resistances are licensed (DIN 4108-4, DIN EN ISO 10456, DIN EN ISO 6946) and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`, `0033-u-values-and-heizlast.md`). The office supplies them in the tables `material` and `surface`; every result names the edition of each table.
@@ -38,7 +38,7 @@ R = d / λ for each layer; R_T = R_si + Σ R + R_se; U = 1 / R_T.
 - The material names of the project and of the office's table must mean the same products.
 - A slab's build-up includes the floor of the room on it; a finish under the slab is a layer of the slab type.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Synthetic values of our own: λ gips 0.25, mw 0.05, putz 0.5, ks 0.25, stb 2, xps 0.04, eps 0.04, estrich 1 W/(m·K); R_si 0.10 up, 0.13 horizontal, 0.17 down; R_se 0.04.
 

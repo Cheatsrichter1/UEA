@@ -5,7 +5,7 @@
 | Calculator | `wofl` 0.2.0, kind `norm` |
 | Standard | Wohnflächenverordnung (WoFlV) of 25 November 2003 |
 | Code | `src/uea/packs/arch/wofl.py`; room outlines and heights from `src/uea/packs/arch/geometry.py` |
-| Tests | `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The WoFlV is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. It needs no office-supplied tables (`docs/decisions/0008-office-supplied-norm-data.md`).
@@ -41,7 +41,7 @@ A room with no ceiling (no storey and no roof above it) stops the calculation, b
 - The finished size comes from the wall types' layers. Tiles, skirting boards and fixed furniture are not deducted, as §3 Abs. 2 requires.
 - A stair placed against the core face overlaps the plaster zone; only the part inside the finished outline is deducted.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 All expected values are computed by hand, with our own data.
 

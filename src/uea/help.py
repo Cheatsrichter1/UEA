@@ -19,16 +19,16 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ),
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
     ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export)"),
-    ("uea import ifc <file> --by <who>", "an architect's IFC into arch (help import)"),
+    ("uea import <format> <file>", "an architect's IFC (ifc), a bid (gaeb) (help import)"),
     ("uea log [n]", "recent batches"),
     ("uea help [topic]", "this help, or a topic"),
 )
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | struct | lv | <kind> | codes"
-    " | calc"
-    " | export | import"
+    "start | ops | positions | arch | elec | heat | plumb | vent | struct | lv | bid | <kind>"
+    " | codes"
+    " | calc | export | import"
 )
 
 ROOT = (
@@ -206,6 +206,11 @@ uea calc light refl=<r> mf=<f> [scope]
                         over the plane, the factor from the office's table light-uf by dist= and
                         refl= (e.g. 753); mf: maintenance factor. Low: how many to add. Scope: a
                         storey, a room or a target; task areas (area=) are listed, not checked
+uea calc bids [title] [dev=30]
+                        the comparison of the bids (Preisspiegel) after the arithmetic check of
+                        VOB/A § 16c Abs. 2 (norm): checked sums, discount, rank among the
+                        complete bids on the same titles, sums per title beside the LV's own
+                        prices; dev: flag unit prices that far (%) from the median of the bids
 uea calc uvalue [scope] U-value of each build-up as the rooms use it (norm; tables material,
                         surface). Scope: a room or a type
 uea calc heatload tb=<W/m2K> n50=<1/h> shielding=none|moderate|heavy [scope]
@@ -301,6 +306,12 @@ blocking: fix them with a batch. The same project again with a newer file: eleme
 edited since are updated, new ones added, ones the file lost removed, the rest listed as kept:.
 Ids stay. UEA's own exports are refused: the model is where the project lives. Requests to the
 architect: uea export bcf.
+
+uea import gaeb <file.x84> --by <who> [-m why] [--dry-run] [--bidder name]   a bid
+A bidder's GAEB DA XML, phase 84: the LV of uea export gaeb with unit prices. Becomes a bid
+line and a price line per priced position, in bid.uea (help bid). Items are matched by the ids
+UEA wrote, else by their numbers (OZ); items the LV lacks are listed, not imported. The bidder's
+name comes from the file, else --bidder. Then: uea calc bids (the comparison).
 """
 
 
@@ -344,9 +355,24 @@ def lv_notes() -> str:
         "Units: n St, len m, area m2, vol m3, the networks m. uea get <pos> shows its number,",
         "quantity and what it counts. text=<key> takes the long text from the office's table",
         "lv-texts (uea data show lv-texts); ep= a unit price, kg= a DIN 276 cost group. Exports:",
-        "uea export gaeb (for bidders), uea export xlsx (sheets LV and Kosten).",
+        "uea export gaeb (for bidders), uea export xlsx (sheets LV and Kosten). The bids that",
+        "come back: uea import gaeb <file.x84> (help bid).",
     ]
     return "\n".join(lines)
+
+
+BID_NOTES = """\
+Bids come from the bidders' GAEB files (uea import gaeb <file.x84>); you do not write them. A bid
+covers the titles it prices; a position of those titles without a price makes it incomplete
+(W-BID-002). Its checked sum is the bid's quantity times the unit price, position by position:
+where the bidder's total price differs, the unit price counts (VOB/A § 16c Abs. 2 Nr. 1).
+uea get <bid> shows its sum and discount, uea get <pos> every bid's price.
+uea calc bids                         the comparison (Preisspiegel), ranks and flags, never awards
+uea calc costs stage=offer bid=bd2    the Kostenanschlag: the model's quantities times the prices
+                                      of the bids awarded (bd2,bd5 for one per title), less
+                                      their discount; the LV's own prices for the rest
+A priced position removed from the LV leaves its prices dangling (E-REF-001): remove them too.
+"""
 
 
 def pack_help(reg: Registry, pack: str) -> str:
@@ -369,6 +395,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(STRUCT_NOTES.rstrip())
     if pack == "lv":
         lines.append(lv_notes())
+    if pack == "bid":
+        lines.append(BID_NOTES.rstrip())
     if p.kinds:
         lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)
@@ -404,8 +432,9 @@ def help_text(reg: Registry, topic: str | None) -> str | None:
         return fixed[t]
     if t == "codes":
         return codes_help(reg)
-    if t in reg.kinds and t in reg.packs:
-        # `project` is a kind and a pack: the kind's fields matter more
+    if t in reg.kinds and t in reg.packs and t != "bid":
+        # `project` is a kind and a pack: the kind's fields matter more; bids are read from
+        # files, not written, so for `bid` the pack's notes do
         others = [c.kind for c in reg.packs[t].kinds if c.kind != t]
         more = f"\nThe {t} pack also has: {' '.join(others)} (uea help {others[0]})"
         return kind_help(reg.kinds[t]) + (more if others else "")

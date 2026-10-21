@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** version 1 is done: phases 0 to 8, with the reviews by licensed people, the agent runs end to end, the test with an office's IFC and the benchmark done in private. Release 0.2.0 is v2 without the bids: partial views (`uea view`, `apply --view --base`), areas per DIN 277 (`uea calc din277`) the Leistungsverzeichnis (`lv.uea`, `uea export gaeb`), the costs per DIN 276 (`uea calc costs`) and the fee per HOAI (`uea calc hoai`); reading the bids is deferred; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
+**Status:** version 1 is done: phases 0 to 8, with the reviews by licensed people, the agent runs end to end, the test with an office's IFC and the benchmark done in private. Release 0.2.0 is v2 without the bids: partial views (`uea view`, `apply --view --base`), areas per DIN 277 (`uea calc din277`) the Leistungsverzeichnis (`lv.uea`, `uea export gaeb`), the costs per DIN 276 (`uea calc costs`) and the fee per HOAI (`uea calc hoai`); reading the bids (`uea import gaeb`, `uea calc bids`, `uea calc costs stage=offer`) is built since, not yet released; the order of the next versions (v2 partial views and model to tender, v3 office workflows, v4 plot evaluation and tender watching, v5 agent dashboard) is in `FUTURE.md`.
 
 ## Docs
 
@@ -18,9 +18,7 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `docs/prototype/` | Hand-written example projects that test the draft format; Haus Müller is the reference EFH |
 | `docs/validation/` | Validation report of each `norm` calculator |
 | `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
-| `tests/` | pytest; hand-computed expected values, the prototype, the CLI |
 | `docs/reference.md` | Every command, kind, field and issue code, generated from the code (`uv run python -m uea.reference`) |
-| `bench/` | The token task set; `bench/results.md` holds the last run. `bench/agent/`: an agent builds Haus Müller's shell, or its services, from a brief |
 | `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |
 
 Each fact lives in one file; the others link to it. When a decision changes, add or update its decision record and fix the docs that depend on it.
@@ -39,15 +37,14 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 
 ### Code
 
-- Python 3.12+, fully typed, pyright strict, Pydantic v2 for schemas, uv, ruff, pytest.
-- Before finishing: `uv run ruff format`, `uv run ruff check`, `uv run pyright`, `uv run pytest` must all pass. After a change to CLI output or the format, also `uv run python -m bench --write` and compare with the committed `bench/results.md`. After a change to commands, kinds, fields, help or issue codes, regenerate `docs/reference.md` with `uv run python -m uea.reference` (a test checks it).
+- Python 3.12+, fully typed, pyright strict, Pydantic v2 for schemas, uv, ruff.
+- Before finishing: `uv run ruff format`, `uv run ruff check` and `uv run pyright` must pass. After a change to commands, kinds, fields, help or issue codes, regenerate `docs/reference.md` with `uv run python -m uea.reference`.
 - Dependencies must be Apache-2.0-compatible: LGPL as a library is fine, GPL only as a separate process. Check the licence before adding anything.
-- Add tests with every behaviour change. Prefer hand-computed expected values over values copied from program output.
-- Any change to CLI output or the file format must keep or improve token cost and error rate on the token task set (`bench/`).
+- There is no test suite and no token bench (`docs/decisions/0052-no-tests-in-the-repo.md`). Check a change by running it on a project, and keep CLI output and the format as short as they are or shorter.
 
 ### Calculators and norms
 
-- Every `norm` calculator is a product: hand-computed tests with our own data, the standard's worked examples as a local test suite, clause citations, a validation report a Prüfingenieur could read.
+- Every `norm` calculator is a product: clause citations and a validation report a Prüfingenieur could read, with its cases worked out by hand on our own data. A report says which of its cases were verified by tests (up to commit `517c07e`) and which were not.
 - Results always record calculator, kind (`norm` or `custom`), version, inputs and norm tables used. A `custom` result is never presented as norm-compliant.
 - DIN and VDE texts, tables and worked examples are licensed. Never put them in the repo; cite the clause and put only formulas and your own test data in code. Offices supply the tables from their own copies (`docs/decisions/0008-office-supplied-norm-data.md`).
 - Catalogue values in examples are illustrative placeholders, not design data.

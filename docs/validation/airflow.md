@@ -5,7 +5,7 @@
 | Calculator | `airflow` 0.2.0, kind `norm` |
 | Standard | DIN 1946-6:2019-12 |
 | Code | `src/uea/packs/vent/airflow.py`; the units and terminals from `geometry.py` |
-| Tests | `tests/test_vent.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_vent.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standard come from the office's tables; n_50 and the insulation are the planner's settings (`docs/decisions/0038-ventilation.md`). Every result names the edition of each table.
@@ -54,7 +54,7 @@ The dwelling's area and volume, its total air flow at the four ventilation level
 - The building's insulation and n_50.
 - The units' flows from the manufacturer.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 The box of `tests/test_heatload.py` with r1 living (supply, f_R 3) and r2 kitchen (extract 40 m³/h). Synthetic tables: NL = A + 20, FL (high) = 0.3 A + 10, IL = 1.3 A + 26; komp 0.5, lage 1, dp 2, n 1.
 

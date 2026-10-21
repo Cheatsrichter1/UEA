@@ -5,7 +5,7 @@
 | Calculator | `drain` 0.1.0, kind `norm` |
 | Standard | DIN 1986-100:2016-12 with DIN EN 12056-2 |
 | Code | `src/uea/packs/plumb/drain.py`; sections from `geometry.py`, the hydraulics in `hydraulics.py` |
-| Tests | `tests/test_plumb.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standard come from the office's tables or the planner's settings (`docs/decisions/0035-plumbing.md`). Every result names the edition of each table.
@@ -55,7 +55,7 @@ For each fixture, the length of its unvented branch against the limit. A branch 
 - The derived routes, the stack positions and the fixtures' assignment to the stacks.
 - The slope given and the building use.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Synthetic tables of our own (`tests/test_plumb.py`):
 - DU: sink 1, shower 1, WC 2, basin 0.5, with DN 50 for all but the WC's 100.

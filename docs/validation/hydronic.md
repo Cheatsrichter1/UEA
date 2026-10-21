@@ -5,7 +5,7 @@
 | Calculator | `hydronic` 0.2.0, kind `norm` |
 | Method | Verfahren B of the hydraulic balance, on the Heizlast per DIN EN 12831-1:2017-09 |
 | Code | `src/uea/packs/heat/hydronic.py`; the pipes from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py`, the Heizlast in `heatload.py` |
-| Tests | `tests/test_hydronic.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_hydronic.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The settings `spread`, `vmax` and `flow` are the planner's, and so are a manifold's own `flow=`, `spread=` and `mix`; the Heizlast's settings and tables are those of `heatload`. The pipe sizes, roughness and ζ come from the model's types (`docs/decisions/0037-heating-pipes-and-strangschema.md`). Every result names the edition of each table.
@@ -54,7 +54,7 @@ For each emitter: its design heat flow and water flow. For each section of the h
 - The spread against the emitters' design temperatures.
 - The Heizlast and its assumptions (`heatload.md`).
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 The box of `tests/test_heatload.py` with its synthetic tables: r1 (living) with underfloor heating from a manifold on w5, r2 (bedroom) with two radiators of 800 W, one from the tank, one from the manifold. Copper 15x1, 18x1, 22x1 with k 0.0015 mm, ζ 0.5 for a bend and 1.3 for a tee; the loop pipe 16x2 with k 0.007 mm; the heat pump's dp 100 hPa; Δθ 5 K, v_max 0.5 m/s.
 

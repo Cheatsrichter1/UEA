@@ -5,7 +5,7 @@
 | Calculator | `equip` 0.1.0, kind `norm` |
 | Standards | DIN 18015-2, minimum equipment of electrical installations in dwellings |
 | Code | `src/uea/packs/elec/equip.py`; what lies in each room from `src/uea/packs/mount.py` |
-| Tests | `tests/test_calc_elec.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_calc_elec.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 The numbers of the standard are licensed and not in this repository (`0008`). The office supplies them as the table `elec-minimum`; the tests use invented values.
@@ -34,7 +34,7 @@ For each room: the sockets, lighting outlets, communication outlets and dedicate
 - The grade the client chose.
 - How a combination of outlets counts (`combos=`).
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Table: living, grade 1, up to 20 m²: 3 sockets, 1 light, 1 data; up to 100 m²: 5, 2, 1; kitchen up to 999 m²: 5, 2, 0, 2 connections.
 

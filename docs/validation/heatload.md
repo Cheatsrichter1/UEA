@@ -5,7 +5,7 @@
 | Calculator | `heatload` 0.3.0, kind `norm` |
 | Standard | DIN EN 12831-1:2017-09 with the national supplement DIN/TS 12831-1:2020-04 |
 | Code | `src/uea/packs/heat/heatload.py`; surfaces from `envelope.py`, U-values from `thermal.py` (`docs/validation/uvalue.md`) |
-| Tests | `tests/test_heatload.py` |
+| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_heatload.py` at commit `517c07e` |
 | Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
 
 All numbers of the standards come from the office's tables or are the planner's settings (`docs/decisions/0033-u-values-and-heizlast.md`). Every result names the edition of each table.
@@ -54,7 +54,7 @@ For each heated room: the transmission heat loss Φ_T, the ventilation heat loss
 - The room uses and their rows in `room-temp`, the shielding and n_50.
 - Surfaces the report shows as "außen (kein Raum)": UEA found no room there.
 
-## Test cases
+## Test cases (passed at commit `517c07e`)
 
 Synthetic tables of our own (`tests/test_heatload.py`): θ_e −10 °C, θ_m,e 10 °C; living 20 °C, bedroom 18 °C, storage unheated at 5 °C, n_min 0.5; e 0 / 0.02 / 0.03; ε 1 up to 10 m; f_g1 1.45, G_w 1, ρc_p 0.34; settings tb 0.05, n50 3. The house is a 10 × 8 box: exterior walls U 0.16, the wall between the two rooms U 1.25, the floor to the ground U = 1/2.82, a flat roof U = 1/5.24. The shell of r1 is 4.7 × 7.4 m, the storey 3 m.
 
