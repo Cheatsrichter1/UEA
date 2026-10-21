@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Calculator | `hoai` 0.2.0, kind `norm` |
+| Calculator | `hoai` 0.2.1, kind `norm` |
 | Standard | Honorarordnung für Architekten und Ingenieure (HOAI) in the version of 2021 |
 | Code | `src/uea/calc/hoai.py`; chargeable costs from `src/uea/calc/din276.py` |
 | Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_costs_hoai.py` at commit `517c07e` |
@@ -58,3 +58,4 @@ All tables are synthetic test data, not the HOAI's values.
 |---|---|
 | 0.1.0 | First version |
 | 0.2.0 | The cost calculation where there is one (§ 6 Abs. 1); per group of technical systems |
+| 0.2.1 | One result per service and group of systems (`out/hoai-building.md`, `out/hoai-services-410-420.md`); the basis of the chargeable costs in German in the report. The fee is unchanged; not covered by the test cases above, which ran at `517c07e` |

@@ -63,6 +63,8 @@ class Calculator:
     params: tuple[Param, ...] = ()
     tables: tuple[data.Spec, ...] = ()
     """The norm tables it needs from the office (decision 0008)."""
+    suffix: Callable[[dict[str, Any]], str] | None = None
+    """From its settings, what tells its results apart: out/<name>-<suffix>.md."""
 
     @property
     def wants_env(self) -> bool:
@@ -283,6 +285,7 @@ def run_calc(ctx: "Ctx", out: Callable[[Any], None], out_json: Callable[[Any], N
     calc = calcs[name]
     d, _ = ctx.derived()
     scope: str | None = None
+    env: Env | None = None
     try:
         scope, given = split_args(ctx.args.rest)
         if not calc.wants_env and given:
@@ -305,6 +308,8 @@ def run_calc(ctx: "Ctx", out: Callable[[Any], None], out_json: Callable[[Any], N
     res = Result(calc, scope, o, state)
     project.out.mkdir(exist_ok=True)
     stem = calc.name + (f"-{scope}" if scope else "")
+    if calc.suffix is not None and env is not None:
+        stem += f"-{calc.suffix(env.values)}"
     md = project.out / f"{stem}.md"
     md.write_text(res.provenance_md() + "\n\n" + o.report, encoding="utf-8")
     (project.out / f"{stem}.json").write_text(

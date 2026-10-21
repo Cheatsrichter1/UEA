@@ -45,7 +45,7 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `packs/issues.py` | Requests and waivers (`issues.uea`) |
 | `packs/net.py`, `pipes.py`, `hydraulics.py`, `mount.py` | Shared by the services: derived networks, pipe sizes, hydraulics formulas, wall-mounted things |
 | `calc/` | The calculator framework and `uea data` for the office's norm tables; the costs, the bids' comparison and the fee (`din276`, `bids`, `hoai`) |
-| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), tables and calculation reports |
+| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), the fee offer (`offer`), tables and calculation reports |
 | `activity.py`, `dashboard.py` | The activity log the CLI writes per command, and `uea dashboard`, the local page that shows it (`dashboard.html`) |
 | `importer/` | IFC import: reading the file, fitting stairs and roofs, building the batch; `gaeb.py` reads a bid (GAEB 84) |
 

@@ -114,6 +114,7 @@ The project, one per project: project <name> "title" site=DE-HE postcode=64283 g
 | postcode | `postcode=` |  | postcode |
 | ground | `ground=` | m | terrain height relative to ±0.00, the ground storey's FFL |
 | north | `north=` | ° | true north, clockwise from the plan's +y axis; plans get a north arrow |
+| client | `client=` |  | the client as the offer addresses them, \| between lines: "Familie Müller\|Hauptstr. 1" |
 
 #### `level`
 
@@ -1305,7 +1306,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
 | `costs` | norm | 0.3.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
 | `bids` | norm | 0.1.0 | VOB/A 2019 § 16c Abs. 2 (rechnerische Prüfung) | Comparison of the bids (Preisspiegel) |
-| `hoai` | norm | 0.2.0 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
+| `hoai` | norm | 0.2.1 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
 | `cable` | norm | 0.1.0 | DIN VDE 0100-430 (433.1), DIN VDE 0100-520, DIN VDE 0298-4 | Leitungsquerschnitt (Überlastschutz) |
 | `vdrop` | norm | 0.1.0 | DIN VDE 0100-520 (IEC 60364-5-52, Anhang G) | Spannungsfall der Stromkreise |
 | `equip` | norm | 0.1.0 | DIN 18015-2 | Mindestausstattung (DIN 18015-2) |
@@ -2032,6 +2033,28 @@ For the bracing walls: f_vk = min(f_vk0 + 0.4 · σ_d, f_vlt).
 
 One row for each: material.
 
+#### `lv-texts`: Long texts of LV positions (the office's own texts)
+
+The office's own position texts. Standard texts such as STLB-Bau are licensed; an office with a licence may put them here for its projects.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `key` | text | what a position names with text=: FE-01 |
+| `text` | text | the long text; a line break or \| starts a new paragraph |
+
+One row for each: key.
+
+#### `offer`: Texts of the fee offer (the office's own texts)
+
+The office's letterhead and terms for uea export offer. office: the letterhead (name|street|town|phone); sender: the return address above the client's, in one line; place: the town before the date; intro: the opening; terms: the terms of the offer, | between paragraphs; closing: the closing; signer: who signs (name, qualification). Only office is needed.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `key` | text | which text (one of office, sender, place, intro, terms, closing, signer) |
+| `text` | text | the text; \| starts a new line |
+
+One row for each: key.
+
 ## Exports
 
-`uea export` writes `ifc`, `xlsx`, `pdf`, `dxf`, `svg`, `png`, `bcf`, `gaeb`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.
+`uea export` writes `ifc`, `xlsx`, `pdf`, `dxf`, `svg`, `png`, `bcf`, `gaeb`, `offer`; `uea render` writes a PNG plan image for agents. Files go to `out/`. Drawings are labelled in German, for the people who read them.

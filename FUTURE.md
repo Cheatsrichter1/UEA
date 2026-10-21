@@ -75,7 +75,7 @@ Version 2. The model already holds what a tender needs: the quantities, per elem
 
 - **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. The Kostenanschlag from the bids awarded (`stage=offer`, `0051-bids.md`). Open: the Kostenfeststellung.
 - **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
-- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs; the offer as a document (Office workflows).
+- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs. The offer is built (Office workflows).
 
 ## Agent dashboard
 
@@ -96,7 +96,7 @@ Not a version of its own. Most of an office's business side is how its agent beh
 What UEA adds:
 
 - **An example `AGENTS.md` for an office:** built (`docs/templates/AGENTS.md`): the rules that always hold, how the agent handles a request, when it stops and asks, and the `uea` commands of each step (`uea init` and `apply` for the first draft, `din277`, `costs` and `hoai` for the fee). The office copies it into its own repository and adapts it.
-- **The offer as a document to sign** (Honorarangebot): `uea export offer`, the fee from a `uea calc hoai` result with the office's standard terms, as a German PDF marked as a draft.
+- **The offer as a document to sign** (Honorarangebot): built (`uea export offer`, `docs/decisions/0054-offer-export.md`): the fees of the `uea calc hoai` results with the office's letterhead and terms and the project's client, as a German PDF marked as a draft. Open: special services, hourly fees and lump sums.
 - **Maybe the rough effort** from the office's own hours per service phase and its hourly rates, as a calculator on office data (`uea data`), since agents do not calculate.
 
 ## Plot evaluation

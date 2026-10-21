@@ -192,6 +192,16 @@ struct:<level>: the Positionsplan. The signature is the Tragwerksplaner's.
 CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
+uea calc din277 [level] BGF, NRF, KGF and BRI per storey (norm; table din277-uses by room use)
+uea calc costs [stage=estimate|calculation|offer] [bid=bd2]
+                        costs per DIN 276 (norm): the estimate from the reference prices
+                        (table cost-ref) on the DIN 277 quantities, the calculation from the
+                        priced LV, the Kostenanschlag from the bids awarded
+uea calc hoai zone=<I-V> [service=building|services|structure rate=<%> lph=1-4 nk=<%>]
+              [groups=410,420 kosten=<€> umbau=<%>]
+                        the fee per HOAI 2021 (norm; table hoai-fees): chargeable costs from
+                        the costs, structure: kosten=. One result per service and groups:
+                        out/hoai-building.md, out/hoai-services-410-420.md
 uea calc cable method=B2 [scope] [insulation=PVC temp=<C> group=<n> arrangement=<a>]
                         each circuit's cable against its breaker, In <= Iz (norm). Iz from the
                         office's table ampacity; temp-factor with temp=, group-factor with group=
@@ -289,6 +299,9 @@ uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export gaeb [-o file]           the LV for bidders: GAEB DA XML 3.3, phase 83, no prices
+uea export offer [results] [-o f]   the fee offer (Honorarangebot) from the hoai results, all or
+                                    hoai-building,hoai-structure: out/offer.md and a PDF, a draft
+                                    to sign. Texts: table offer; the client: project client=
 uea export svg|png [name] [-o f]    the same sheet as a picture, to check what the PDF shows
 Files go to out/ unless -o says otherwise; the output names them. Sections: + section A x=W+5 look=w
 (uea help section). Sheets and tables are labelled in German, for the people who read them. The

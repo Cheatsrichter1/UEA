@@ -57,6 +57,7 @@ One file per major decision: what was decided, what else was considered, and why
 | 0051 | [Reading the bids, comparing them and the Kostenanschlag](0051-bids.md) | Accepted (built) |
 | 0052 | [No test suite and no token bench in the repository](0052-no-tests-in-the-repo.md) | Accepted |
 | 0053 | [The agent dashboard: what each agent is doing, from the commands it runs](0053-agent-dashboard.md) | Accepted (built) |
+| 0054 | [The fee offer as a document to sign](0054-offer-export.md) | Accepted (built) |
 
 Template:
 

@@ -23,12 +23,18 @@ def _row(t: data.Table, n: int) -> str:
     )
 
 
+def all_specs() -> dict[str, data.Spec]:
+    """Every table an office supplies: the calculators' and the exports' (lv-texts, offer)."""
+    from uea.export.lv import TEXTS
+    from uea.export.offer import OFFER
+
+    return {**data.specs_of(builtin().values()), TEXTS.id: TEXTS, OFFER.id: OFFER}
+
+
 def run_data(
     ctx: "Ctx", out: Callable[[str | Sequence[str]], None], out_json: Callable[[Any], None]
 ) -> int:
-    from uea.export.lv import TEXTS
-
-    specs = {**data.specs_of(builtin().values()), TEXTS.id: TEXTS}
+    specs = all_specs()
     action: str | None = ctx.args.action
     rest: list[str] = ctx.args.rest
     if action is None:

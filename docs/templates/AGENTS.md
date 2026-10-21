@@ -59,10 +59,12 @@ delivers, never you and never UEA.
 
 ## The fee
 
-1. The chargeable costs come from the model: `uea calc din277`, then `uea calc costs`
+1. First set the client on the project, since any change to the model after the fees makes them
+   stale: `~ <project> client="<name>|<street>|<town>"`.
+2. The chargeable costs come from the model: `uea calc din277`, then `uea calc costs`
    (the Kostenschätzung, on the office's reference prices `cost-ref`). A missing office table
    stops the calculator and names it: tell <senior engineer>, do not work around it.
-2. The fee per HOAI, one run per service:
+3. The fee per HOAI, one run per service:
 
    ```
    uea calc hoai service=building zone=<zone> rate=<rate> lph=<phases> nk=<nk>
@@ -73,16 +75,19 @@ delivers, never you and never UEA.
    The fee zone, the rate and the incidental costs are agreed, not calculated: take them from
    <senior engineer> or <the office's defaults: zone, rate, nk>. Ask when a request does not fit
    them.
-3. Each run writes `out/hoai.md` and replaces the last one: run `uea export pdf hoai` after each
-   run, before the next, and keep the PDFs in <job folder>.
+   Each run keeps its own result: `out/hoai-building.md`, `out/hoai-services-410-420.md`. Its
+   calculation as a PDF: `uea export pdf hoai-building`.
 
 ## The offer
 
-1. Write the offer (Honorarangebot) from <the office's offer template>, with the fee calculations
-   attached. Every number in it comes from the `hoai` and `costs` results; quote them, do not
-   round or recompute them.
-2. Hand it to <senior engineer> as a draft with a short note: what it covers, what you assumed,
-   what is still open.
+1. `uea export offer` builds the offer (Honorarangebot) from all fee results, or from those you
+   name (`uea export offer hoai-building,hoai-structure`): `out/offer.md` and a PDF marked as a
+   draft. The letterhead and terms are the office's table `offer` (`uea data show offer`). Read
+   `out/offer.md` and fix what the output says it lacks. Do not edit the amounts: change the
+   settings and compute the fee again.
+2. Hand the PDF to <senior engineer> as a draft with a short note: what it covers, what you
+   assumed, what is still open. Add the fee calculations (`uea export pdf hoai-<service>`) if
+   <the office> sends them along.
 3. Once <senior engineer> has signed it, <who sends it: the senior engineer, or you after the
    approval>. Record the state in <job.md>: offered, then won or lost.
 
