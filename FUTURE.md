@@ -7,10 +7,10 @@ What comes after the first version and in which order, and the ideas and backlog
 | Version | Content | Section |
 |---|---|---|
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
-| v2 (0.2.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids after the release | Partial views, From model to tender |
-| v3 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
-| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
-| v5 | The agent dashboard | Agent dashboard |
+| v2 (0.2.0, 0.3.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids in 0.3.0 | Partial views, From model to tender |
+| v3 (0.3.0) | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
+| v4 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
+| v5 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 
 The order is fixed; the content of each version is not.
 
@@ -32,7 +32,7 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On the generated block in `bench/` (`bench/large.py`, 8 storeys of 6 flats, 1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/results.md`).
+Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On a generated block of 8 storeys of 6 flats (1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/large.py` and `bench/results.md` at commit `517c07e`).
 
 Open:
 
@@ -75,20 +75,32 @@ Until then, an agent defines every type in the project file.
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
 - **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. The Kostenanschlag from the bids awarded (`stage=offer`, `0051-bids.md`). Open: the Kostenfeststellung.
-- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel. Open: a Preisspiegel sheet in the xlsx, side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
 - **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs.
+
+## Agent dashboard
+
+Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/0001-no-own-agent.md`).
+
+Built (`docs/decisions/0053-agent-dashboard.md`): UEA infers the activity from the commands an agent runs anyway, so no agent reports a status. The CLI writes a line per command to an activity log on the machine, out of git, and `uea dashboard` serves a local page that reads it: per project and agent, its state (plant, rechnet, exportiert, liest, denkt nach, ruht) with an animation, a line such as "plant die Beleuchtung im OG", its last batch and its last commands.
+
+Open:
+
+- **Agents on other machines.** The log is per machine; a dashboard across machines needs the logs shipped to one place, perhaps together with a host model (Partial views, Agents on several machines).
+- **Thinking** is the gap since an agent's last command; UEA cannot tell it from an agent that is done or waiting for its human. An optional `uea status "<text>"` stays out unless that falls short.
+- **More than the moment:** how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/0010-requests-in-the-model.md`). Questions waiting for a human answer need question events that UEA does not have.
 
 ## Office workflows
 
-Version 3. An agent works the business side, with a human approving every outgoing step:
+Version 4. An agent works the business side, with a human approving every outgoing step:
 
-1. A job comes in, from a client or from the tender watching of version 4. The agent summarizes it for the senior engineer: scope, deadlines, requirements, rough effort.
+1. A job comes in, from a client or from the tender watching of version 5. The agent summarizes it for the senior engineer: scope, deadlines, requirements, rough effort.
 2. When the senior engineer approves, it prepares the offer, the fee calculation (version 2) and a first draft of the plan.
 3. The senior engineer checks it and signs. Nothing goes out without that signature.
 
 ## Plot evaluation
 
-Version 4. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
+Version 5. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
 
 - What the Bebauungsplan, BauNVO (GRZ, GFZ, storeys) or §34 BauGB and the Landesbauordnung allow.
 - Building options: social housing, regular apartments, single-family houses, mixed use.
@@ -98,22 +110,11 @@ The result is a decision basis for a human, not a decision. Needs the site plan 
 
 ## Tender watching
 
-Version 4. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and hands each match to the office workflow (version 3). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
+Version 5. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and hands each match to the office workflow (version 4). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
 
 ## Existing buildings
 
 - **Survey into a model:** turn point clouds from a laser scanner, or photos, into a model of the existing building (status `existing`) for conversions and refurbishments.
-
-## Agent dashboard
-
-Version 5. A small, friendly dashboard for the senior engineer, a cherry on top. It is not a viewer and does not show the model one-to-one. It shows the state of the work:
-
-- What each agent is doing right now ("planning the electrics on the EG", "running Heizlast"), with a simple animation.
-- How far along each project is.
-- Open questions from the agents that are waiting for a human answer.
-- Drafts that are ready for review, and approvals that are pending.
-
-Much of this UEA records anyway: the history, open issues, requests and waivers. What each agent is doing right now, and the questions waiting for a human, would need status and question events that UEA deliberately does not have today (`docs/decisions/0001-no-own-agent.md`). Building the dashboard means revisiting that decision. Either way, it only reads, so it never slows the agents down.
 
 ## Backlog
 
@@ -137,7 +138,7 @@ Work on what exists, to be scheduled into a version.
 
 - **Apartments as zones** (`IfcZone`), with a Wohnfläche per apartment.
 - **Lifts** (`IfcTransportElement`) and stairwells with landings.
-- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py`). Open: floors at different heights within one storey (half-storey offsets).
+- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py` at commit `517c07e`). Open: floors at different heights within one storey (half-storey offsets).
 - **Timber-frame walls** whose layers mix studs and insulation, which the U-value calculation must handle.
 
 ### Services

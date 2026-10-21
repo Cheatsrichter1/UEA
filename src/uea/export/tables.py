@@ -625,9 +625,9 @@ def tables(d: Derived, level: str | None = None) -> list[Table]:
         b.stairs(),
         b.quantities(),
     ]
-    from uea.export.lv import lv_tables
+    from uea.export.lv import bid_tables, lv_tables
     from uea.export.tables_elec import elec_tables
     from uea.export.tables_tga import tga_tables
 
-    lv = lv_tables(d) if level is None else []
+    lv = [*lv_tables(d), *bid_tables(d)] if level is None else []
     return [t for t in [*all_tables, *elec_tables(d, level), *tga_tables(d, level), *lv] if t.rows]

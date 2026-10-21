@@ -21,6 +21,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export) |
 | `uea import <format> <file>` | an architect's IFC (ifc), a bid (gaeb) (help import) |
 | `uea log [n]` | recent batches |
+| `uea dashboard [--port n]` | for the engineer: a local page of what each agent is doing |
 | `uea help [topic]` | this help, or a topic |
 
 Full syntax. Every command also takes `-C <dir>` and `--json`.
@@ -42,6 +43,7 @@ uea data [--edition E] [--source S] [action] [rest ...]
 uea render [-o FILE] scope [view]
 uea export [-o FILE] format [scope]
 uea import [--by WHO] [-m WHY] [--dry-run] [--building NAME] [--bidder NAME] format file
+uea dashboard [--port N]
 ```
 
 ## Operations
