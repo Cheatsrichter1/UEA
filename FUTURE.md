@@ -32,7 +32,7 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On the generated block in `bench/` (`bench/large.py`, 8 storeys of 6 flats, 1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/results.md`).
+Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On a generated block of 8 storeys of 6 flats (1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/large.py` and `bench/results.md` at commit `517c07e`).
 
 Open:
 
@@ -137,7 +137,7 @@ Work on what exists, to be scheduled into a version.
 
 - **Apartments as zones** (`IfcZone`), with a Wohnfläche per apartment.
 - **Lifts** (`IfcTransportElement`) and stairwells with landings.
-- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py`). Open: floors at different heights within one storey (half-storey offsets).
+- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py` at commit `517c07e`). Open: floors at different heights within one storey (half-storey offsets).
 - **Timber-frame walls** whose layers mix studs and insulation, which the U-value calculation must handle.
 
 ### Services
