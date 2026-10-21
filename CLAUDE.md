@@ -17,6 +17,7 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `docs/decisions/` | One file per major decision, with alternatives and reasons |
 | `docs/prototype/` | Hand-written example projects that test the draft format; Haus Müller is the reference EFH |
 | `docs/validation/` | Validation report of each `norm` calculator |
+| `docs/templates/` | Templates for offices, such as the example `AGENTS.md` an office gives its agent |
 | `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
 | `docs/reference.md` | Every command, kind, field and issue code, generated from the code (`uv run python -m uea.reference`) |
 | `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |

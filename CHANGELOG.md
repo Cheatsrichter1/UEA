@@ -2,6 +2,10 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
+## Unreleased
+
+- **Office workflows are the agent's instructions, not a version** (`FUTURE.md`): an office's business side is how its agent behaves, so it belongs in the instructions the office gives it. `docs/templates/AGENTS.md` is an example to copy and adapt: nothing leaves the office without the senior engineer's approval, a request is summarised and then waits, the fee comes from `uea calc din277`, `costs` and `hoai`, the offer is a draft until it is signed. Plot evaluation and tender watching move up to v4.
+
 ## 0.3.0 (2026-10-21): the bids and the agent dashboard
 
 Version 2 is complete with the bids, and version 3 is the agent dashboard. The calculators new in this release (`bids`, `light`) are **not yet reviewed** by a licensed person, nor are those of 0.2.0 (`din277`, `costs`, `hoai`), and the norm tables, prices and factors in the repo are synthetic test data. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.

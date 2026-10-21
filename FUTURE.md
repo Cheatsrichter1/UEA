@@ -95,7 +95,7 @@ Not a version of its own. Most of an office's business side is how its agent beh
 
 What UEA adds:
 
-- **An example `AGENTS.md` for an office**, shipped as a template: how the agent handles a request, when it stops and asks, what it may never do, and which `uea` commands it uses at each step (`uea init` and `apply` for the first draft, `uea calc hoai` for the fee). The office adapts it to its own rules.
+- **An example `AGENTS.md` for an office:** built (`docs/templates/AGENTS.md`): the rules that always hold, how the agent handles a request, when it stops and asks, and the `uea` commands of each step (`uea init` and `apply` for the first draft, `din277`, `costs` and `hoai` for the fee). The office copies it into its own repository and adapts it.
 - **The offer as a document to sign** (Honorarangebot): `uea export offer`, the fee from a `uea calc hoai` result with the office's standard terms, as a German PDF marked as a draft.
 - **Maybe the rough effort** from the office's own hours per service phase and its hourly rates, as a calculator on office data (`uea data`), since agents do not calculate.
 
