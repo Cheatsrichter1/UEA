@@ -9,8 +9,7 @@ What comes after the first version and in which order, and the ideas and backlog
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 (0.2.0, 0.3.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids in 0.3.0 | Partial views, From model to tender |
 | v3 (0.3.0) | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
-| v4 | Office workflows: an agent works the business side, a human approves every outgoing step | Office workflows |
-| v5 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
+| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 
 The order is fixed; the content of each version is not.
 
@@ -76,7 +75,7 @@ Version 2. The model already holds what a tender needs: the quantities, per elem
 
 - **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. The Kostenanschlag from the bids awarded (`stage=offer`, `0051-bids.md`). Open: the Kostenfeststellung.
 - **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
-- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs.
+- **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs; the offer as a document (Office workflows).
 
 ## Agent dashboard
 
@@ -92,15 +91,17 @@ Open:
 
 ## Office workflows
 
-Version 4. An agent works the business side, with a human approving every outgoing step:
+Not a version of its own. Most of an office's business side is how its agent behaves, and that belongs in the instructions the office gives its agent (`AGENTS.md`, `CLAUDE.md`), not in UEA (`docs/decisions/0001-no-own-agent.md`): read a request and summarise it for the senior engineer (scope, deadlines, requirements), stop and wait for the approval, prepare the offer and a first draft of the plan, and send nothing that the senior engineer has not checked and signed. The rules are the office's: who approves what, how offers are worded, what the agent may send. Keeping track of jobs is the office's own files or tools.
 
-1. A job comes in, from a client or from the tender watching of version 5. The agent summarizes it for the senior engineer: scope, deadlines, requirements, rough effort.
-2. When the senior engineer approves, it prepares the offer, the fee calculation (version 2) and a first draft of the plan.
-3. The senior engineer checks it and signs. Nothing goes out without that signature.
+What UEA adds:
+
+- **An example `AGENTS.md` for an office**, shipped as a template: how the agent handles a request, when it stops and asks, what it may never do, and which `uea` commands it uses at each step (`uea init` and `apply` for the first draft, `uea calc hoai` for the fee). The office adapts it to its own rules.
+- **The offer as a document to sign** (Honorarangebot): `uea export offer`, the fee from a `uea calc hoai` result with the office's standard terms, as a German PDF marked as a draft.
+- **Maybe the rough effort** from the office's own hours per service phase and its hourly rates, as a calculator on office data (`uea data`), since agents do not calculate.
 
 ## Plot evaluation
 
-Version 5. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
+Version 4. Given an open plot (for example one a city offers), an agent evaluates what could be built there:
 
 - What the Bebauungsplan, BauNVO (GRZ, GFZ, storeys) or §34 BauGB and the Landesbauordnung allow.
 - Building options: social housing, regular apartments, single-family houses, mixed use.
@@ -110,7 +111,7 @@ The result is a decision basis for a human, not a decision. Needs the site plan 
 
 ## Tender watching
 
-Version 5. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and hands each match to the office workflow (version 4). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
+Version 4. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and puts each match to the senior engineer the way the office's `AGENTS.md` says (Office workflows). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
 
 ## Existing buildings
 
