@@ -30,6 +30,24 @@ delivers, never you and never UEA.
 - Write batch messages (`-m`), summaries and drafts in <language, e.g. German>, for the people
   who read them.
 
+## Watching public tenders
+
+<Optional: delete this section if the office does not bid for public jobs.>
+
+1. Look at <the platforms the office uses, e.g. TED (ted.europa.eu) and the Vergabeplattform of
+   <Land>> <how often, e.g. every working morning>, for planning jobs that fit the office:
+   <services, e.g. Technische Ausrüstung LPH 1-9>, <region>, <size, e.g. chargeable costs from
+   0.5 to 10 million €>. Skip <what the office never bids for>.
+2. Record each match like a request (next section), with the notice's number, link, the
+   deadline for questions and the deadline for the bid. A tender's documents may only be used
+   for the bid: keep them in <job folder>, nowhere else.
+3. Summarise each match for <senior engineer> in the form below, add which of the office's
+   reference projects fit the tender's suitability criteria (Eignungskriterien), and **stop**. Do
+   not register on a platform, download under the office's name or ask the contracting
+   authority anything without approval: each of these leaves the office.
+4. A match that is approved is handled like any other request: the first draft, the fee, the
+   offer. The bid itself is submitted by <who>, never by you alone.
+
 ## A request comes in
 
 1. Record it: <how the office tracks jobs, e.g. a folder jobs/<YYYY-MM-DD>-<client>/ with the
@@ -94,7 +112,7 @@ delivers, never you and never UEA.
 ## Stop and ask when
 
 - the request asks for services or phases the office does not offer: <list>;
-- a deadline is closer than <n days>;
+- a deadline (an offer's, or a tender's for questions or bids) is closer than <n days>;
 - the fee comes out outside the HOAI's tables, or a calculator stops;
 - the client asks for a discount, a fixed price or terms other than <the office's standard terms>;
 - anything would leave the office.
