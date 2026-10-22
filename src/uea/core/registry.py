@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 DISCIPLINES: tuple[str, ...] = (
     "project",
     "arch",
+    "site",
     "struct",
     "light",
     "elec",
@@ -35,6 +36,7 @@ so requests from them can be recorded."""
 UPSTREAM: dict[str, frozenset[str]] = {
     "project": frozenset(),
     "arch": frozenset({"project"}),
+    "site": frozenset({"project", "arch"}),
     "struct": frozenset({"project", "arch"}),
     "light": frozenset({"project", "arch"}),
     "heat": frozenset({"project", "arch"}),

@@ -17,7 +17,7 @@ Status: release 0.3.0 (`CHANGELOG.md`): versions 1, 2 and 3. Everything describe
   │               derived geometry · history             │
   ├──────────────────────────────────────────────────────┤
   │ Domain packs  arch · elec · plumb · heat · vent ·    │
-  │               light · struct                         │
+  │               light · struct · site · lv · bid       │
   │               (element kinds, types, validators,     │
   │                calculators, export mappings)         │
   ├──────────────────────────────────────────────────────┤
@@ -42,6 +42,7 @@ haus-mueller/
   project.uea     project data, site, levels, grids (shared by all disciplines)
   arch.uea        architecture: build-ups, walls, slabs, roofs, stairs, openings, rooms, finishes,
                   shafts, pre-walls and installation zones
+  site.uea        the plot and the limits of its plan (GRZ, GFZ, Vollgeschosse)
   struct.uea      structural: beams, columns, rafters and loads; the load path itself is the architecture's (lb walls, slabs)
   elec.uea        electrical: devices, circuits, distribution boards, cables, feeds
   plumb.uea       plumbing: fixtures, meter, risers, stacks, sewer connection, circulation; pipes derived
@@ -73,6 +74,7 @@ project ─▶ arch ─┬─▶ struct
 
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair. So far: `plumb` may reference `heat`, whose storage tank heats the drinking water (`docs/decisions/0035-plumbing.md`).
+- `site.uea` sits beside the services, below the architecture: the plot's outline may use the grids and walls, and nothing references the plot (`docs/decisions/0055-plot-and-baunvo.md`).
 - `lv.uea` sits below all of them: a position may count the elements of every discipline, and no discipline references the LV (`docs/decisions/0048-leistungsverzeichnis.md`).
 - `bid.uea` sits below the LV: a price references its bid and its position, and nothing references a bid (`docs/decisions/0051-bids.md`).
 - `issues.uea` is outside the graph: requests and waivers may reference anything, and nothing references them.

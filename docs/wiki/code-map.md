@@ -40,6 +40,7 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `packs/elec/`, `packs/light/` | Electrical devices, circuits, boards and feeds; luminaires |
 | `packs/heat/`, `packs/plumb/`, `packs/vent/` | Heating, plumbing and ventilation |
 | `packs/struct/` | The load path, loads and the Statische Berechnung |
+| `packs/site/` | The plot and the limits of its plan; the measure of use per BauNVO (`baunvo`) (`site.uea`) |
 | `packs/lv/` | The Leistungsverzeichnis: titles, positions and their derived quantities (`lv.uea`) |
 | `packs/bid/` | The bids on the LV and their unit prices, with their checked sums (`bid.uea`) |
 | `packs/issues.py` | Requests and waivers (`issues.uea`) |

@@ -107,11 +107,16 @@ Version 4. Given an open plot (for example one a city offers), an agent evaluate
 - Building options: social housing, regular apartments, single-family houses, mixed use.
 - A first massing model, rough costs (version 2) and a profitability estimate for each option.
 
-The result is a decision basis for a human, not a decision. Needs the site plan and the setbacks and plot ratios (Backlog).
+The result is a decision basis for a human, not a decision. The agent reads the Bebauungsplan and judges § 34; code measures. In slices:
+
+1. **The plot and the measure of use:** built (`site.uea`, `uea calc baunvo`, `docs/decisions/0055-plot-and-baunvo.md`): the plot's outline and the plan's limits, GR and GRZ (also with § 19 Abs. 4), the Vollgeschosse by the Land's rule from the office's table `full-storey`, GF and GFZ, each against the limits. Open: garages, parking and driveways (§ 19 Abs. 4 Nr. 1 and 2), a sloping terrain, building lines and limits (Baulinien, Baugrenzen).
+2. **Setbacks:** the Abstandsflächen per Landesbauordnung against the plot's edges; the rules differ per Land.
+3. **Options:** a simple massing element (footprint, height, storeys) for sketching variants, each its own project, with `din277` and `costs` working on it.
+4. **The comparison** of the options for the human, in German: size, GRZ and GFZ, setbacks, rough costs, maybe a yield from the office's rents or prices; and the site plan.
 
 ## Tender watching
 
-Version 4. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and puts each match to the senior engineer the way the office's `AGENTS.md` says (Office workflows). The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
+Version 4. The agent watches public tender platforms (for example TED for the EU and the German Vergabeplattformen) for planning jobs that fit the office, and puts each match to the senior engineer the way the office's `AGENTS.md` says (Office workflows). Like the office workflows, this is the agent's behaviour: `docs/templates/AGENTS.md` has a section for it (where to look, what fits, what needs approval); UEA adds no code. The Ausschreibungen it reads are the offers of others to the office; the ones the office writes are version 2.
 
 ## Existing buildings
 
@@ -154,7 +159,7 @@ Work on what exists, to be scheduled into a version.
 
 - **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/0047-din277-areas.md`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
 - **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
-- **Setbacks and plot ratios:** Abstandsflächen per Landesbauordnung, GRZ and GFZ per BauNVO. Needs the site plan below; the rules differ per Land.
+- **Setbacks and plot ratios:** GRZ and GFZ per BauNVO are built (Plot evaluation); the Abstandsflächen per Landesbauordnung are its next slice.
 - **GEG compliance** and the Energieausweis, later.
 - **Lighting.** Illuminance targets and the average illuminance of a room are built (`uea calc light`, `docs/decisions/0050-illuminance.md`). Open: the point calculation with photometric files (task areas, uniformity), glare (UGR), daylight, emergency lighting, the reflectances from the finishes.
 

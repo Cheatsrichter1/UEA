@@ -27,7 +27,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | struct | lv | bid | <kind>"
+    "start | ops | positions | arch | site | elec | heat | plumb | vent | struct | lv | bid"
+    " | <kind>"
     " | codes"
     " | calc | export | import"
 )
@@ -193,6 +194,8 @@ CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
 uea calc din277 [level] BGF, NRF, KGF and BRI per storey (norm; table din277-uses by room use)
+uea calc baunvo         GR, GRZ, Vollgeschosse, GF and GFZ per BauNVO against the plot's limits
+                        (norm; table full-storey for the Land's Vollgeschoss rule; help site)
 uea calc costs [stage=estimate|calculation|offer] [bid=bd2]
                         costs per DIN 276 (norm): the estimate from the reference prices
                         (table cost-ref) on the DIN 277 quantities, the calculation from the
@@ -392,6 +395,17 @@ A priced position removed from the LV leaves its prices dangling (E-REF-001): re
 """
 
 
+SITE_NOTES = """\
+The plot and what its plan allows. You read the limits from the Bebauungsplan (or judge them
+under § 34 BauGB) and write them on the plot; code measures the building against them.
+outline= in plan coordinates like the walls, relative to grids: W-3,S-5;E+4,S-5;E+4,N+6;W-3,N+6.
+Outline only the building land (Bauland, § 19 Abs. 3 BauNVO). The project needs ground= (the
+terrain) and site= (the Land, for its Vollgeschoss rule: the office's table full-storey).
+uea calc baunvo    GR, GRZ (also with § 19 Abs. 4), Vollgeschosse, GF, GFZ, each against the
+                   plot's limits (norm)
+"""
+
+
 def pack_help(reg: Registry, pack: str) -> str:
     p = reg.packs[pack]
     lines = [f"{p.name}: {p.title} ({p.file})"]
@@ -414,6 +428,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(lv_notes())
     if pack == "bid":
         lines.append(BID_NOTES.rstrip())
+    if pack == "site":
+        lines.append(SITE_NOTES.rstrip())
     if p.kinds:
         lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)

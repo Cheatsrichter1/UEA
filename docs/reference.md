@@ -455,6 +455,27 @@ An installation zone (Installationszone, Trasse): a horizontal run on a storey t
 | b | `b=` | m | end, a point x,y (required) |
 | z | `z=` | m | height above the FFL (required) |
 
+### The plot and the limits of its plan (`site.uea`)
+
+Kinds: `plot`.
+
+#### `plot`
+
+The plot (Baugrundstück), one per project, and the limits its plan sets: plot _ "Flst. 123/4" outline=W-3,S-5;E+4,S-5;E+4,N+6;W-3,N+6 grz=0.4 gfz=0.8 storeys=2 plan="B-Plan Nr. 12". You read the limits from the Bebauungsplan; uea calc baunvo checks them.
+
+`plot <id>` · ids `pl1`, `pl2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| outline | `outline=` | m | its boundary: points x,y joined by ;, in order round it (required) |
+| grz | `grz=` |  | highest GRZ (Grundflächenzahl, § 19 BauNVO) |
+| grz2 | `grz2=` |  | highest GRZ with § 19 Abs. 4 (below ground); else GRZ + 50 %, at most 0.8 |
+| gfz | `gfz=` |  | highest GFZ (Geschossflächenzahl, § 20 BauNVO) |
+| gr | `gr=` | m² | highest Grundfläche instead of a GRZ |
+| gf | `gf=` | m² | highest Geschossfläche instead of a GFZ |
+| storeys | `storeys=` |  | most Vollgeschosse (Zahl der Vollgeschosse) |
+| plan | `plan=` |  | where the limits come from: "B-Plan Nr. 12", "§ 34 BauGB" |
+
 ### Structure (`struct.uea`)
 
 Kinds: `beam`, `load`, `column`, `rafter`.
@@ -1244,6 +1265,9 @@ E is an error, W a warning.
 | W-ARCH-060 | section outside the building (it cuts no wall) |
 | E-ARCH-070 | shaft whose highest storey is not above its lowest |
 | E-ARCH-071 | installation zone without a length |
+| E-SITE-001 | plot outline crosses itself or encloses no area |
+| E-SITE-002 | more than one plot |
+| W-SITE-003 | part of a storey lies outside the plot |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
 | W-STRUCT-003 | beam that rests on fewer than two load-bearing walls or columns |
@@ -1304,6 +1328,7 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
+| `baunvo` | norm | 0.1.0 | BauNVO 2017, §§ 16, 19, 20; Vollgeschoss nach Landesbauordnung | Measure of building use per BauNVO (GRZ, GFZ, Vollgeschosse) |
 | `costs` | norm | 0.3.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
 | `bids` | norm | 0.1.0 | VOB/A 2019 § 16c Abs. 2 (rechnerische Prüfung) | Comparison of the bids (Preisspiegel) |
 | `hoai` | norm | 0.2.1 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
@@ -1486,6 +1511,20 @@ One row per room use. A use with no row stops the split of the NRF and is named.
 | `group` | num > 0 | usage group: 1 to 7 NUF, 8 TF, 9 VF |
 
 One row for each: use.
+
+#### `full-storey`: Vollgeschoss per Landesbauordnung (the Landesbauordnung of the Land)
+
+One row per Land, from the current text of its Landesbauordnung (the definition of the Vollgeschoss). A Land with a rule this does not express (a Staffelgeschoss rule on the outer walls, a height in metres for the whole building) is not covered.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `land` | text | the Land as the project's site= names it: DE-HE |
+| `rise` | num ≥ 0 | the top of a storey's ceiling must rise more than this above the terrain, m |
+| `height` | num > 0 | clear height, m |
+| `share` | num > 0 | over at least this share of the floor area, 0 to 1 |
+| `basis` | text | the floor area of the storey below or its own (one of below, own) |
+
+One row for each: land.
 
 #### `cost-ref`: Reference prices per cost group (Kostenkennwerte) (DIN 276; the office's own prices)
 

@@ -213,6 +213,32 @@ class Point(Value):
 
 
 @dataclass(frozen=True, slots=True)
+class Points(Value):
+    """An outline: plan points joined by `;`, in order round it: `W-3,S-5;E+4,S-5;E+4,N+6`."""
+
+    items: tuple[Point, ...]
+
+    def fmt(self) -> str:
+        return ";".join(p.fmt() for p in self.items)
+
+    def refs(self) -> tuple[str, ...]:
+        return tuple(r for p in self.items for r in p.refs())
+
+    def map_refs(self, f: Callable[[str], str]) -> Self:
+        return type(self)(tuple(p.map_refs(f) for p in self.items))
+
+    @classmethod
+    def parse(cls, s: str) -> Self:
+        parts = s.split(";")
+        if len(parts) < 3 or any(not p for p in parts):
+            raise ValueError(
+                f"{s!r} is not an outline; give 3 or more points x,y joined by ;, e.g."
+                " W,S;E,S;E,N;W,N"
+            )
+        return cls(tuple(Point.parse(p) for p in parts))
+
+
+@dataclass(frozen=True, slots=True)
 class Size(Value):
     """Width x height in metres: `0.885x2.01`."""
 
