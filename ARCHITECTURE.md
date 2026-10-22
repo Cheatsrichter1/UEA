@@ -218,6 +218,8 @@ Every agent with a shell can use the CLI, so it is the primary interface. Comman
 | `uea import gaeb <file>` | A bidder's GAEB 84 into `bid.uea` (§9, The Leistungsverzeichnis) |
 | `uea export <format> [scope]` | Human-facing exports (§9): `pdf`, `dxf`, `xlsx`, `ifc`, `svg`, `png`, `bcf`, `gaeb`, `offer` |
 | `uea render <level>` | A plan image (PNG) for vision models |
+| `uea block x=W..E y=S..N storeys=<n>` | A simple building as an ordinary batch, for options on a plot (`0057`) |
+| `uea compare <project>...` | Options side by side for a human, from each one's results (`0057`) |
 | `uea log [n]` | Recent batches |
 | `uea dashboard [--port n]` | For the engineer, not for agents: a local page of what each agent is doing (Dashboard below) |
 
@@ -274,6 +276,7 @@ UEA's own exports are views. They are never read back into the model. Humans who
 | DWG | external converter, run as a separate process | ODA File Converter or LibreDWG (GPL) |
 | PDF plans | reportlab (BSD), from the same 2D drawing | Built for the floor plan sheet, the section, the elevation, the electrical, heating and plumbing sheets, the Heizungsschema (`0036-heating-and-plumbing-sheets.md`), the Strangschema (`0037`), the ventilation plans (`0038`) and the Positionsplan (`0040`) |
 | PDF reports | reportlab (BSD), DejaVu Sans (free licence, shipped) | Built. A calculation result's report on A4 with an empty signature block, refused when the model has changed since (`0036`) |
+| Site plan | reportlab (BSD), from the same 2D drawing | Built. The plot, the footprint with its Vollgeschosse and the Abstandsflächen from the results of `baunvo` and `setback` (`0057-options-on-a-plot.md`) |
 | Fee offer | reportlab (BSD), as the PDF reports | Built. The Honorarangebot from the `hoai` results with the office's letterhead and terms (table `offer`) and the project's client, as Markdown and a PDF to sign (`0054-offer-export.md`) |
 | XLSX | openpyxl (MIT) | Built. Tables per kind and quantities: rooms, walls, openings, slabs, roofs, stairs (`0022-plans-and-tables.md`); then the electrical tables, and emitters, manifolds, fixtures, pipe sections and pipe quantities (`0036`), ventilation units, air terminals and ducts (`0038`); the LV and its costs per DIN 276 cost group (`0048`) |
 | GAEB DA XML 3.3 | Python's standard library (XML) | Built. The LV for bidders, phase 83, without prices (`0048-leistungsverzeichnis.md`); the bids, phase 84, are read back with `uea import gaeb` (`0051-bids.md`); not yet validated against the official schema |

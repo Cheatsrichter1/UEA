@@ -9,7 +9,7 @@ What comes after the first version and in which order, and the ideas and backlog
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 (0.2.0, 0.3.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids in 0.3.0 | Partial views, From model to tender |
 | v3 (0.3.0) | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
-| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
+| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen); built, not yet released | Plot evaluation, Tender watching |
 
 The order is fixed; the content of each version is not.
 
@@ -110,9 +110,9 @@ Version 4. Given an open plot (for example one a city offers), an agent evaluate
 The result is a decision basis for a human, not a decision. The agent reads the Bebauungsplan and judges § 34; code measures. In slices:
 
 1. **The plot and the measure of use:** built (`site.uea`, `uea calc baunvo`, `docs/decisions/0055-plot-and-baunvo.md`): the plot's outline and the plan's limits, GR and GRZ (also with § 19 Abs. 4), the Vollgeschosse by the Land's rule from the office's table `full-storey`, GF and GFZ, each against the limits. Open: garages, parking and driveways (§ 19 Abs. 4 Nr. 1 and 2), a sloping terrain, building lines and limits (Baulinien, Baugrenzen).
-2. **Setbacks:** the Abstandsflächen per Landesbauordnung against the plot's edges; the rules differ per Land.
-3. **Options:** a simple massing element (footprint, height, storeys) for sketching variants, each its own project, with `din277` and `costs` working on it.
-4. **The comparison** of the options for the human, in German: size, GRZ and GFZ, setbacks, rough costs, maybe a yield from the office's rents or prices; and the site plan.
+2. **Setbacks:** built (`uea calc setback`, `docs/decisions/0056-setbacks.md`): the Abstandsfläche in front of each façade, from the wall height up to the roof skin, against the plot and half of each street on it, by the Land's rule from the office's table `setback`. Open: two buildings on one plot, buildings at the boundary, projecting parts, a sloping terrain.
+3. **Options:** built (`uea block`, `docs/decisions/0057-options-on-a-plot.md`): a simple building of storeys, walls, slabs, rooms and a roof as ordinary model lines, so every calculator and export works on it; each option is its own project with the same plot. Open: L- and T-shaped blocks.
+4. **The comparison:** built (`uea compare`, `uea export pdf site`, `0057`): the options side by side for the client in German, from each one's results, and the site plan with the plot, the footprint, its Vollgeschosse and the Abstandsflächen. Open: a yield estimate from the office's rents or prices, the site plan in survey coordinates.
 
 ## Tender watching
 
@@ -159,7 +159,7 @@ Work on what exists, to be scheduled into a version.
 
 - **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/0047-din277-areas.md`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
 - **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
-- **Setbacks and plot ratios:** GRZ and GFZ per BauNVO are built (Plot evaluation); the Abstandsflächen per Landesbauordnung are its next slice.
+- **Setbacks and plot ratios:** built (Plot evaluation).
 - **GEG compliance** and the Energieausweis, later.
 - **Lighting.** Illuminance targets and the average illuminance of a room are built (`uea calc light`, `docs/decisions/0050-illuminance.md`). Open: the point calculation with photometric files (task areas, uniformity), glare (UGR), daylight, emergency lighting, the reflectances from the finishes.
 
@@ -175,7 +175,7 @@ Rule checks of the kind Solibri runs, reported with issue codes like the existin
 
 ### Drawings and lists
 
-- **Site plan** (Lageplan) with plot, terrain and georeferencing (EPSG:25832, DHHN2016 heights).
+- **Site plan** (Lageplan): built in the model's coordinates (`uea export pdf site`). Open: terrain and georeferencing (EPSG:25832, DHHN2016 heights).
 - **Drawing basics:** dimension chains, room stamps, title blocks, a revision index.
 - **Door and window schedules and room data sheets** (Raumbuch).
 - **Beyond design drawings:** the building permit set (Genehmigungsplanung) and construction drawings with details (Ausführungsplanung).

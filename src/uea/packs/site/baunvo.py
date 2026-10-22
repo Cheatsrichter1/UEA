@@ -37,7 +37,7 @@ from uea.derive import Derived
 from uea.fmt import ar
 from uea.geom import clean, union
 from uea.packs.arch.din277 import outline
-from uea.packs.arch.geometry import ArchGeo
+from uea.packs.arch.geometry import ArchGeo, storey_ceiling
 from uea.packs.project import Project
 from uea.packs.site.kinds import Plot
 
@@ -173,7 +173,7 @@ def baunvo(d: Derived, scope: str | None, env: Env) -> Output:
                 marks.append(f"{s.id} no ({_why(s, rule)})")
         lines.append(f"Vollgeschosse ({rule.text()}): {', '.join(marks)}")
         if unknown:
-            lines.append(f"no room on {' '.join(unknown)}: its clear height is unknown")
+            lines.append(f"{' '.join(unknown)}: no slab or roof above, its clear height is unknown")
         else:
             fulls = [s for s in storeys if s.full]
             gf, n_full = sum(s.area for s in fulls), len(fulls)
@@ -269,11 +269,11 @@ def _full(
         if s.rise is not None and s.rise <= rule.rise + 1e-9:
             s.full = False
             continue
-        rooms = [rg for rg in g.rooms.values() if rg.level == s.id and rg.ceiling]
-        if not rooms:
+        ceiling = storey_ceiling(g, lv)
+        if not ceiling:
             unknown.append(s.id)
             continue
-        s.clear = rooms[0].ceiling.at_least(shapes[s.id], rule.height).area
+        s.clear = ceiling.at_least(shapes[s.id], rule.height).area
         s.full = s.clear >= rule.share * s.basis - 1e-6
     return unknown
 

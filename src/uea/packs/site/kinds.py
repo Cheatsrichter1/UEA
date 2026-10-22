@@ -1,11 +1,29 @@
 """Kinds of the site pack: the plot and the limits the plan sets on it (decision 0055)."""
 
-from typing import Annotated, ClassVar, Self
+import re
+from typing import Annotated, ClassVar, Literal, Self
 
 from pydantic import model_validator
 
 from uea.core.schema import Element, F
 from uea.core.values import Points
+
+Use = Literal["WS", "WR", "WA", "WB", "MD", "MDW", "MI", "MU", "MK", "GE", "GI", "SO"]
+"""The Baugebiete of §§ 2 to 11 BauNVO."""
+STREET_RE = re.compile(r"^\d+:\d+(?:\.\d+)?$")
+
+
+def streets(text: str | None) -> dict[int, float]:
+    """street=1:12,3:8: edge number (from point n to point n+1) to the street's width."""
+    if not text:
+        return {}
+    out: dict[int, float] = {}
+    for part in text.split(","):
+        if not STREET_RE.match(part):
+            raise ValueError(f"street={text}: give edge:width, e.g. 1:12,3:8")
+        n, w = part.split(":")
+        out[int(n)] = float(w)
+    return out
 
 
 class Plot(Element):
@@ -32,6 +50,13 @@ class Plot(Element):
     plan: Annotated[str | None, F('where the limits come from: "B-Plan Nr. 12", "§ 34 BauGB"')] = (
         None
     )
+    use: Annotated[
+        Use | None, F("the Baugebiet (Art der baulichen Nutzung, BauNVO): WA, MI, GE ...")
+    ] = None
+    street: Annotated[
+        str | None,
+        F("edges on a street and its width, edge n from point n to n+1: 1:12,3:8", unit="m"),
+    ] = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
@@ -45,6 +70,9 @@ class Plot(Element):
                 raise ValueError(f"{name}= must be more than 0 m²")
         if self.storeys is not None and self.storeys < 1:
             raise ValueError("storeys= is 1 or more")
+        for n in streets(self.street):
+            if not 1 <= n <= len(self.outline.items):
+                raise ValueError(f"street=: the outline has edges 1 to {len(self.outline.items)}")
         return self
 
 

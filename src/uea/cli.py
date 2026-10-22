@@ -481,6 +481,24 @@ def cmd_apply(ctx: Ctx) -> int:
     return _print_result(ctx, res)
 
 
+def cmd_block(ctx: Ctx) -> int:
+    from uea.block import ops, parse
+
+    by = _by(ctx)
+    if by is None:
+        return 2
+    if not ctx.args.m:
+        out('uea: say why: -m "message" (it goes into the history for the human)')
+        return 2
+    try:
+        text = ops(ctx.model, parse(ctx.args.rest))
+    except ValueError as e:
+        out(f"uea block: {e}")
+        return 2
+    res = run(ctx.project, text, by, ctx.args.m, dry=ctx.args.dry_run)
+    return _print_result(ctx, res)
+
+
 def cmd_revert(ctx: Ctx) -> int:
     by = _by(ctx)
     if by is None:
@@ -610,6 +628,21 @@ def cmd_import(ctx: Ctx) -> int:
     return run_import(ctx, by, out, out_json, issue_lines, result_json)
 
 
+def cmd_compare(ctx: Ctx) -> int:
+    from uea.compare import compare, write_pdf
+
+    try:
+        md, lacks = compare(ctx.args.dirs)
+    except ValueError as e:
+        out(f"uea compare: {e}")
+        return 2
+    target = Path(ctx.args.out) if ctx.args.out else Path("options.pdf")
+    target.with_suffix(".md").write_text(md, encoding="utf-8")
+    pages = write_pdf(md, target)
+    out([f"{target} A4 {pages} page{'s' * (pages != 1)} · {target.with_suffix('.md')}", *lacks])
+    return 1 if lacks else 0
+
+
 def cmd_dashboard(ctx: Ctx) -> int:
     from uea.dashboard import serve
 
@@ -653,6 +686,11 @@ def build_parser() -> Parser:
     a.add_argument("--dry-run", action="store_true")
     a.add_argument("--view", metavar="SELECTOR")
     a.add_argument("--base", type=int, metavar="N")
+    bl = add("block", cmd_block)
+    bl.add_argument("rest", nargs="+", metavar="name=value")
+    bl.add_argument("--by", metavar="WHO")
+    bl.add_argument("-m", metavar="WHY")
+    bl.add_argument("--dry-run", action="store_true")
     v = add("view", cmd_view)
     v.add_argument("selector")
     v.add_argument("--skip", type=int, default=0, metavar="N")
@@ -686,6 +724,9 @@ def build_parser() -> Parser:
     im.add_argument("--dry-run", action="store_true")
     im.add_argument("--building", metavar="NAME")
     im.add_argument("--bidder", metavar="NAME")
+    cp = add("compare", cmd_compare)
+    cp.add_argument("dirs", nargs="+", metavar="project")
+    cp.add_argument("-o", "--out", metavar="FILE")
     add("dashboard", cmd_dashboard).add_argument("--port", type=int, default=8770, metavar="N")
     return p
 

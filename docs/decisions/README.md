@@ -59,6 +59,8 @@ One file per major decision: what was decided, what else was considered, and why
 | 0053 | [The agent dashboard: what each agent is doing, from the commands it runs](0053-agent-dashboard.md) | Accepted (built) |
 | 0054 | [The fee offer as a document to sign](0054-offer-export.md) | Accepted (built) |
 | 0055 | [The plot, the limits of its plan, and the measure of use per BauNVO](0055-plot-and-baunvo.md) | Accepted (built) |
+| 0056 | [The Abstandsflächen per Landesbauordnung](0056-setbacks.md) | Accepted (built) |
+| 0057 | [Options on a plot: blocks, the site plan and the comparison](0057-options-on-a-plot.md) | Accepted (built) |
 
 Template:
 
