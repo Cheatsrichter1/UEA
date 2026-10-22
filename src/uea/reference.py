@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from uea.calc import builtin
-from uea.calc.data import specs_of
+from uea.calc.cli import all_specs
 from uea.cli import build_parser
 from uea.core.issues import CORE_CODES
 from uea.core.registry import Registry
@@ -157,7 +157,7 @@ def calculators() -> list[str]:
                 f"| `{pm.name}` | {pm.kind.__name__} | {default} | {_cell(pm.doc)}{values} |"
             )
         out.append("")
-    specs = specs_of(calcs)
+    specs = all_specs()
     if specs:
         out += [
             "### Norm tables",

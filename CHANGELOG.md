@@ -2,6 +2,14 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
+## Unreleased
+
+- **The fee offer** (`docs/decisions/0054-offer-export.md`): `uea export offer [results]` sets the fees of the `uea calc hoai` results into a German Honorarangebot: letterhead, client, per service the zone, rate, chargeable costs and the service phases with their fees, the sum with VAT, the office's terms and a signature line. It writes `out/offer.md` and a PDF marked as a draft, and is refused when the model has changed since a fee was computed. The office's texts are the office table `offer`; the client is `client=` on the project.
+- **`hoai` 0.2.1:** one result per service and group of systems (`out/hoai-building.md`, `out/hoai-services-410-420.md`), so the runs no longer replace each other; `uea export pdf hoai` names them. The basis of the chargeable costs is German in the report. The fee is unchanged.
+- **`uea help calc`** lists `din277`, `costs` and `hoai`.
+- **`uea data` and `docs/reference.md`** list the exports' office tables too (`lv-texts`, `offer`).
+- **Office workflows are the agent's instructions, not a version** (`FUTURE.md`): an office's business side is how its agent behaves, so it belongs in the instructions the office gives it. `docs/templates/AGENTS.md` is an example to copy and adapt: nothing leaves the office without the senior engineer's approval, a request is summarised and then waits, the fee comes from `uea calc din277`, `costs` and `hoai`, the offer is a draft until it is signed. Plot evaluation and tender watching move up to v4.
+
 ## 0.3.0 (2026-10-21): the bids and the agent dashboard
 
 Version 2 is complete with the bids, and version 3 is the agent dashboard. The calculators new in this release (`bids`, `light`) are **not yet reviewed** by a licensed person, nor are those of 0.2.0 (`din277`, `costs`, `hoai`), and the norm tables, prices and factors in the repo are synthetic test data. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.

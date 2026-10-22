@@ -9,7 +9,7 @@ from uea.core.registry import natural
 if TYPE_CHECKING:
     from uea.cli import Ctx
 
-FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png", "bcf", "gaeb")
+FORMATS = ("ifc", "xlsx", "pdf", "dxf", "svg", "png", "bcf", "gaeb", "offer")
 SHEETS = ("pdf", "dxf", "svg", "png")
 """The formats of the sheets: floor plans and sections."""
 
@@ -156,6 +156,9 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     if isinstance(targets, str):
         if scope is not None and (ctx.project.out / f"{scope}.json").exists():
             return _report(ctx, scope, fmt, out_path)
+        several = sorted(p.stem for p in ctx.project.out.glob(f"{scope}-*.json"))
+        if several:
+            return f"{scope} has several results; name one: {' '.join(several)}"
         return targets
     d, _ = ctx.derived()
     entries = ctx.project.history.entries()
@@ -227,6 +230,27 @@ def _report(ctx: "Ctx", stem: str, fmt: str, out_path: str | None) -> list[str] 
         return res
     target, pages = res
     return [f"{_rel(ctx, target)} A4 {pages} page{'s' if pages != 1 else ''}"]
+
+
+def _offer(ctx: "Ctx", scope: str | None, out_path: str | None) -> str | list[str]:
+    """The fee offer from the hoai results, as a PDF to sign (decision 0054)."""
+    from uea.export.offer import export_offer
+    from uea.packs.project import Project
+
+    d, _ = ctx.derived()
+    proj = d.model.of_kind("project")
+    p = proj[0] if proj and isinstance(proj[0], Project) else None
+    title = (p.label or p.id) if p else "Projekt"
+    ctx.project.out.mkdir(exist_ok=True)
+    path = Path(out_path) if out_path else None
+    res = export_offer(
+        ctx.project.out, scope, ctx.project.hashes(), title, p.client if p else None, path
+    )
+    if isinstance(res, str):
+        return res
+    target, pages, lines = res
+    head = f"{_rel(ctx, target)} A4 {pages} page{'s' if pages != 1 else ''} · out/offer.md"
+    return [head, *lines]
 
 
 def _rel(ctx: "Ctx", path: Path) -> Path:
@@ -326,6 +350,10 @@ def export(ctx: "Ctx", out: Callable[[Any], None]) -> int:
         return 1 if isinstance(res, str) else 0
     if fmt == "gaeb":
         res = _gaeb(ctx, ctx.args.out)
+        out(res)
+        return 1 if isinstance(res, str) else 0
+    if fmt == "offer":
+        res = _offer(ctx, ctx.args.scope, ctx.args.out)
         out(res)
         return 1 if isinstance(res, str) else 0
     if fmt == "bcf":

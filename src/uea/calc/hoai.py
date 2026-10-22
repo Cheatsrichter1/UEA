@@ -26,6 +26,7 @@ from memory: the office copies them once from the official text into the table `
 
 from dataclasses import dataclass
 from itertools import pairwise
+from typing import Any
 
 from uea.calc import Calculator, Env, Output, Param, de, md_table
 from uea.calc.data import Col, Spec
@@ -34,7 +35,7 @@ from uea.derive import Derived
 from uea.fmt import ar
 from uea.packs.arch.din277 import USES
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 NORM = "HOAI 2021"
 ZONES = ("I", "II", "III", "IV", "V")
 
@@ -99,6 +100,7 @@ PARAMS = (
 
 
 STAGE_DE = {"estimate": "from the cost estimate", "calculation": "from the cost calculation"}
+STAGE_GERMAN = {"estimate": "aus der Kostenschätzung", "calculation": "aus der Kostenberechnung"}
 
 
 def _groups(text: str | None) -> list[tuple[int, int]]:
@@ -181,9 +183,14 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
     lph = phases(env.param("lph"), len(shares))
     given = env.param("kosten")
     basis: list[str] = []
+    basis_de: list[str] = []
+    """The same for the German report."""
+    how: dict[str, Any] = {"from": "given"}
+    """The same as numbers, for the offer."""
     if given is not None:
         cost = float(given)
         basis.append(f"given: {ar(cost)} €")
+        basis_de.append("vorgegeben")
     elif service == "structure":
         raise ValueError("the structure's chargeable costs (§ 50) need kosten=<€>")
     else:
@@ -193,6 +200,8 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
             stage = "calculation" if priced(d) else "estimate"
         rows, _ = cost_rows(d, env, stage)
         basis.append(STAGE_DE[stage])
+        basis_de.append(STAGE_GERMAN[stage])
+        how = {"from": stage}
         kg300 = sum(r.cost for r in rows if 300 <= r.kg <= 399)
         groups = _groups(env.param("groups"))
         if groups and service != "services":
@@ -208,10 +217,17 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
                 f"KG 300 {ar(kg300)} + KG 400 {ar(kg400)}: {ar(full)} in full, {ar(half)} by"
                 " half (§ 33 Abs. 2)"
             )
+            how |= {"kg300": round(kg300, 2), "kg400": round(kg400, 2), "half": round(half, 2)}
+            basis_de.append(
+                f"KG 300 {de(kg300)} € und KG 400 {de(kg400)} €, davon {de(full)} € voll und"
+                f" {de(half)} € zur Hälfte (§ 33 Abs. 2)"
+            )
         else:
             cost = kg400
             which = ", ".join(str(lo) for lo, _ in groups) if groups else "400"
             basis.append(f"KG {which} {ar(kg400)} (§ 54)")
+            basis_de.append(f"KG {which} (§ 54)")
+            how["kg"] = which
     if cost <= 0:
         raise ValueError("the chargeable costs are 0; check the estimate or give kosten=")
     table = env.table(FEES)
@@ -249,7 +265,7 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
             zone,
             rate,
             cost,
-            basis,
+            basis_de,
             it,
             full_fee,
             lph,
@@ -266,6 +282,7 @@ def hoai(d: Derived, scope: str | None, env: Env) -> Output:
             "zone": zone,
             "rate": rate,
             "chargeable": round(cost, 2),
+            "basis": how,
             "table": {
                 "base": round(it.base, 2),
                 "top": round(it.top, 2),
@@ -355,6 +372,13 @@ def _report(
     return "\n".join(out)
 
 
+def suffix(settings: dict[str, Any]) -> str:
+    """One result per service and group of systems: hoai-building, hoai-services-410-420."""
+    groups = settings.get("groups")
+    tail = "-" + "-".join(g.strip() for g in str(groups).split(",")) if groups else ""
+    return f"{settings['service']}{tail}"
+
+
 HOAI = Calculator(
     name="hoai",
     title="Fee per HOAI 2021 (Honorar)",
@@ -364,4 +388,5 @@ HOAI = Calculator(
     norm=NORM,
     params=PARAMS,
     tables=(FEES, REF, USES),
+    suffix=suffix,
 )

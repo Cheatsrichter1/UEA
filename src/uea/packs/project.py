@@ -24,6 +24,10 @@ class Project(Element):
         float | None,
         F("true north, clockwise from the plan's +y axis; plans get a north arrow", unit="°"),
     ] = None
+    client: Annotated[
+        str | None,
+        F('the client as the offer addresses them, | between lines: "Familie Müller|Hauptstr. 1"'),
+    ] = None
 
 
 class Level(Element):

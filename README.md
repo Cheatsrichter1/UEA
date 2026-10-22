@@ -112,7 +112,7 @@ Development: `uv run ruff check`, `uv run pyright`. The repository has no test s
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Version 2 (0.2.0, the bids in 0.3.0) added partial views and the way from the model to the tender, version 3 (0.3.0) the agent dashboard (`uea dashboard`: what each agent is doing right now, for the engineer). The next versions are office workflows, and plot evaluation with tender watching (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core. Version 2 (0.2.0, the bids in 0.3.0) added partial views and the way from the model to the tender, version 3 (0.3.0) the agent dashboard (`uea dashboard`: what each agent is doing right now, for the engineer). The next version is plot evaluation with tender watching; for an office's business side, UEA has an example `AGENTS.md` (`docs/templates/`) and the fee offer as a document (`uea export offer`, `FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 
@@ -126,6 +126,7 @@ Buildings first: architecture, electrical, plumbing, heating, ventilation, light
 | `docs/decisions/` | Major decisions with alternatives and reasons |
 | `docs/prototype/haus-mueller/` | A complete Einfamilienhaus in the draft format, written by hand |
 | `docs/validation/` | Validation reports of the `norm` calculators |
+| [`docs/templates/AGENTS.md`](docs/templates/AGENTS.md) | An example of the instructions an office gives its agent: requests, approval, fee and offer |
 | `src/uea/` | The code: core, packs, CLI, calculators, exports |
 | `docs/reference.md` | Every command, element kind, field and issue code, generated from the code |
 | `tools/` | Throwaway prototype scripts that check the prototype and generate its plans |
