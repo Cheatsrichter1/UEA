@@ -5,8 +5,8 @@
 | Calculator | `recirc` 0.1.0, kind `norm` |
 | Standards | DIN 1988-300:2012-05, the short method of the circulation; the limit of water without circulation is the planner's (DVGW W 551 sets 3 l) |
 | Code | `src/uea/packs/plumb/recirc.py`; the circulated pipes from `src/uea/packs/plumb/geometry.py` (`circulated`); the hot-water sizes from `water.py`; the hydraulics in `src/uea/packs/hydraulics.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
 The settings `loss` (W/m), `dt` (K) and `dead` (l) are the planner's. The tables are those of `water`, whose hot-water pipe sizes this calculator uses.
 

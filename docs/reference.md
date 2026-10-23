@@ -402,7 +402,6 @@ A room: the region around the seed point at= bounded by walls and separators.
 | use | positional | `living` `dining` `kitchen` `bedroom` `office` `bath` `wc` `hall` `utility` `storage` `laundry` `technical` `cellar` `attic` `garage` `other` | use; decides e.g. whether it counts as Wohnfläche |
 | at | `at=` | m | seed point inside the room (required) |
 | floor | `floor=` |  | floor type |
-| tile | `tile=` | m | wall tiling height above the FFL |
 
 #### `section`
 
@@ -1328,7 +1327,7 @@ E is an error, W a warning.
 
 ## Calculators
 
-Projects add `custom` calculators in `calc/`. A `custom` result is never presented as norm-compliant. A calculator that needs norm tables stops and names the one that is missing; the office installs its tables with `uea data add` from its own licensed copy (`docs/decisions/0008-office-supplied-norm-data.md`). Settings are written `name=value` after the calculator's name and are recorded in the result.
+Projects add `custom` calculators in `calc/`. A `custom` result is never presented as norm-compliant. A calculator that needs norm tables stops and names the one that is missing; the office installs its tables with `uea data add` from its own licensed copy (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). Settings are written `name=value` after the calculator's name and are recorded in the result.
 
 | Name | Kind | Version | Standard | What it computes |
 |---|---|---|---|---|

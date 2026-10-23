@@ -130,7 +130,7 @@ def calculators() -> list[str]:
         "Projects add `custom` calculators in `calc/`. A `custom` result is never presented as"
         " norm-compliant. A calculator that needs norm tables stops and names the one that is"
         " missing; the office installs its tables with `uea data add` from its own licensed copy"
-        " (`docs/decisions/0008-office-supplied-norm-data.md`). Settings are written"
+        " (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). Settings are written"
         " `name=value` after the calculator's name and are recorded in the result.",
         "",
         "| Name | Kind | Version | Standard | What it computes |",

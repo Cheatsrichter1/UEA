@@ -3,7 +3,7 @@
 The frame has p along the first flight and q across it. The first flight covers q = 0..w and
 the stair turns toward +q. Treads are numbered from the lower floor: tread i lies i risers up.
 A stair of n risers has n-1 treads (the upper floor is the last one). A landing is one tread
-and m winders are m treads in the turn (`docs/decisions/0019-stair-shapes.md`).
+and m winders are m treads in the turn (`docs/decisions/building.md#0019-stair-shapes`).
 """
 
 import math

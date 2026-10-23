@@ -5,14 +5,14 @@
 | Calculator | `heatload` 0.3.0, kind `norm` |
 | Standard | DIN EN 12831-1:2017-09 with the national supplement DIN/TS 12831-1:2020-04 |
 | Code | `src/uea/packs/heat/heatload.py`; surfaces from `envelope.py`, U-values from `thermal.py` (`docs/validation/uvalue.md`) |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_heatload.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_heatload.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-All numbers of the standards come from the office's tables or are the planner's settings (`docs/decisions/0033-u-values-and-heizlast.md`). Every result names the edition of each table.
+All numbers of the standards come from the office's tables or are the planner's settings (`docs/decisions/services.md#0033-u-values-and-heizlast`). Every result names the edition of each table.
 
 ## What it computes
 
-For each heated room: the transmission heat loss Φ_T, the ventilation heat loss Φ_V and the design heat load Φ_HL = Φ_T + Φ_V, with every surface listed. For the whole project, the building's heat load. Once `heat.uea` has emitters, each heated room's emitters against its load and the generators against the building's (`docs/decisions/0034-heating-elements.md`): their output is the type's at the design temperatures (`w=`, `q=`), or, for types with the manufacturer's test values, calculated per DIN EN 442-2 (radiators, `wn=` and `n=`) and DIN EN 1264-2 (underfloor heating, `kh=`) at the circuit's temperatures (the manifold's `flow=`/`spread=`, else the settings `flow=` and `spread=`); a shortfall makes the result fail. With `floor=` (and `bathfloor=` for baths and WCs), an underfloor heating whose mean floor surface temperature is above the limit fails too (`docs/decisions/0042-heating-and-hot-water-details.md`). The record is `out/heatload.json`, the report for humans `out/heatload.md`.
+For each heated room: the transmission heat loss Φ_T, the ventilation heat loss Φ_V and the design heat load Φ_HL = Φ_T + Φ_V, with every surface listed. For the whole project, the building's heat load. Once `heat.uea` has emitters, each heated room's emitters against its load and the generators against the building's (`docs/decisions/services.md#0034-heating-elements`): their output is the type's at the design temperatures (`w=`, `q=`), or, for types with the manufacturer's test values, calculated per DIN EN 442-2 (radiators, `wn=` and `n=`) and DIN EN 1264-2 (underfloor heating, `kh=`) at the circuit's temperatures (the manifold's `flow=`/`spread=`, else the settings `flow=` and `spread=`); a shortfall makes the result fail. With `floor=` (and `bathfloor=` for baths and WCs), an underfloor heating whose mean floor surface temperature is above the limit fails too (`docs/decisions/services.md#0042-emitters-mixing-and-circulation`). The record is `out/heatload.json`, the report for humans `out/heatload.md`.
 
 ## Formulas as implemented
 

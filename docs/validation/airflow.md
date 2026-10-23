@@ -5,10 +5,10 @@
 | Calculator | `airflow` 0.2.0, kind `norm` |
 | Standard | DIN 1946-6:2019-12 |
 | Code | `src/uea/packs/vent/airflow.py`; the units and terminals from `geometry.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_vent.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_vent.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-All numbers of the standard come from the office's tables; n_50 and the insulation are the planner's settings (`docs/decisions/0038-ventilation.md`). Every result names the edition of each table.
+All numbers of the standard come from the office's tables; n_50 and the insulation are the planner's settings (`docs/decisions/services.md#0038-ventilation`). Every result names the edition of each table.
 
 ## What it computes
 

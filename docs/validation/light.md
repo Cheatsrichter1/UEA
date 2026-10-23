@@ -5,10 +5,10 @@
 | Calculator | `light` 0.1.0, kind `norm` |
 | Method | Utilisation factor method (Wirkungsgradverfahren), LiTG-Publikation 3.5, CIE 40; maintained illuminance per DIN EN 12464-1 |
 | Code | `src/uea/packs/light/illuminance.py`; the targets in `src/uea/packs/light/kinds.py`, the luminaires' places from `src/uea/packs/mount.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_light.py` at commit `517c07e` |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_light.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. |
 
-The utilisation factors are the luminaire maker's data or the LiTG's tables and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`). The office supplies them as the table `light-uf`; the tests use invented values.
+The utilisation factors are the luminaire maker's data or the LiTG's tables and are not in this repository (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). The office supplies them as the table `light-uf`; the tests use invented values.
 
 ## What it computes
 

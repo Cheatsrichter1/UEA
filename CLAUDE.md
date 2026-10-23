@@ -2,7 +2,7 @@
 
 Open-source engineering and building software made for AI agents. Agents plan buildings in a compact text model through a CLI and a Python library; tested code does all calculations; humans get exports on demand and sign. UEA is not an agent itself; any agent with a shell can use it.
 
-**Status:** version 1 is done: phases 0 to 8, with the reviews by licensed people, the agent runs end to end, the test with an office's IFC and the benchmark done in private. Release 0.4.0 is v4; 0.2.0 and 0.3.0 were v2 and v3: partial views (`uea view`, `apply --view --base`), areas per DIN 277 (`uea calc din277`), the Leistungsverzeichnis (`lv.uea`, `uea export gaeb`), the costs per DIN 276 (`uea calc costs`), the fee per HOAI (`uea calc hoai`) and reading the bids (`uea import gaeb`, `uea calc bids`, `uea calc costs stage=offer`, the Preisspiegel in the xlsx) in 0.2.0 and 0.3.0; the agent dashboard of v3 (`uea dashboard`, an activity log the CLI writes per command) in 0.3.0; the fee offer (`uea export offer`) and v4's plot evaluation (`site.uea`, `uea calc baunvo` and `setback`, `uea block`, `uea compare`, the site plan) in 0.4.0; the order of the next versions (v2 partial views and model to tender, v3 agent dashboard, v4 plot evaluation and tender watching; office workflows are an example `AGENTS.md` and the offer export, not a version; no v5 is planned yet) is in `FUTURE.md`.
+**Status:** release 0.4.0, versions 1 to 4 done. What each release holds is in `CHANGELOG.md`; what comes next is in `FUTURE.md`.
 
 ## Docs
 
@@ -14,15 +14,15 @@ Open-source engineering and building software made for AI agents. Agents plan bu
 | `FUTURE.md` | v1 done, the order of the next versions, partial views, the backlog, open questions |
 | `CHANGELOG.md` | What each release contains; add an entry with every release |
 | `docs/wiki/` | A quick way in: getting started, concepts, code map, contributing; points to the files above |
-| `docs/decisions/` | One file per major decision, with alternatives and reasons |
+| `docs/decisions/` | The major decisions with their reasons, one file per topic, one numbered section per decision |
 | `docs/prototype/` | Hand-written example projects that test the draft format; Haus Müller is the reference EFH |
 | `docs/validation/` | Validation report of each `norm` calculator |
 | `docs/templates/` | Templates for offices, such as the example `AGENTS.md` an office gives its agent |
 | `src/uea/` | The code: `core/` (syntax, schemas, model, ops), `packs/` (one per discipline), `derive.py`, `batch.py`, `project.py`, `cli.py`, `calc/`, `export/` |
 | `docs/reference.md` | Every command, kind, field and issue code, generated from the code (`uv run python -m uea.reference`) |
-| `tools/` | Throwaway prototype scripts (checks, exports, token counts); not UEA code and not held to the code rules |
+| `tools/` | Helper scripts (the font subset); not UEA code and not held to the code rules |
 
-Each fact lives in one file; the others link to it. When a decision changes, add or update its decision record and fix the docs that depend on it.
+Each fact lives in one file; the others link to it. When a decision changes, add or update its section in `docs/decisions/` and fix the docs that depend on it.
 
 ## Non-negotiables
 
@@ -41,13 +41,13 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 - Python 3.12+, fully typed, pyright strict, Pydantic v2 for schemas, uv, ruff.
 - Before finishing: `uv run ruff format`, `uv run ruff check` and `uv run pyright` must pass. After a change to commands, kinds, fields, help or issue codes, regenerate `docs/reference.md` with `uv run python -m uea.reference`.
 - Dependencies must be Apache-2.0-compatible: LGPL as a library is fine, GPL only as a separate process. Check the licence before adding anything.
-- There is no test suite and no token bench (`docs/decisions/0052-no-tests-in-the-repo.md`). Check a change by running it on a project, and keep CLI output and the format as short as they are or shorter.
+- There is no test suite and no token bench (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`). Check a change by running it on a project, and keep CLI output and the format as short as they are or shorter.
 
 ### Calculators and norms
 
 - Every `norm` calculator is a product: clause citations and a validation report a Prüfingenieur could read, with its cases worked out by hand on our own data. A report says which of its cases were verified by tests (up to commit `517c07e`) and which were not.
 - Results always record calculator, kind (`norm` or `custom`), version, inputs and norm tables used. A `custom` result is never presented as norm-compliant.
-- DIN and VDE texts, tables and worked examples are licensed. Never put them in the repo; cite the clause and put only formulas and your own test data in code. Offices supply the tables from their own copies (`docs/decisions/0008-office-supplied-norm-data.md`).
+- DIN and VDE texts, tables and worked examples are licensed. Never put them in the repo; cite the clause and put only formulas and your own test data in code. Offices supply the tables from their own copies (`docs/decisions/foundations.md#0008-office-supplied-norm-data`).
 - Catalogue values in examples are illustrative placeholders, not design data.
 
 ### Private
@@ -56,6 +56,6 @@ Each fact lives in one file; the others link to it. When a decision changes, add
 
 ### Language
 
-- The format, the CLI output, the help, code and docs are English (`docs/decisions/0017-english-format.md`). The help names a German term once where a German brief uses it: `knee: ... (Kniestock)`.
+- The format, the CLI output, the help, code and docs are English (`docs/decisions/foundations.md#0017-english-format`). The help names a German term once where a German brief uses it: `knee: ... (Kniestock)`.
 - In docs, German stays only for legal, norm and role terms without an exact English equivalent (Wohnfläche, Leistungsverzeichnis, Heizlast, Bestand, Haftung, Prüfingenieur, Fachplaner, Landesbauordnung) and in names (Haus Müller). Plain building words are English: eaves, ridge, floor plan, electrical.
 - What people write stays in their language (labels, request texts), and exports for humans (drawings, calculation reports) are German.

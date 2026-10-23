@@ -2,7 +2,7 @@
 
 [Wiki home](README.md)
 
-How a `.uea` file and a batch of operations are written, with examples. The rules are in [`ARCHITECTURE.md` §4 and §5](../../ARCHITECTURE.md#4-file-format); every kind with its fields is in [`docs/reference.md`](../reference.md); the reasons are in [0005](../decisions/0005-line-format.md), [0013](../decisions/0013-canonical-line-format.md) and [0014](../decisions/0014-operations-and-history.md).
+How a `.uea` file and a batch of operations are written, with examples. The rules are in [`ARCHITECTURE.md` §4 and §5](../../ARCHITECTURE.md#4-file-format); every kind with its fields is in [`docs/reference.md`](../reference.md); the reasons are in [0005](../decisions/foundations.md#0005-line-format), [0013](../decisions/foundations.md#0013-canonical-line-format) and [0014](../decisions/foundations.md#0014-operations-and-history).
 
 ## A line
 
@@ -65,7 +65,7 @@ x=W..E        from grid W to grid E
 x=3.2+        a raw coordinate, the escape hatch
 ```
 
-The sign says which way the element extends from the anchor. The whole list is `uea help positions`, and the datums are [0012](../decisions/0012-datums-and-positions.md).
+The sign says which way the element extends from the anchor. The whole list is `uea help positions`, and the datums are [0012](../decisions/building.md#0012-datums-and-positions).
 
 ## Files
 

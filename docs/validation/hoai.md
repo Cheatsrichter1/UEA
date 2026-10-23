@@ -5,10 +5,10 @@
 | Calculator | `hoai` 0.2.1, kind `norm` |
 | Standard | Honorarordnung für Architekten und Ingenieure (HOAI) in the version of 2021 |
 | Code | `src/uea/calc/hoai.py`; chargeable costs from `src/uea/calc/din276.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_costs_hoai.py` at commit `517c07e` |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_costs_hoai.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. |
 
-The HOAI is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. Its fee tables are supplied by the office in the table `hoai-fees`, copied from the official text (`docs/decisions/0049-cost-estimate-and-hoai-fee.md`). Since 2021 the table values are guidance (Orientierungswerte) and the fee is agreed; the calculator computes the fee for the agreed zone, rate and phases.
+The HOAI is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. Its fee tables are supplied by the office in the table `hoai-fees`, copied from the official text (`docs/decisions/tender.md#0049-costs-and-hoai-fee`). Since 2021 the table values are guidance (Orientierungswerte) and the fee is agreed; the calculator computes the fee for the agreed zone, rate and phases.
 
 ## Clauses and how they are implemented
 

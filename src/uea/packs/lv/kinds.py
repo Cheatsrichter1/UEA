@@ -1,4 +1,4 @@
-"""Kinds of the LV pack: titles and positions (docs/decisions/0048-leistungsverzeichnis.md)."""
+"""Kinds of the LV pack: titles and positions (docs/decisions/tender.md, 0048)."""
 
 import re
 from typing import Annotated, ClassVar, Literal, Self

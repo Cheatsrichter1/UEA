@@ -56,4 +56,4 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | Path | What it holds |
 |---|---|
 | `docs/prototype/haus-mueller/` | The reference house as `.uea` files, with its exports |
-| `tools/` | Throwaway prototype scripts, not held to the code rules |
+| `tools/` | Helper scripts (the font subset), not held to the code rules |

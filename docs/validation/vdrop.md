@@ -5,10 +5,10 @@
 | Calculator | `vdrop` 0.1.0, kind `norm` |
 | Standard | DIN VDE 0100-520 (IEC 60364-5-52), Annex G, voltage drop in consumers' installations |
 | Code | `src/uea/packs/elec/vdrop.py`; lengths from `src/uea/packs/elec/routes.py`; tables from `src/uea/calc/data.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_calc_elec.py`, `tests/test_routes.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_calc_elec.py`, `tests/test_routes.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-The standard's constants are licensed and are not in this repository (`docs/decisions/0008-office-supplied-norm-data.md`, `0028-norm-tables-and-electrical-calculators.md`). The code holds the formula; the office supplies ρ and λ in the table `conductor`, and every result names the edition of the table it used. The tests use values of our own that are not any standard's.
+The standard's constants are licensed and are not in this repository (`docs/decisions/foundations.md#0008-office-supplied-norm-data`, `docs/decisions/electrical.md#0028-norm-tables-and-electrical-calculators`). The code holds the formula; the office supplies ρ and λ in the table `conductor`, and every result names the edition of the table it used. The tests use values of our own that are not any standard's.
 
 ## What it computes
 
@@ -24,7 +24,7 @@ b = 2 for a single-phase and 1 for a three-phase circuit; U₀ = 230 V (phase to
 
 | Input | Source |
 |---|---|
-| L | the derived cable length from the board to the farthest device (`0027-cable-routes.md`, a rectilinear shortest tree plus 0.3 m per run) times `reserve` (1.2 unless given). The derived length is a minimum; the reserve stands for the route on site and is the planner's call. |
+| L | the derived cable length from the board to the farthest device (`docs/decisions/electrical.md#0027-cable-routes`, a rectilinear shortest tree plus 0.3 m per run) times `reserve` (1.2 unless given). The derived length is a minimum; the reserve stands for the route on site and is the planner's call. |
 | I | for a circuit with no socket and a declared load: the current of that load, P / (230 V · phases · cos φ). For a circuit with sockets, or none declared: In times `demand` (1 unless given). `current=in` takes In always. The whole current is taken over the whole length, which is the safe side. |
 | cos φ | setting `cos` (1 unless given); sin φ = √(1 − cos²). |
 | ρ, λ | table `conductor`, one row per material. |

@@ -148,6 +148,3 @@ class Registry:
         else:
             within = natural(el.id)
         return (DISCIPLINES.index(cls.pack), self._order[cls], within)
-
-    def type_class(self, category: str) -> type[Element] | None:
-        return self.types.get(category)

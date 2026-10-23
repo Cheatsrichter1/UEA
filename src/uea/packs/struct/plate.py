@@ -135,20 +135,6 @@ Points = list[tuple[float, float, float]]
 """Point loads (x, y, kN), downward."""
 
 
-def analyse(
-    g: ArchGeo,
-    net: BaseGeometry,
-    supports: list[Support],
-    t: float,
-    e: float,
-    load: Callable[[float, float], float],
-    points: Points,
-) -> Moments:
-    """The design moments of a slab of thickness t (m) and modulus e (kN/m²) under the design
-    area load `load(x, y)` (kN/m², downward) and point loads (x, y, kN)."""
-    return solve(g, net, supports, t, e, {"ULS": (load, points)})["ULS"]
-
-
 def solve(
     g: ArchGeo,
     net: BaseGeometry,

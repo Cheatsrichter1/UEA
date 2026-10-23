@@ -5,10 +5,10 @@
 | Calculator | `wofl` 0.2.0, kind `norm` |
 | Standard | Wohnflächenverordnung (WoFlV) of 25 November 2003 |
 | Code | `src/uea/packs/arch/wofl.py`; room outlines and heights from `src/uea/packs/arch/geometry.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_wofl.py`, `tests/test_prototype.py`, `tests/test_installations.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-The WoFlV is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. It needs no office-supplied tables (`docs/decisions/0008-office-supplied-norm-data.md`).
+The WoFlV is a federal ordinance and so an amtliches Werk: its rules may be implemented and cited freely. It needs no office-supplied tables (`docs/decisions/foundations.md#0008-office-supplied-norm-data`).
 
 ## What it computes
 
@@ -19,7 +19,7 @@ The Wohnfläche of each room, each storey and the whole project, from the model.
 | Clause | Rule | Implementation |
 |---|---|---|
 | §2 Abs. 3 Nr. 1 | Zubehörräume do not count | By room use: `cellar` (a), `laundry` (c), `attic` (d), `technical` (f), `garage` (g) are excluded. All other uses count. |
-| §3 Abs. 1 | Grundfläche from the lichte Maße, starting at the front edge of the Bekleidung | The room's finished outline: the region between the wall cores, minus every non-core layer of the walls (`docs/decisions/0015-rooms-and-finishes.md`). |
+| §3 Abs. 1 | Grundfläche from the lichte Maße, starting at the front edge of the Bekleidung | The room's finished outline: the region between the wall cores, minus every non-core layer of the walls (`docs/decisions/building.md#0015-rooms-and-finishes`). |
 | §3 Abs. 1 | (no floor, no Grundfläche) | Voids in the room's own slab (a stair hole) are deducted. |
 | §3 Abs. 3 Nr. 1 | Vormauerungen higher than 1.50 m on more than 0.1 m² do not count | A pre-wall installation (`prewall`) higher than 1.5 m: its footprint inside the finished outline, if more than 0.1 m², is deducted. An installation shaft (`shaft`) is not part of the finished outline (decision 0045). |
 | §3 Abs. 3 Nr. 2 | Stairs with more than three risers and their landings do not count | The stair footprint inside the finished outline is deducted on the storey it starts on. |

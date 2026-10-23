@@ -1,6 +1,6 @@
 """Architecture element kinds (`arch.uea`).
 
-Datums (docs/decisions/0012-datums-and-positions.md): plan positions are the faces of a
+Datums (docs/decisions/building.md#0012-datums-and-positions): plan positions are the faces of a
 type's core layer; heights count from the storey's FFL; openings store their structural size.
 """
 
@@ -522,7 +522,6 @@ class Room(Element):
     use: Annotated[RoomUse, F("use; decides e.g. whether it counts as Wohnfläche")]
     at: Annotated[Point, F("seed point inside the room", unit="m")]
     floor: Annotated[Ref | None, F("floor type", targets=("type:floor",))] = None
-    tile: Annotated[float | None, F("wall tiling height above the FFL", unit="m")] = None
 
 
 class Section(Element):

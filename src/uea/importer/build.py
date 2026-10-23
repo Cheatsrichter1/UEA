@@ -329,8 +329,6 @@ class Builder:
         self.sigs: dict[str, Sig] = {}
         self.recs: list[WRec] = []
         self.by_guid: dict[str, WRec] = {}
-        self.floor_of: dict[str, str] = {}
-        """Level name: the floor type its rooms get."""
         self.slab_key: dict[str, str] = {}
         self.reg = default_registry()
         self.geo: ArchGeo | None = None

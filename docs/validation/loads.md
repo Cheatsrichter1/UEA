@@ -5,8 +5,8 @@
 | Calculator | `loads` 0.3.0, kind `norm` |
 | Standards | DIN EN 1991-1-1:2010-12 (actions), DIN EN 1991-1-3:2010-12 (snow), DIN EN 1991-1-4:2010-12 (wind), each with NA; DIN EN 1990:2010-12 with NA (combination) |
 | Code | `src/uea/packs/struct/loads.py`, `actions.py`; the load path in `model.py`; beams on `frame.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_struct.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_struct.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
 All values of the standards come from the office's tables. The soil's resistance, the snow load s_k and the wind pressure q_p are the planner's settings for the site. Every result names the edition of each table.
 

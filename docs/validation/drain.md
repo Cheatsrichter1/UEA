@@ -5,10 +5,10 @@
 | Calculator | `drain` 0.1.0, kind `norm` |
 | Standard | DIN 1986-100:2016-12 with DIN EN 12056-2 |
 | Code | `src/uea/packs/plumb/drain.py`; sections from `geometry.py`, the hydraulics in `hydraulics.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_plumb.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-All numbers of the standard come from the office's tables or the planner's settings (`docs/decisions/0035-plumbing.md`). Every result names the edition of each table.
+All numbers of the standard come from the office's tables or the planner's settings (`docs/decisions/services.md#0035-plumbing`). Every result names the edition of each table.
 
 ## What it computes
 

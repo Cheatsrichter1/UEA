@@ -212,13 +212,6 @@ class Report:
             if i.severity == "error" and (disc is None or self.owner(i) == disc)
         ]
 
-    def warnings(self, disc: str | None = None) -> list[Issue]:
-        return [
-            i
-            for i in self.issues
-            if i.severity == "warning" and (disc is None or self.owner(i) == disc)
-        ]
-
     def of(self, disc: str | None) -> list[Issue]:
         return [i for i in self.issues if disc is None or self.owner(i) == disc]
 

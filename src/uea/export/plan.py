@@ -105,8 +105,6 @@ class Swing:
     hinge: Pt
     open_end: Pt
     """The free end of the leaf when it stands open."""
-    closed_end: Pt
-    """The free end of the leaf when it is shut."""
     a0: float
     a1: float
     """The arc runs counter-clockwise from a0 to a1, in degrees."""
@@ -128,8 +126,8 @@ def door_swing(d: Derived, o: OpeningGeo) -> Swing | None:
     ae = math.degrees(math.atan2(e[1] - h[1], e[0] - h[0]))
     af = math.degrees(math.atan2(f[1] - h[1], f[0] - h[0]))
     if (ae - af) % 360 <= 180:
-        return Swing(h, e, f, af, ae)
-    return Swing(h, e, f, ae, af)
+        return Swing(h, e, af, ae)
+    return Swing(h, e, ae, af)
 
 
 def plan(d: Derived, level: str, batch: int | None = None) -> Drawing:

@@ -91,9 +91,6 @@ class Model:
             )
         return list(self._kinds[key])
 
-    def pack_of(self, key: str) -> str:
-        return type(self.els[key]).pack
-
     def in_pack(self, pack: str) -> list[Element]:
         return self.sorted(e for e in self.els.values() if type(e).pack == pack)
 

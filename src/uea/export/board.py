@@ -26,7 +26,6 @@ from uea.packs.elec.geometry import CircGeo
 from uea.packs.elec.kinds import Board, Circ, Rcd
 
 E_DIAGRAM = "E-SCHALTPLAN"
-E_FIELD = "E-VERTEILERFELD"
 COL = 13.0
 """Width of the column of a circuit, in mm."""
 GAP = 6.0
