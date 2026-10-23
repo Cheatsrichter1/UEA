@@ -179,6 +179,8 @@ def builtin() -> dict[str, Calculator]:
     from uea.packs.plumb.drain import DRAIN
     from uea.packs.plumb.recirc import RECIRC
     from uea.packs.plumb.water import WATER
+    from uea.packs.site.baunvo import BAUNVO
+    from uea.packs.site.setback import SETBACK_CALC
     from uea.packs.struct.design import STRUCT
     from uea.packs.struct.loads import LOADS
     from uea.packs.vent.airflow import AIRFLOW
@@ -189,6 +191,8 @@ def builtin() -> dict[str, Calculator]:
         for c in (
             WOFL,
             DIN277,
+            BAUNVO,
+            SETBACK_CALC,
             COSTS,
             BIDS,
             HOAI,

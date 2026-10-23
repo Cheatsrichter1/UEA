@@ -40,12 +40,14 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `packs/elec/`, `packs/light/` | Electrical devices, circuits, boards and feeds; luminaires |
 | `packs/heat/`, `packs/plumb/`, `packs/vent/` | Heating, plumbing and ventilation |
 | `packs/struct/` | The load path, loads and the Statische Berechnung |
+| `packs/site/` | The plot and the limits of its plan; the measure of use per BauNVO (`baunvo`) and the Abstandsflächen (`setback`) (`site.uea`) |
 | `packs/lv/` | The Leistungsverzeichnis: titles, positions and their derived quantities (`lv.uea`) |
 | `packs/bid/` | The bids on the LV and their unit prices, with their checked sums (`bid.uea`) |
 | `packs/issues.py` | Requests and waivers (`issues.uea`) |
 | `packs/net.py`, `pipes.py`, `hydraulics.py`, `mount.py` | Shared by the services: derived networks, pipe sizes, hydraulics formulas, wall-mounted things |
 | `calc/` | The calculator framework and `uea data` for the office's norm tables; the costs, the bids' comparison and the fee (`din276`, `bids`, `hoai`) |
-| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), the fee offer (`offer`), tables and calculation reports |
+| `export/` | Drawings (`plan`, `sheet`, `section`, `elevation`, `install`, `tga`, `strang`, `schema`, `board`, `positionsplan`), writers (`pdf`, `dxf`, `xlsx`, `ifc`, `bcf`, `gaeb`), the LV (`lv`), the fee offer (`offer`), the site plan (`siteplan`), tables and calculation reports |
+| `block.py`, `compare.py` | `uea block`, a simple building as an ordinary batch; `uea compare`, options side by side from their results |
 | `activity.py`, `dashboard.py` | The activity log the CLI writes per command, and `uea dashboard`, the local page that shows it (`dashboard.html`) |
 | `importer/` | IFC import: reading the file, fitting stairs and roofs, building the batch; `gaeb.py` reads a bid (GAEB 84) |
 

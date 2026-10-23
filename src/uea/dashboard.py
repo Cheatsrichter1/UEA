@@ -29,6 +29,7 @@ RECENT = 6
 
 STATE_OF = {
     "apply": "plan",
+    "block": "plan",
     "revert": "plan",
     "import": "plan",
     "calc": "calc",
@@ -168,6 +169,9 @@ def describe(c: Cmd) -> str:
         if c.info.get("dry"):
             text += " (Probelauf)"
         return text
+    if c.cmd == "block":
+        where = _levels(_strs(c.info.get("levels")))
+        return f"setzt einen Baukörper{where}" if c.ok else "versucht einen Baukörper"
     if c.cmd == "revert":
         return f"nimmt Batch {arg} zurück"
     if c.cmd == "import":

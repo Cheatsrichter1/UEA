@@ -20,6 +20,8 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea render <level>` | plan image (PNG) to look at (help export) |
 | `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export) |
 | `uea import <format> <file>` | an architect's IFC (ifc), a bid (gaeb) (help import) |
+| `uea block x= y= storeys=<n>` | a simple building, for options on a plot (help site) |
+| `uea compare <project>...` | options side by side for the client (help site) |
 | `uea log [n]` | recent batches |
 | `uea dashboard [--port n]` | for the engineer: a local page of what each agent is doing |
 | `uea help [topic]` | this help, or a topic |
@@ -34,6 +36,7 @@ uea show [scope]
 uea get id [id ...]
 uea find [--skip N] [--ids] kind [filters ...]
 uea apply [--by WHO] [-m WHY] [-f FILE] [--dry-run] [--view SELECTOR] [--base N]
+uea block [--by WHO] [-m WHY] [--dry-run] name=value [name=value ...]
 uea view [--skip N] selector
 uea revert [--by WHO] [-m WHY] batch
 uea check [discipline]
@@ -43,6 +46,7 @@ uea data [--edition E] [--source S] [action] [rest ...]
 uea render [-o FILE] scope [view]
 uea export [-o FILE] format [scope]
 uea import [--by WHO] [-m WHY] [--dry-run] [--building NAME] [--bidder NAME] format file
+uea compare [-o FILE] project [project ...]
 uea dashboard [--port N]
 ```
 
@@ -454,6 +458,29 @@ An installation zone (Installationszone, Trasse): a horizontal run on a storey t
 | a | `a=` | m | start, a point x,y (required) |
 | b | `b=` | m | end, a point x,y (required) |
 | z | `z=` | m | height above the FFL (required) |
+
+### The plot and the limits of its plan (`site.uea`)
+
+Kinds: `plot`.
+
+#### `plot`
+
+The plot (Baugrundstück), one per project, and the limits its plan sets: plot _ "Flst. 123/4" outline=W-3,S-5;E+4,S-5;E+4,N+6;W-3,N+6 grz=0.4 gfz=0.8 storeys=2 plan="B-Plan Nr. 12". You read the limits from the Bebauungsplan; uea calc baunvo checks them.
+
+`plot <id>` · ids `pl1`, `pl2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| outline | `outline=` | m | its boundary: points x,y joined by ;, in order round it (required) |
+| grz | `grz=` |  | highest GRZ (Grundflächenzahl, § 19 BauNVO) |
+| grz2 | `grz2=` |  | highest GRZ with § 19 Abs. 4 (below ground); else GRZ + 50 %, at most 0.8 |
+| gfz | `gfz=` |  | highest GFZ (Geschossflächenzahl, § 20 BauNVO) |
+| gr | `gr=` | m² | highest Grundfläche instead of a GRZ |
+| gf | `gf=` | m² | highest Geschossfläche instead of a GFZ |
+| storeys | `storeys=` |  | most Vollgeschosse (Zahl der Vollgeschosse) |
+| plan | `plan=` |  | where the limits come from: "B-Plan Nr. 12", "§ 34 BauGB" |
+| use | `use=` | `WS` `WR` `WA` `WB` `MD` `MDW` `MI` `MU` `MK` `GE` `GI` `SO` | the Baugebiet (Art der baulichen Nutzung, BauNVO): WA, MI, GE ... |
+| street | `street=` | m | edges on a street and its width, edge n from point n to n+1: 1:12,3:8 |
 
 ### Structure (`struct.uea`)
 
@@ -1244,6 +1271,9 @@ E is an error, W a warning.
 | W-ARCH-060 | section outside the building (it cuts no wall) |
 | E-ARCH-070 | shaft whose highest storey is not above its lowest |
 | E-ARCH-071 | installation zone without a length |
+| E-SITE-001 | plot outline crosses itself or encloses no area |
+| E-SITE-002 | more than one plot |
+| W-SITE-003 | part of a storey lies outside the plot |
 | W-STRUCT-001 | load-bearing wall that stands on no load-bearing wall of the storey below |
 | W-STRUCT-002 | slab with no load-bearing wall under it |
 | W-STRUCT-003 | beam that rests on fewer than two load-bearing walls or columns |
@@ -1304,6 +1334,8 @@ Projects add `custom` calculators in `calc/`. A `custom` result is never present
 |---|---|---|---|---|
 | `wofl` | norm | 0.2.0 | WoFlV vom 25.11.2003 | Wohnfläche per WoFlV |
 | `din277` | norm | 0.1.0 | DIN 277:2021-08 | Areas and volumes per DIN 277 (BGF, NRF, KGF, BRI) |
+| `baunvo` | norm | 0.1.0 | BauNVO 2017, §§ 16, 19, 20; Vollgeschoss nach Landesbauordnung | Measure of building use per BauNVO (GRZ, GFZ, Vollgeschosse) |
+| `setback` | norm | 0.1.0 | Abstandsflächen nach Landesbauordnung (§ 6 MBO) | Abstandsflächen per Landesbauordnung |
 | `costs` | norm | 0.3.0 | DIN 276:2018-12 | Costs per DIN 276 (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
 | `bids` | norm | 0.1.0 | VOB/A 2019 § 16c Abs. 2 (rechnerische Prüfung) | Comparison of the bids (Preisspiegel) |
 | `hoai` | norm | 0.2.1 | HOAI 2021 | Fee per HOAI 2021 (Honorar) |
@@ -1486,6 +1518,35 @@ One row per room use. A use with no row stops the split of the NRF and is named.
 | `group` | num > 0 | usage group: 1 to 7 NUF, 8 TF, 9 VF |
 
 One row for each: use.
+
+#### `full-storey`: Vollgeschoss per Landesbauordnung (the Landesbauordnung of the Land)
+
+One row per Land, from the current text of its Landesbauordnung (the definition of the Vollgeschoss). A Land with a rule this does not express (a Staffelgeschoss rule on the outer walls, a height in metres for the whole building) is not covered.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `land` | text | the Land as the project's site= names it: DE-HE |
+| `rise` | num ≥ 0 | the top of a storey's ceiling must rise more than this above the terrain, m |
+| `height` | num > 0 | clear height, m |
+| `share` | num > 0 | over at least this share of the floor area, 0 to 1 |
+| `basis` | text | the floor area of the storey below or its own (one of below, own) |
+
+One row for each: land.
+
+#### `setback`: Abstandsflächen per Landesbauordnung (the Landesbauordnung of the Land)
+
+One row per Land and group of Baugebiete, from the current text of the Landesbauordnung (Abstandsflächen). A plot without use= takes the row with *.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `land` | text | the Land as the project's site= names it: DE-HE |
+| `areas` | text | the Baugebiete the row is for, as the plot's use= names them, joined by space; * for all others |
+| `factor` | num > 0 | depth as a share of the wall height H |
+| `min` | num > 0 | least depth, m |
+| `roof45` | num ≥ 0 | share of a roof's height added to H above 45° |
+| `roof70` | num ≥ 0 | share of a roof's height added to H above 70° |
+
+One row for each: land, areas.
 
 #### `cost-ref`: Reference prices per cost group (Kostenkennwerte) (DIN 276; the office's own prices)
 

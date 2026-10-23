@@ -26,6 +26,7 @@ COMMANDS = frozenset(
         "check",
         "log",
         "apply",
+        "block",
         "revert",
         "calc",
         "export",
@@ -82,6 +83,8 @@ def _arg(args: Namespace) -> str | None:
         parts = [args.kind, *args.filters]
     elif cmd == "view":
         parts = [args.selector]
+    elif cmd == "block":
+        parts = list(args.rest[:3])
     elif cmd == "apply":
         parts = [args.view or ""]
     elif cmd == "revert":

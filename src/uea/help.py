@@ -20,6 +20,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
     ("uea render <level>", "plan image (PNG) to look at (help export)"),
     ("uea export <format> [scope]", "for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export)"),
     ("uea import <format> <file>", "an architect's IFC (ifc), a bid (gaeb) (help import)"),
+    ("uea block x= y= storeys=<n>", "a simple building, for options on a plot (help site)"),
+    ("uea compare <project>...", "options side by side for the client (help site)"),
     ("uea log [n]", "recent batches"),
     ("uea dashboard [--port n]", "for the engineer: a local page of what each agent is doing"),
     ("uea help [topic]", "this help, or a topic"),
@@ -27,7 +29,8 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | elec | heat | plumb | vent | struct | lv | bid | <kind>"
+    "start | ops | positions | arch | site | elec | heat | plumb | vent | struct | lv | bid"
+    " | <kind>"
     " | codes"
     " | calc | export | import"
 )
@@ -193,6 +196,10 @@ CALC = """\
 uea calc                list calculators
 uea calc wofl [level]   Wohnfläche per WoFlV (norm). Writes out/wofl.md.
 uea calc din277 [level] BGF, NRF, KGF and BRI per storey (norm; table din277-uses by room use)
+uea calc baunvo         GR, GRZ, Vollgeschosse, GF and GFZ per BauNVO against the plot's limits
+                        (norm; table full-storey for the Land's Vollgeschoss rule; help site)
+uea calc setback        Abstandsflächen per Landesbauordnung in front of each façade, against
+                        the plot and half the streets (norm; table setback by Land and use=)
 uea calc costs [stage=estimate|calculation|offer] [bid=bd2]
                         costs per DIN 276 (norm): the estimate from the reference prices
                         (table cost-ref) on the DIN 277 quantities, the calculation from the
@@ -299,6 +306,8 @@ uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export gaeb [-o file]           the LV for bidders: GAEB DA XML 3.3, phase 83, no prices
+uea export pdf site                 the site plan (Lageplan): plot, footprint, its Vollgeschosse
+                                    and Abstandsflächen (from uea calc baunvo and setback)
 uea export offer [results] [-o f]   the fee offer (Honorarangebot) from the hoai results, all or
                                     hoai-building,hoai-structure: out/offer.md and a PDF, a draft
                                     to sign. Texts: table offer; the client: project client=
@@ -392,6 +401,27 @@ A priced position removed from the LV leaves its prices dangling (E-REF-001): re
 """
 
 
+SITE_NOTES = """\
+The plot and what its plan allows. You read the limits from the Bebauungsplan (or judge them
+under § 34 BauGB) and write them on the plot; code measures the building against them.
+outline= in plan coordinates like the walls, relative to grids: W-3,S-5;E+4,S-5;E+4,N+6;W-3,N+6.
+Outline only the building land (Bauland, § 19 Abs. 3 BauNVO). The project needs ground= (the
+terrain) and site= (the Land, for its Vollgeschoss rule: the office's table full-storey).
+use= the Baugebiet (WA, MI, GE ...); street=1:12 edge 1 (point 1 to 2) is on a street 12 m wide.
+uea calc baunvo    GR, GRZ (also with § 19 Abs. 4), Vollgeschosse, GF, GFZ, each against the
+                   plot's limits (norm)
+uea calc setback   the Abstandsflächen of each façade: H from the terrain to the roof skin,
+                   depth factor × H, at least the minimum (norm; the office's table setback)
+Options, each its own project with the same plot:
+uea block x=W..E y=S..N storeys=3 [h=3 roof=flat|gable|hip|shed pitch=30 ridge=x up=n knee=0
+          from=<level> use=<room use>]   storeys of four walls, a slab and a room each, and a
+                   roof (not flat: on a storey DG of its own); ends of x and y: grids or numbers
+uea compare <project>...   options.md and options.pdf: GRZ, GFZ, Vollgeschosse, setbacks, BGF,
+                   costs from each one's results (calc baunvo, setback, din277, costs)
+uea export pdf site        the site plan
+"""
+
+
 def pack_help(reg: Registry, pack: str) -> str:
     p = reg.packs[pack]
     lines = [f"{p.name}: {p.title} ({p.file})"]
@@ -414,6 +444,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(lv_notes())
     if pack == "bid":
         lines.append(BID_NOTES.rstrip())
+    if pack == "site":
+        lines.append(SITE_NOTES.rstrip())
     if p.kinds:
         lines.append(f"Details: uea help <kind>, e.g. uea help {p.kinds[-1].kind}")
     return "\n".join(lines)

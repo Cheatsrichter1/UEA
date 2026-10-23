@@ -1640,25 +1640,7 @@ class Resolver:
                     )
 
     def _ceiling(self, lv: LevelGeo) -> Ceil:
-        caps: list[Lin] = []
-        slab: SlabGeo | None = None
-        if lv.above is not None:
-            above = self.g.levels[lv.above]
-            slab = self.g.slab_on(above.id)
-            z = slab.ceiling if slab is not None else above.ssl
-            caps.append(Lin(0.0, 0.0, z - lv.z))
-        parts: list[Part] = []
-        for roof in self.g.roofs.values():
-            rl = self.g.levels[roof.level]
-            if rl.z <= lv.z + 1e-9 and roof.status != "demolish":
-                planes = tuple(Lin(p.a, p.b, p.c - roof.lining_of(p) - lv.z) for p in roof.planes)
-                parts.append(Part(roof.foot, planes))
-        # split level: where the slab above has no floor (outside it or in a void) and a roof of
-        # this storey or one below covers the room, that roof is its ceiling, not the storey above
-        uncapped: BaseGeometry = Polygon()
-        if slab is not None and parts:
-            uncapped = clean(union(p.foot for p in parts).difference(slab.net))
-        return Ceil(tuple(caps), tuple(parts), uncapped)
+        return storey_ceiling(self.g, lv)
 
     def _opening_sides(self) -> None:
         for o in self.g.openings.values():
@@ -1767,6 +1749,29 @@ def make_roof(
         peak_slope,
         el.status,
     )
+
+
+def storey_ceiling(g: ArchGeo, lv: LevelGeo) -> Ceil:
+    """Clear height above the storey's FFL: the slab above and the roofs over it."""
+    caps: list[Lin] = []
+    slab: SlabGeo | None = None
+    if lv.above is not None:
+        above = g.levels[lv.above]
+        slab = g.slab_on(above.id)
+        z = slab.ceiling if slab is not None else above.ssl
+        caps.append(Lin(0.0, 0.0, z - lv.z))
+    parts: list[Part] = []
+    for roof in g.roofs.values():
+        rl = g.levels[roof.level]
+        if rl.z <= lv.z + 1e-9 and roof.status != "demolish":
+            planes = tuple(Lin(p.a, p.b, p.c - roof.lining_of(p) - lv.z) for p in roof.planes)
+            parts.append(Part(roof.foot, planes))
+    # split level: where the slab above has no floor (outside it or in a void) and a roof of
+    # this storey or one below covers the room, that roof is its ceiling, not the storey above
+    uncapped: BaseGeometry = Polygon()
+    if slab is not None and parts:
+        uncapped = clean(union(p.foot for p in parts).difference(slab.net))
+    return Ceil(tuple(caps), tuple(parts), uncapped)
 
 
 def roof_profile(w: WallGeo, parts: Sequence[RoofGeo]) -> list[tuple[float, float]]:

@@ -69,8 +69,12 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         plumbing.append(("strang", "plumb"))
     venting = [("vent", lv) for lv in tga_levels(d, "vent")]
     structure = [("struct", lv) for lv in struct_levels(d)]
+    site = [("site", "plot")] if d.site.plot is not None else []
+    if scope == "site":
+        return site or "no plot to draw: + plot _ outline=<x,y;x,y;...> (uea help plot)"
     if scope is None or scope == "all":
         return [
+            *site,
             *(("plan", lv) for lv in levels),
             *(("section", k) for k in sections),
             *(("elevation", side) for side in SIDES),
@@ -149,6 +153,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
     from uea.export.schema import H_SCHEMA, sheet_schema
     from uea.export.section import sheet_section
     from uea.export.sheet import sheet_plan
+    from uea.export.siteplan import SITE_LAYER_COLORS, sheet_site
     from uea.export.strang import S_SCHEMA, sheet_strang
     from uea.export.tga import TGA_LAYER_COLORS, sheet_tga
 
@@ -183,6 +188,8 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_schema(d, stand)
         elif kind == "strang":
             dw = sheet_strang(d, stand)
+        elif kind == "site":
+            dw = sheet_site(d, stand, folder, ctx.project.hashes())
         else:
             dw = sheet_elevation(d, key, stand)
         if dw is None or dw.sheet is None:
@@ -193,6 +200,8 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             kind, kind
         )
         stem = f"{name}-schema" if kind in ("schema", "strang") else f"{name}-{key}"
+        if kind == "site":
+            stem = "site"
         path = Path(out_path) if out_path and len(targets) == 1 else folder / f"{stem}.{fmt}"
         if fmt == "svg":
             path.write_text(to_svg(dw), encoding="utf-8")
@@ -206,6 +215,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
                 **ELEC_LAYER_COLORS,
                 **TGA_LAYER_COLORS,
                 **STRUCT_LAYER_COLORS,
+                **SITE_LAYER_COLORS,
                 H_SCHEMA: "#000000",
                 S_SCHEMA: "#000000",
             }
