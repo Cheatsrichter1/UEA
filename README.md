@@ -6,7 +6,7 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** release 0.3.0 (`CHANGELOG.md`): versions 1, 2 and 3 are done. Version 2 adds partial views for big projects and the way from the model to the tender: areas per DIN 277, the Leistungsverzeichnis with a GAEB export, costs per DIN 276, the fee per HOAI, and reading and comparing the bids, not yet reviewed. Version 3 is a dashboard that shows the engineer what each agent is doing. In version 1, the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, reviewed by licensed people outside this repository. Structural is built and reviewed too: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent runs end to end, the test with an office's IFC and the benchmark were done in private. What comes next is in `FUTURE.md`.
+**Status:** release 0.4.0 (`CHANGELOG.md`): versions 1 to 4 are done. Version 2 adds partial views for big projects and the way from the model to the tender: areas per DIN 277, the Leistungsverzeichnis with a GAEB export, costs per DIN 276, the fee per HOAI, and reading and comparing the bids, not yet reviewed. Version 3 is a dashboard that shows the engineer what each agent is doing. Version 4 evaluates a plot: the measure of use per BauNVO and the Abstandsflächen against the plan's limits, quick options and their comparison for the client, and the site plan, not yet reviewed. In version 1, the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, reviewed by licensed people outside this repository. Structural is built and reviewed too: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent runs end to end, the test with an office's IFC and the benchmark were done in private. What comes next is in `FUTURE.md`.
 
 ## Why
 
@@ -76,7 +76,7 @@ What a complete build costs an agent, from the brief to the exports: with conven
 Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/). Install the release as a command, with the IFC and structural extras:
 
 ```bash
-uv tool install "uea[ifc,struct] @ git+https://github.com/Cheatsrichter1/UEA@v0.3.0"
+uv tool install "uea[ifc,struct] @ git+https://github.com/Cheatsrichter1/UEA@v0.4.0"
 uea help
 ```
 
@@ -112,7 +112,7 @@ Development: `uv run ruff check`, `uv run pyright`. The repository has no test s
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core, and the plot with what its plan allows. Version 2 (0.2.0, the bids in 0.3.0) added partial views and the way from the model to the tender, version 3 (0.3.0) the agent dashboard (`uea dashboard`: what each agent is doing right now, for the engineer). The next version is plot evaluation with tender watching; for an office's business side, UEA has an example `AGENTS.md` (`docs/templates/`) and the fee offer as a document (`uea export offer`, `FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core, and the plot with what its plan allows. Version 2 (0.2.0, the bids in 0.3.0) added partial views and the way from the model to the tender, version 3 (0.3.0) the agent dashboard (`uea dashboard`: what each agent is doing right now, for the engineer), version 4 (0.4.0) plot evaluation (`uea calc baunvo`, `setback`, `uea block`, `uea compare`). For an office's business side, UEA has an example `AGENTS.md` (`docs/templates/`) and the fee offer as a document (`uea export offer`). No further version is planned yet (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 

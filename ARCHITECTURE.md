@@ -2,7 +2,7 @@
 
 How UEA is built. For the why see `VISION.md`; for what comes next see `FUTURE.md`; for the reasoning behind individual choices see `docs/decisions/`.
 
-Status: release 0.3.0 (`CHANGELOG.md`): versions 1, 2 and 3. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
+Status: release 0.4.0 (`CHANGELOG.md`): versions 1 to 4. Everything described here exists in `src/uea/` unless it says planned. Syntax and output may still change.
 
 ## 1. Overview
 
