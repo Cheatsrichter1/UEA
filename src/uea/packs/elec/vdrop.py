@@ -11,7 +11,7 @@ the office's table `conductor`; the limit is a setting the caller must give, sin
 permissible drop depends on the rule the office designs to (DIN 18015-1 gives one for the whole
 route from the meter, of which this circuit is only a part).
 
-The length is the derived cable length to the farthest device (`0027-cable-routes.md`) times a
+The length is the derived cable length to the farthest device (decision 0027) times a
 reserve; the whole current is taken to flow over the whole length, which is the safe side.
 Not covered: the drop in the feeder from the house connection to the board, motor starting.
 """

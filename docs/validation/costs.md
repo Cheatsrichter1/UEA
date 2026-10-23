@@ -5,10 +5,10 @@
 | Calculator | `costs` 0.3.0, kind `norm` |
 | Standard | DIN 276:2018-12, Kosten im Bauwesen (Kostenschätzung, Kostenberechnung, Kostenanschlag) |
 | Code | `src/uea/calc/din276.py`; reference quantities from `src/uea/packs/arch/din277.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_costs_hoai.py`; the Kostenanschlag in `tests/test_bids.py` at commit `517c07e` |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_costs_hoai.py`; the Kostenanschlag in `tests/test_bids.py` at commit `517c07e` |
 | Review | **Not yet reviewed** by a licensed person. The clause numbers of DIN 276 are not given here: the reviewer adds them with the text at hand, which is not in this repository. |
 
-DIN 276 is licensed; the titles of its cost groups are not in the repository. The office supplies its reference prices per cost group, with its own names for the groups, in the table `cost-ref` (`docs/decisions/0008-office-supplied-norm-data.md`, `0049-cost-estimate-and-hoai-fee.md`).
+DIN 276 is licensed; the titles of its cost groups are not in the repository. The office supplies its reference prices per cost group, with its own names for the groups, in the table `cost-ref` (`docs/decisions/foundations.md#0008-office-supplied-norm-data`, `docs/decisions/tender.md#0049-costs-and-hoai-fee`).
 
 ## What it computes
 
@@ -16,7 +16,7 @@ DIN 276 is licensed; the titles of its cost groups are not in the repository. Th
 - The sums per first level of the cost groups (100 to 800), the net total, VAT (`ust=`, default 19 %) and the gross total.
 - Beside each row, for comparison only, the sum of the LV's priced positions whose cost group lies in the row's group.
 - With `stage=calculation` (Kostenberechnung): per cost group of the LV's priced positions, their quantities times their unit prices. A row of the estimate stays where no priced position falls in its group (Grundlage "Kennwert"); positions without a price or without a cost group are listed as left out.
-- With `stage=offer bid=<ids>` (Kostenanschlag): the same, with the unit prices of the bids awarded, less their discount, for the positions they price (Grundlage "Angebot"); the LV's own prices and the estimate for the rest (`docs/decisions/0051-bids.md`).
+- With `stage=offer bid=<ids>` (Kostenanschlag): the same, with the unit prices of the bids awarded, less their discount, for the positions they price (Grundlage "Angebot"); the LV's own prices and the estimate for the rest (`docs/decisions/tender.md#0051-bids`).
 
 ## Assumptions to check when signing
 

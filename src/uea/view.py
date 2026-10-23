@@ -1,6 +1,6 @@
 """Partial views: read a slice of the model at a base batch, write back only to that slice.
 
-See docs/decisions/0046-partial-views.md.
+See docs/decisions/foundations.md#0046-partial-views.
 """
 
 from dataclasses import dataclass

@@ -61,10 +61,6 @@ class Element(BaseModel):
     id: str
     label: Annotated[str | None, F("free text")] = None
 
-    @property
-    def is_named(self) -> bool:
-        return self.prefix is None
-
     def line(self) -> str:
         return to_line(self)
 

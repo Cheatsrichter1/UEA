@@ -5,10 +5,10 @@
 | Calculator | `baunvo` 0.1.0, kind `norm` |
 | Standard | Baunutzungsverordnung (BauNVO) in the version of 21 November 2017, §§ 16, 19, 20; the definition of the Vollgeschoss of the Land's Landesbauordnung |
 | Code | `src/uea/packs/site/baunvo.py`; the plot from `src/uea/packs/site/geometry.py`; storey outlines from `src/uea/packs/arch/din277.py`, clear heights from `src/uea/packs/arch/geometry.py` |
-| Tests | None in the repository (`docs/decisions/0052-no-tests-in-the-repo.md`). The cases below were run on projects built for them, with the results given; **not verified by tests** |
+| Tests | None in the repository (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`). The cases below were run on projects built for them, with the results given; **not verified by tests** |
 | Review | **Not yet reviewed** by a licensed person. |
 
-The BauNVO is a federal ordinance and the Landesbauordnungen are Land law, both amtliche Werke: their rules may be implemented and cited freely. What a Vollgeschoss is, the BauNVO leaves to the Land (§ 20 Abs. 1). The office copies its Land's rule into the table `full-storey` from the current text (`docs/decisions/0055-plot-and-baunvo.md`). Without it, GR and GRZ are still computed, and the output names the table.
+The BauNVO is a federal ordinance and the Landesbauordnungen are Land law, both amtliche Werke: their rules may be implemented and cited freely. What a Vollgeschoss is, the BauNVO leaves to the Land (§ 20 Abs. 1). The office copies its Land's rule into the table `full-storey` from the current text (`docs/decisions/site.md#0055-plot-and-baunvo`). Without it, GR and GRZ are still computed, and the output names the table.
 
 ## Clauses and how they are implemented
 

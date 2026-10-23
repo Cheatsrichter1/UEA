@@ -5,10 +5,10 @@
 | Calculator | `hydronic` 0.2.0, kind `norm` |
 | Method | Verfahren B of the hydraulic balance, on the Heizlast per DIN EN 12831-1:2017-09 |
 | Code | `src/uea/packs/heat/hydronic.py`; the pipes from `geometry.py`, the hydraulics in `src/uea/packs/hydraulics.py`, the Heizlast in `heatload.py` |
-| Tests | Removed (`docs/decisions/0052-no-tests-in-the-repo.md`); the cases below passed in `tests/test_hydronic.py` at commit `517c07e` |
-| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/0008-office-supplied-norm-data.md`). |
+| Tests | Removed (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`); the cases below passed in `tests/test_hydronic.py` at commit `517c07e` |
+| Review | Reviewed by a licensed person, outside this repository. The review record and the run of the standards' worked examples are private, since the standards are licensed (`docs/decisions/foundations.md#0008-office-supplied-norm-data`). |
 
-The settings `spread`, `vmax` and `flow` are the planner's, and so are a manifold's own `flow=`, `spread=` and `mix`; the Heizlast's settings and tables are those of `heatload`. The pipe sizes, roughness and ζ come from the model's types (`docs/decisions/0037-heating-pipes-and-strangschema.md`). Every result names the edition of each table.
+The settings `spread`, `vmax` and `flow` are the planner's, and so are a manifold's own `flow=`, `spread=` and `mix`; the Heizlast's settings and tables are those of `heatload`. The pipe sizes, roughness and ζ come from the model's types (`docs/decisions/services.md#0037-heating-pipes-and-strangschema`). Every result names the edition of each table.
 
 ## What it computes
 
@@ -34,7 +34,7 @@ For each emitter: its design heat flow and water flow. For each section of the h
 | Δθ | the manifold's `spread=`, else the setting `spread` |
 | θ_V of the system | setting `flow` (needed with a mixing manifold) |
 | v_max | setting `vmax` |
-| Sections, lengths, bends | the derived heating pipes (`geometry.py`): rectilinear, lower bounds; between storeys through the hole of `via=` (`docs/decisions/0039-openings-without-a-fill.md`) |
+| Sections, lengths, bends | the derived heating pipes (`geometry.py`): rectilinear, lower bounds; between storeys through the hole of `via=` (`docs/decisions/building.md#0039-holes`) |
 | Loops and their length | the derived loops of each underfloor heating (`0034`) |
 | Sizes, k, ζ_bend, ζ_tee | the heating pipe type marked default (`type … hpipe`) |
 | Loop pipe and k | the underfloor type's `pipe=` and `k=` |

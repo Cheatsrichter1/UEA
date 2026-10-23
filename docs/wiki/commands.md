@@ -9,7 +9,7 @@ What `uea` does, in the order a project needs it. Every command with all its opt
 | Command | Does |
 |---|---|
 | `uea init <dir>` | A new, empty project folder |
-| `uea import ifc <file> --by <who>` | The architecture from an architect's IFC, re-importable ([0029](../decisions/0029-ifc-import.md)) |
+| `uea import ifc <file> --by <who>` | The architecture from an architect's IFC, re-importable ([0029](../decisions/ifc.md#0029-ifc-import-of-walls-openings-and-rooms)) |
 
 ## Read
 
@@ -28,13 +28,13 @@ What `uea` does, in the order a project needs it. Every command with all its opt
 | Command | Does |
 |---|---|
 | `uea apply --by <who> -m <why>` | A batch of operations from stdin ([the line format](format.md#operations)); `--view <sel> --base <n>` writes only a slice |
-| `uea block x=W..E y=S..N storeys=3` | A simple building as an ordinary batch, for options on a plot ([0057](../decisions/0057-options-on-a-plot.md)) |
+| `uea block x=W..E y=S..N storeys=3` | A simple building as an ordinary batch, for options on a plot ([0057](../decisions/site.md#0057-options-on-a-plot)) |
 | `uea revert <batch> --by <who>` | Undo a batch, as a new batch |
-| `uea import gaeb <file.x84> --by <who>` | A bidder's prices into `bid.uea` ([0051](../decisions/0051-bids.md)) |
+| `uea import gaeb <file.x84> --by <who>` | A bidder's prices into `bid.uea` ([0051](../decisions/tender.md#0051-bids)) |
 
 ## Calculate
 
-`uea calc` lists the calculators; `uea calc <name> [scope] [name=value...]` runs one. Each writes `out/<name>.md` (the report for people) and `out/<name>.json` (the record: calculator, version, settings, model state, tables used). `uea data` lists the office's tables, `uea data add <id> <file.csv> --edition <e>` installs one ([0008](../decisions/0008-office-supplied-norm-data.md)).
+`uea calc` lists the calculators; `uea calc <name> [scope] [name=value...]` runs one. Each writes `out/<name>.md` (the report for people) and `out/<name>.json` (the record: calculator, version, settings, model state, tables used). `uea data` lists the office's tables, `uea data add <id> <file.csv> --edition <e>` installs one ([0008](../decisions/foundations.md#0008-office-supplied-norm-data)).
 
 | Question | Calculator |
 |---|---|
@@ -63,6 +63,6 @@ How far each one can be trusted is in its validation report in [`docs/validation
 | `uea export bcf [discipline]` | Requests for someone working outside UEA |
 | `uea export offer [results]` | The fee offer (Honorarangebot) from the `hoai` results |
 | `uea compare <project>...` | Options side by side, from each one's results |
-| `uea dashboard` | A local page for the engineer: what each agent is doing ([0053](../decisions/0053-agent-dashboard.md)) |
+| `uea dashboard` | A local page for the engineer: what each agent is doing ([0053](../decisions/foundations.md#0053-agent-dashboard)) |
 
 Everything goes to `out/` unless `-o` says otherwise. Every export is a draft until a person has checked and signed it.

@@ -58,10 +58,6 @@ class UValue:
     rse: float
     r_layers: float
 
-    @property
-    def r_total(self) -> float:
-        return self.rsi + self.r_layers + self.rse
-
 
 class Thermal:
     """U-values from the office's tables; every material is checked before the first."""

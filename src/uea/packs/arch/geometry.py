@@ -661,7 +661,7 @@ class ArchGeo:
         return [r for r in self.roofs.values() if r.level == level and r.status != "demolish"]
 
     def roof_parts(self, level: str) -> list[RoofGeo]:
-        """The roofs of a storey; together they are one roof (0020-roof-parts)."""
+        """The roofs of a storey; together they are one roof (decision 0020)."""
         return self.roofs_on(level)
 
     def slab_on(self, level: str) -> SlabGeo | None:
@@ -1358,7 +1358,7 @@ class Resolver:
             )
 
     def _joins(self) -> None:
-        """Grow the ends of raw walls to the far face of the wall they touch (0018-raw-walls)."""
+        """Grow the ends of raw walls to the far face of the wall they touch (decision 0018)."""
         for w in self.g.walls.values():
             if not (w.raw and w.active):
                 continue

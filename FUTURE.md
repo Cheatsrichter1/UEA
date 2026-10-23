@@ -17,8 +17,8 @@ The order is fixed; the content of each version is not. No version after v4 is p
 
 Version 1 is done. What 0.1.0 lacked was people's work, not code (`CHANGELOG.md`, "Not in this release"), and it was done outside this repository; its records are private:
 
-- the reviews by licensed people of the `norm` calculators (`docs/validation/`) and of the structure (`docs/decisions/0040-structure.md`);
-- the test with an office's IFC (`docs/decisions/0029-ifc-import.md` to `0032-bcf-requests.md`);
+- the reviews by licensed people of the `norm` calculators (`docs/validation/`) and of the structure (`docs/decisions/structure.md#0040-structure`);
+- the test with an office's IFC (`docs/decisions/ifc.md#0029-ifc-import-of-walls-openings-and-rooms` to `docs/decisions/ifc.md#0032-bcf-requests`);
 - the agent runs end to end (`bench/agent/results.md` at commit `517c07e`);
 - the benchmark against a conventional tool and a human drafter (the task set in `bench/`, removed after commit `517c07e`);
 - the standards' worked examples as a private test suite.
@@ -31,7 +31,7 @@ Version 2, first in the version: tenders and cost estimates work on bigger build
 
 Big projects do not fit in an agent's context, even in a compact format. A hospital is millions of tokens (`README.md`). `uea show`, `get` and `find` already read a slice, but an agent also has to work on one: take just the heating and ventilation of the OG, or just board `uv2` with its circuits and their loads, change it, and put the edits back. That is what lets UEA scale, and what lets several agents work on one project at once.
 
-Built (`docs/decisions/0046-partial-views.md`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On a generated block of 8 storeys of 6 flats (1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (`bench/large.py` and `bench/results.md` at commit `517c07e`).
+Built (`docs/decisions/foundations.md#0046-partial-views`): `uea view <selector>` prints a slice with the lines it references as read-only context and its base batch, and `uea apply --view <selector> --base <n>` writes back only to that slice and is rejected when a later batch touched what it edits. On a generated block of 8 storeys of 6 flats (1,073 elements), `uea view heat:OG3` is about a twelfth of all its files (measured at commit `517c07e`).
 
 Open:
 
@@ -52,7 +52,7 @@ To solve, probably together with partial views:
 
 - A merge strategy for the history: the batch numbers and the ids each side assigned.
 - `uea sync`, which does the loop above (pull, replay, push, retry) so an agent does not.
-- Or a host model: one machine holds the project, remote agents reach it through ssh or the MCP server (`ARCHITECTURE.md`, MCP), and GitHub is the mirror and the review trail. The lock keeps working and nothing has to merge.
+- Or a host model: one machine holds the project, remote agents reach it through ssh or an MCP server (Backlog, openBIM), and GitHub is the mirror and the review trail. The lock keeps working and nothing has to merge.
 
 ## More engineering domains
 
@@ -65,7 +65,7 @@ The core is domain-neutral, so new domain packs can be added on top of it:
 
 ## Standard library
 
-A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" under Open questions), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/0008-office-supplied-norm-data.md`).
+A catalogue of standard elements that ships with the packs, so an agent writes `NYM-J3x1.5` or a standard door size without first defining the type in the project. It covers common cables (NYM-J, NYY-J), wall, slab and floor build-ups, standard door and window sizes, and pipes. A project type with the same name overrides the library entry. This saves tokens in every project and removes a source of typos. Open: the naming scheme, the licence of each data source (see "Type catalogues" under Open questions), and the line between library data (designations, cross sections, dimensions) and norm tables that offices supply, such as current-carrying capacities (`docs/decisions/foundations.md#0008-office-supplied-norm-data`).
 
 Until then, an agent defines every type in the project file.
 
@@ -73,30 +73,30 @@ Until then, an agent defines every type in the project file.
 
 Version 2. The model already holds what a tender needs: the quantities, per element and per type (`uea export xlsx`).
 
-- **Cost estimation:** built (`uea calc costs`, `docs/decisions/0049-cost-estimate-and-hoai-fee.md`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. The Kostenanschlag from the bids awarded (`stage=offer`, `0051-bids.md`). Open: the Kostenfeststellung.
-- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/0048-leistungsverzeichnis.md`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/0051-bids.md`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
+- **Cost estimation:** built (`uea calc costs`, `docs/decisions/tender.md#0049-costs-and-hoai-fee`): the Kostenschätzung per DIN 276 on the DIN 277 quantities and the office's reference prices, with the priced LV beside it; and the Kostenberechnung from the priced LV (`stage=calculation`), keeping the estimate for groups the LV does not price yet. The Kostenanschlag from the bids awarded (`stage=offer`, `docs/decisions/tender.md#0051-bids`). Open: the Kostenfeststellung.
+- **Leistungsverzeichnis and Ausschreibung:** built (`lv.uea`, `uea export gaeb`, `docs/decisions/tender.md#0048-leistungsverzeichnis`): titles and positions in the model, quantities derived, GAEB DA XML 3.3 phase 83 for bidders, the LV and its costs per DIN 276 cost group in the xlsx. The bids: built (`uea import gaeb`, `uea calc bids`, `docs/decisions/tender.md#0051-bids`): GAEB 84 into `bid.uea`, the arithmetic check of VOB/A § 16c Abs. 2, the Preisspiegel, also as sheets in the xlsx. Open: side offers (Nebenangebote); phases 81 and 86; pipe and duct lengths per size; validating the GAEB file against the official schema and importing it into an AVA program; a first real tender.
 - **Fees:** built (`uea calc hoai`, `0049`): building, technical equipment and structure, chargeable costs from the estimate, the office's copy of the fee tables. On the cost calculation where there is one (§ 6 Abs. 1), per group of technical systems. Open: shipping a checked copy of the fee tables; special services; the structure's chargeable costs from the costs. The offer is built (Office workflows).
 
 ## Agent dashboard
 
-Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/0001-no-own-agent.md`).
+Version 3. A small dashboard that shows the engineer what the agents are doing right now. It is information, not a representation: it does not show the model, is not a viewer, and UEA does not become an agent (`docs/decisions/foundations.md#0001-no-own-agent`).
 
-Built (`docs/decisions/0053-agent-dashboard.md`): UEA infers the activity from the commands an agent runs anyway, so no agent reports a status. The CLI writes a line per command to an activity log on the machine, out of git, and `uea dashboard` serves a local page that reads it: per project and agent, its state (plant, rechnet, exportiert, liest, denkt nach, ruht) with an animation, a line such as "plant die Beleuchtung im OG", its last batch and its last commands.
+Built (`docs/decisions/foundations.md#0053-agent-dashboard`): UEA infers the activity from the commands an agent runs anyway, so no agent reports a status. The CLI writes a line per command to an activity log on the machine, out of git, and `uea dashboard` serves a local page that reads it: per project and agent, its state (plant, rechnet, exportiert, liest, denkt nach, ruht) with an animation, a line such as "plant die Beleuchtung im OG", its last batch and its last commands.
 
 Open:
 
 - **Agents on other machines.** The log is per machine; a dashboard across machines needs the logs shipped to one place, perhaps together with a host model (Partial views, Agents on several machines).
 - **Thinking** is the gap since an agent's last command; UEA cannot tell it from an agent that is done or waiting for its human. An optional `uea status "<text>"` stays out unless that falls short.
-- **More than the moment:** how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/0010-requests-in-the-model.md`). Questions waiting for a human answer need question events that UEA does not have.
+- **More than the moment:** how far along each project is, drafts ready for review, and the open requests and waivers, which UEA records already (`docs/decisions/foundations.md#0010-requests-in-the-model`). Questions waiting for a human answer need question events that UEA does not have.
 
 ## Office workflows
 
-Not a version of its own. Most of an office's business side is how its agent behaves, and that belongs in the instructions the office gives its agent (`AGENTS.md`, `CLAUDE.md`), not in UEA (`docs/decisions/0001-no-own-agent.md`): read a request and summarise it for the senior engineer (scope, deadlines, requirements), stop and wait for the approval, prepare the offer and a first draft of the plan, and send nothing that the senior engineer has not checked and signed. The rules are the office's: who approves what, how offers are worded, what the agent may send. Keeping track of jobs is the office's own files or tools.
+Not a version of its own. Most of an office's business side is how its agent behaves, and that belongs in the instructions the office gives its agent (`AGENTS.md`, `CLAUDE.md`), not in UEA (`docs/decisions/foundations.md#0001-no-own-agent`): read a request and summarise it for the senior engineer (scope, deadlines, requirements), stop and wait for the approval, prepare the offer and a first draft of the plan, and send nothing that the senior engineer has not checked and signed. The rules are the office's: who approves what, how offers are worded, what the agent may send. Keeping track of jobs is the office's own files or tools.
 
 What UEA adds:
 
 - **An example `AGENTS.md` for an office:** built (`docs/templates/AGENTS.md`): the rules that always hold, how the agent handles a request, when it stops and asks, and the `uea` commands of each step (`uea init` and `apply` for the first draft, `din277`, `costs` and `hoai` for the fee). The office copies it into its own repository and adapts it.
-- **The offer as a document to sign** (Honorarangebot): built (`uea export offer`, `docs/decisions/0054-offer-export.md`): the fees of the `uea calc hoai` results with the office's letterhead and terms and the project's client, as a German PDF marked as a draft. Open: special services, hourly fees and lump sums.
+- **The offer as a document to sign** (Honorarangebot): built (`uea export offer`, `docs/decisions/tender.md#0054-offer-export`): the fees of the `uea calc hoai` results with the office's letterhead and terms and the project's client, as a German PDF marked as a draft. Open: special services, hourly fees and lump sums.
 - **Maybe the rough effort** from the office's own hours per service phase and its hourly rates, as a calculator on office data (`uea data`), since agents do not calculate.
 
 ## Plot evaluation
@@ -109,9 +109,9 @@ Version 4. Given an open plot (for example one a city offers), an agent evaluate
 
 The result is a decision basis for a human, not a decision. The agent reads the Bebauungsplan and judges § 34; code measures. In slices:
 
-1. **The plot and the measure of use:** built (`site.uea`, `uea calc baunvo`, `docs/decisions/0055-plot-and-baunvo.md`): the plot's outline and the plan's limits, GR and GRZ (also with § 19 Abs. 4), the Vollgeschosse by the Land's rule from the office's table `full-storey`, GF and GFZ, each against the limits. Open: garages, parking and driveways (§ 19 Abs. 4 Nr. 1 and 2), a sloping terrain, building lines and limits (Baulinien, Baugrenzen).
-2. **Setbacks:** built (`uea calc setback`, `docs/decisions/0056-setbacks.md`): the Abstandsfläche in front of each façade, from the wall height up to the roof skin, against the plot and half of each street on it, by the Land's rule from the office's table `setback`. Open: two buildings on one plot, buildings at the boundary, projecting parts, a sloping terrain.
-3. **Options:** built (`uea block`, `docs/decisions/0057-options-on-a-plot.md`): a simple building of storeys, walls, slabs, rooms and a roof as ordinary model lines, so every calculator and export works on it; each option is its own project with the same plot. Open: L- and T-shaped blocks.
+1. **The plot and the measure of use:** built (`site.uea`, `uea calc baunvo`, `docs/decisions/site.md#0055-plot-and-baunvo`): the plot's outline and the plan's limits, GR and GRZ (also with § 19 Abs. 4), the Vollgeschosse by the Land's rule from the office's table `full-storey`, GF and GFZ, each against the limits. Open: garages, parking and driveways (§ 19 Abs. 4 Nr. 1 and 2), a sloping terrain, building lines and limits (Baulinien, Baugrenzen).
+2. **Setbacks:** built (`uea calc setback`, `docs/decisions/site.md#0056-setbacks`): the Abstandsfläche in front of each façade, from the wall height up to the roof skin, against the plot and half of each street on it, by the Land's rule from the office's table `setback`. Open: two buildings on one plot, buildings at the boundary, projecting parts, a sloping terrain.
+3. **Options:** built (`uea block`, `docs/decisions/site.md#0057-options-on-a-plot`): a simple building of storeys, walls, slabs, rooms and a roof as ordinary model lines, so every calculator and export works on it; each option is its own project with the same plot. Open: L- and T-shaped blocks.
 4. **The comparison:** built (`uea compare`, `uea export pdf site`, `0057`): the options side by side for the client in German, from each one's results, and the site plan with the plot, the footprint, its Vollgeschosse and the Abstandsflächen. Open: a yield estimate from the office's rents or prices, the site plan in survey coordinates.
 
 ## Tender watching
@@ -128,15 +128,15 @@ Work on what exists, to be scheduled into a version.
 
 ### Model
 
-- **Shafts and installation walls.** Openings without a fill are built (`docs/decisions/0039-openings-without-a-fill.md`): holes through walls and slabs, chases, core drillings, asked for by the services' checks and named by their networks (`via=`). Shafts through several storeys and pre-wall installations are built too (`0045-shafts-prewalls-zones.md`): every network that changes storey goes through a shaft, and fixtures sit on their pre-wall. Open: pre-walls in the IFC export.
-- **More roof elements.** Dormers (Gauben), roof windows, a parapet (Attika) on flat roofs, butterfly and barrel roofs, a steeper pitch for the ends of a half-hip. Roofs over a turned or trapezoid outline are open (`docs/decisions/0020-roof-parts.md`, `0021-roof-shapes.md`).
+- **Shafts and installation walls.** Openings without a fill are built (`docs/decisions/building.md#0039-holes`): holes through walls and slabs, chases, core drillings, asked for by the services' checks and named by their networks (`via=`). Shafts through several storeys and pre-wall installations are built too (`docs/decisions/building.md#0045-shafts-prewalls-zones`): every network that changes storey goes through a shaft, and fixtures sit on their pre-wall. Open: pre-walls in the IFC export.
+- **More roof elements.** Dormers (Gauben), roof windows, a parapet (Attika) on flat roofs, butterfly and barrel roofs, a steeper pitch for the ends of a half-hip. Roofs over a turned or trapezoid outline are open (`docs/decisions/building.md#0020-roof-parts`, `docs/decisions/building.md#0021-roof-shapes`).
 - **Railings and parapets** (`IfcRailing`) on stairs, galleries and balconies.
 - **Sun shading.** Roller shutters and external venetian blinds (`IfcShadingDevice`), standard on German houses. Electrical feeds their motors, and they count for summer heat protection.
 - **Suspended ceilings and other coverings** (`IfcCovering`). They set a room's clear height and leave space for services above them.
 - **Furniture and the kitchen** (`IfcFurnishingElement`). Design drawings show them, and the electrical design places sockets by them.
 - **A generic object:** a box with a footprint and a height (`IfcBuildingElementProxy`), for anything that has no kind of its own yet.
 - **Balconies, terraces, and a second building** on the site, such as a garage or carport.
-- **Curved walls.** Walls on an arc (bay windows, round stair walls) are still extrusions: the footprint is an arc, kept as a true arc in the IFC and approximated by segments for areas. Builds on walls in any direction (`docs/decisions/0018-raw-walls.md`). Open: how the position grammar places an arc (centre and radius, or two ends and a bulge), how openings are positioned along it, and finished areas with curved finish layers.
+- **Curved walls.** Walls on an arc (bay windows, round stair walls) are still extrusions: the footprint is an arc, kept as a true arc in the IFC and approximated by segments for areas. Builds on walls in any direction (`docs/decisions/building.md#0018-raw-walls`). Open: how the position grammar places an arc (centre and radius, or two ends and a bulge), how openings are positioned along it, and finished areas with curved finish layers.
 - **Facades.** Curtain walls (Pfosten-Riegel, `IfcCurtainWall`): a grid of mullions and transoms with glass or opaque panels, placed like a wall. Render, ETICS (WDVS) and ventilated cladding can already be written as layers of a wall type. Free-form, double-curved facades stay out: they need a general geometry kernel (`VISION.md`).
 - **Not covered by the first version:** roofs over outlines turned by another angle or trapezoid, curved and spiral stairs, winders in a half turn, and wall joins other than "run to the far face of the wall it touches" (no mitre control, no join order).
 
@@ -144,24 +144,24 @@ Work on what exists, to be scheduled into a version.
 
 - **Apartments as zones** (`IfcZone`), with a Wohnfläche per apartment.
 - **Lifts** (`IfcTransportElement`) and stairwells with landings.
-- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above (`tests/test_split_level.py` at commit `517c07e`). Open: floors at different heights within one storey (half-storey offsets).
+- **Split levels.** Built: a tall single-storey hall beside a storeyed wing, on the same storeys. Where the slab above has a void (or no slab) and a roof of the room's own storey or one below covers the room, that roof is its ceiling; such an airspace needs no room and no roof of the storey above. Open: floors at different heights within one storey (half-storey offsets).
 - **Timber-frame walls** whose layers mix studs and insulation, which the U-value calculation must handle.
 
 ### Services
 
-- **Cable paths along the installation zones.** The lengths exist (`docs/decisions/0027-cable-routes.md`), and on a storey with installation zones (`zone`, `0045-shafts-prewalls-zones.md`) a cable follows them. Open: zones laid out automatically, the cables drawn on the installation plan.
-- **Pipe and duct paths.** Plumbing and heating networks and the ducts are derived as rectilinear trees, sized and counted (`docs/decisions/0035-plumbing.md`, `0037-heating-pipes-and-strangschema.md`, `0038-ventilation.md`); they run through shafts and along installation zones and pre-walls where the model has them (`0045-shafts-prewalls-zones.md`), drawn along their way. Open: the clash of runs in one zone.
-- **Structure.** Open: the roof's connections and the roof plane's bracing, torsion of the plan, crack widths, timber columns (listed in the Statische Berechnung, `docs/decisions/0044-structure-completion.md`).
+- **Cable paths along the installation zones.** The lengths exist (`docs/decisions/electrical.md#0027-cable-routes`), and on a storey with installation zones (`zone`, `docs/decisions/building.md#0045-shafts-prewalls-zones`) a cable follows them. Open: zones laid out automatically, the cables drawn on the installation plan.
+- **Pipe and duct paths.** Plumbing and heating networks and the ducts are derived as rectilinear trees, sized and counted (`docs/decisions/services.md#0035-plumbing`, `docs/decisions/services.md#0037-heating-pipes-and-strangschema`, `docs/decisions/services.md#0038-ventilation`); they run through shafts and along installation zones and pre-walls where the model has them (`docs/decisions/building.md#0045-shafts-prewalls-zones`), drawn along their way. Open: the clash of runs in one zone.
+- **Structure.** Open: the roof's connections and the roof plane's bracing, torsion of the plan, crack widths, timber columns (listed in the Statische Berechnung, `docs/decisions/structure.md#0044-structure-completion`).
 - **Plans and sections.** Open on the section: the stair rail, niches behind the cut, a cut that jogs. Open on the elevation: facade materials, demolished walls of an Umbau, opening symbols. Open on the plan: dashed windows above the cut plane, notches in an L-shaped facade, client and author fields for the title block.
-- **IFC import.** What it reports instead of guessing: curved walls, curtain walls over several storeys, L-shaped roofs in one IfcRoof, dormers, spiral stairs (`docs/decisions/0030-ifc-import-shapes.md`, `0031-ifc-import-files.md`); reading the architect's BCF replies back (`0032-bcf-requests.md`).
+- **IFC import.** What it reports instead of guessing: curved walls, curtain walls over several storeys, L-shaped roofs in one IfcRoof, dormers, spiral stairs (`docs/decisions/ifc.md#0030-ifc-import-of-grids-voids-stairs-and-roofs`, `docs/decisions/ifc.md#0031-ifc-import-of-real-files`); reading the architect's BCF replies back (`docs/decisions/ifc.md#0032-bcf-requests`).
 
 ### Calculations
 
-- **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/0047-din277-areas.md`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
-- **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/0033-u-values-and-heizlast.md`).
+- **Areas and volumes per DIN 277:** built (`uea calc din277`, `docs/decisions/tender.md#0047-din-277-areas`). Open: balconies, loggias and terraces (Sonderfall der Raumumschließung), which need elements of their own.
+- **U-values of air layers and inhomogeneous layers** per DIN EN ISO 6946 (rafters or studs with insulation between them), and the corrections for fixings and air gaps. Homogeneous layers are built (`uea calc uvalue`, `docs/decisions/services.md#0033-u-values-and-heizlast`).
 - **Setbacks and plot ratios:** built (Plot evaluation).
 - **GEG compliance** and the Energieausweis, later.
-- **Lighting.** Illuminance targets and the average illuminance of a room are built (`uea calc light`, `docs/decisions/0050-illuminance.md`). Open: the point calculation with photometric files (task areas, uniformity), glare (UGR), daylight, emergency lighting, the reflectances from the finishes.
+- **Lighting.** Illuminance targets and the average illuminance of a room are built (`uea calc light`, `docs/decisions/electrical.md#0050-illuminance`). Open: the point calculation with photometric files (task areas, uniformity), glare (UGR), daylight, emergency lighting, the reflectances from the finishes.
 
 ### Checks
 
@@ -185,10 +185,11 @@ Rule checks of the kind Solibri runs, reported with issue codes like the existin
 - **Property sets** in the IFC export (FireRating, ThermalTransmittance, ...).
 - **Custom properties** for an office's own attributes. UEA's strict schema rejects unknown fields, so this needs a design.
 - **Classification**, for example DIN 276 cost groups.
-- **BCF replies.** Requests go out as BCF (`docs/decisions/0032-bcf-requests.md`); reading the answers of people who work outside UEA back is open.
+- **BCF replies.** Requests go out as BCF (`docs/decisions/ifc.md#0032-bcf-requests`); reading the answers of people who work outside UEA back is open.
 - **IDS:** check the IFC export against a client's information requirements (AIA), as public projects demand.
 - **IFC2x3 export** for older tools.
 - **DWG and PDF plans as an underlay**, because many Fachplaner still receive plans that way.
+- **MCP server:** a thin wrapper around the CLI for agents that prefer tools over a shell, with no features of its own.
 
 ### Construction schedule
 
@@ -207,6 +208,6 @@ The answers can reorder the versions.
 
 ## Open questions
 
-- **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/0008-office-supplied-norm-data.md`).
+- **Norm tables:** which tables each `norm` calculator needs, and in what form offices supply them from their licensed copies (`docs/decisions/foundations.md#0008-office-supplied-norm-data`).
 - **Type catalogues:** where realistic product and build-up data comes from (manufacturer data, BIM libraries) without licence trouble.
-- **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/0009-history-revert-ids.md`). What was tested and the options are under Partial views, Agents on several machines.
+- **Parallel branches:** how two git branches of one project merge their histories and the ids each assigned (`docs/decisions/foundations.md#0009-history-revert-and-ids`). What was tested and the options are under Partial views, Agents on several machines.

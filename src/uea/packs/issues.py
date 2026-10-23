@@ -1,6 +1,6 @@
 """Requests between disciplines and waivers (`issues.uea`).
 
-See docs/decisions/0010-requests-in-the-model.md.
+See docs/decisions/foundations.md#0010-requests-in-the-model.
 """
 
 import re

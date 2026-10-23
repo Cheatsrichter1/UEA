@@ -32,7 +32,7 @@ What it costs an agent to read one complete Einfamilienhaus, with architecture, 
 | IFC exported from Revit (estimate) | ~1–5 million | ~250–1,000× |
 | Agent building the whole house with Revit via API and screenshots (estimate) | ~0.5–1 million | not like-for-like, see below |
 
-Building the architecture of that house through the CLI, storeys and roof included, takes about 2,400 tokens of commands and UEA output (`bench/results.md` at commit `517c07e`; the bench has been removed since, `docs/decisions/0052-no-tests-in-the-repo.md`).
+Building the architecture of that house through the CLI, storeys and roof included, takes about 2,400 tokens of commands and UEA output (`bench/results.md` at commit `517c07e`; the bench has been removed since, `docs/decisions/foundations.md#0052-no-tests-in-the-repo`).
 
 The first three rows are the cost of reading the model. The last row is a whole working session, so it is not comparable with them; the table by project size below compares a full build with a full build.
 
@@ -56,7 +56,7 @@ For €1 you get 10 million, 1 million or 100,000 tokens at the three prices. Th
 
 What the rows count:
 
-- The first three rows are only the text that passes between the agent and UEA, counted by the token task set (removed after commit `517c07e`) and `tools/prototype/count_tokens.py`. The agent's own thinking is not in them.
+- The first three rows are only the text that passes between the agent and UEA, counted by the token task set (removed after commit `517c07e`). The agent's own thinking is not in them.
 - The agent row is the whole conversation as the harness reported it: Claude Opus 107k, Claude Sonnet 113k, one run each on 2026-10-07 (`bench/agent/results.md` at commit `517c07e`). It is a single run per model, not an average, and it predates the English format.
 - An export (PDF, DXF, Excel, IFC) costs the agent one command and one line of output; the files are for humans, so the agent never reads them.
 - The IFC and Revit rows are the estimates from the table above, not measurements.
@@ -117,7 +117,7 @@ uea render EG       # out/plan-EG.png
 uea export ifc      # out/haus.ifc
 ```
 
-Development: `uv run ruff check`, `uv run pyright`. The repository has no test suite (`docs/decisions/0052-no-tests-in-the-repo.md`).
+Development: `uv run ruff check`, `uv run pyright`. The repository has no test suite (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`).
 
 ## Scope
 

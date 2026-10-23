@@ -68,11 +68,11 @@ sep rs1 EG x=w4+3.51 y=w1..w5
 room r1 EG "Küche" kitchen at=w4+1,w1+1 floor=FB-fli
 room r2 EG "Wohnen/Essen" living at=w2-1,w1+1 floor=FB-par
 room r3 EG "HWR" utility at=w4+1,w3-1 floor=FB-fli
-room r4 EG "WC" wc at=w6+0.5,w3-1 floor=FB-fli tile=1.2
+room r4 EG "WC" wc at=w6+0.5,w3-1 floor=FB-fli
 room r5 EG "Diele" hall at=w2-1,w5+1 floor=FB-fli
 room r6 OG "Schlafen" bedroom at=w11+1,w8+1 floor=FB-par
 room r7 OG "Kind 1" bedroom at=w13+1,w8+1 floor=FB-par
 room r8 OG "Kind 2" bedroom at=w9-1,w8+1 floor=FB-par
-room r9 OG "Bad" bath at=w11+1,w10-1 floor=FB-fli tile=2
+room r9 OG "Bad" bath at=w11+1,w10-1 floor=FB-fli
 room r10 OG "Flur" hall at=w9-1,w12+1 floor=FB-par
 room r11 DB "Spitzboden" attic at=w16+1,S+4 floor=FB-db

@@ -5,10 +5,10 @@
 | Calculator | `setback` 0.1.0, kind `norm` |
 | Standard | The Abstandsflächen of the Land's Landesbauordnung, after § 6 of the Musterbauordnung (MBO) |
 | Code | `src/uea/packs/site/setback.py`; storey outlines from `src/uea/packs/site/baunvo.py`, roofs from `src/uea/packs/arch/geometry.py` |
-| Tests | None in the repository (`docs/decisions/0052-no-tests-in-the-repo.md`). The cases below were run on a project built for them, with the results given; **not verified by tests** |
+| Tests | None in the repository (`docs/decisions/foundations.md#0052-no-tests-in-the-repo`). The cases below were run on a project built for them, with the results given; **not verified by tests** |
 | Review | **Not yet reviewed** by a licensed person. |
 
-The Landesbauordnungen are Land law, amtliche Werke: their rules may be implemented and cited freely. The factor, the minimum and the rule for steep roofs differ by Land and sometimes by Baugebiet; the office copies its Land's values into the table `setback` from the current text (`docs/decisions/0056-setbacks.md`).
+The Landesbauordnungen are Land law, amtliche Werke: their rules may be implemented and cited freely. The factor, the minimum and the rule for steep roofs differ by Land and sometimes by Baugebiet; the office copies its Land's values into the table `setback` from the current text (`docs/decisions/site.md#0056-setbacks`).
 
 ## Clauses and how they are implemented
 

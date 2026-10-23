@@ -1,6 +1,6 @@
 """A project folder: the canonical `.uea` files and the history in `log.jsonl`.
 
-See ARCHITECTURE.md §2 and docs/decisions/0009-history-revert-ids.md.
+See ARCHITECTURE.md §2 and docs/decisions/foundations.md#0009-history-revert-and-ids.
 """
 
 import hashlib

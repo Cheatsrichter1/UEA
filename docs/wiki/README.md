@@ -22,7 +22,7 @@ UEA is building software for AI agents: agents plan a building in a compact text
 | What is UEA, and what is it not? | [`VISION.md`](../../VISION.md) |
 | How is it built? | [`ARCHITECTURE.md`](../../ARCHITECTURE.md) |
 | What is in a release? | [`CHANGELOG.md`](../../CHANGELOG.md) |
-| Why was it done this way? | [`docs/decisions/`](../decisions/README.md), one record per decision |
+| Why was it done this way? | [`docs/decisions/`](../decisions/README.md), grouped by topic |
 | Every command, kind, field, issue code and calculator | [`docs/reference.md`](../reference.md), generated from the code |
 | A complete house in the format | [Haus Müller](../prototype/haus-mueller/README.md) |
 | What an office tells its agent | [`docs/templates/AGENTS.md`](../templates/AGENTS.md), a template to adapt |

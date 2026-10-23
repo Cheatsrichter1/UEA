@@ -25,7 +25,7 @@ And depending on what changed:
 
 | Change | Write it in |
 |---|---|
-| A major decision, or a changed one | A record in [`docs/decisions/`](../decisions/README.md), then fix the docs that depend on it |
+| A major decision, or a changed one | A numbered section in [`docs/decisions/`](../decisions/README.md), then fix the docs that depend on it |
 | A `norm` calculator | Its validation report in [`docs/validation/`](../validation/) |
 | A release | [`CHANGELOG.md`](../../CHANGELOG.md) |
 
@@ -33,14 +33,14 @@ Each fact lives in one file; the others link to it.
 
 ## Things never to do
 
-- Put DIN or VDE texts, tables or worked examples in the repo. Cite the clause; offices supply the tables ([0008](../decisions/0008-office-supplied-norm-data.md)).
+- Put DIN or VDE texts, tables or worked examples in the repo. Cite the clause; offices supply the tables ([0008](../decisions/foundations.md#0008-office-supplied-norm-data)).
 - Present a `custom` result as norm-compliant, or word anything as if UEA certifies or replaces a licensed professional.
-- Add a dependency without checking its licence: Apache-2.0-compatible, LGPL as a library, GPL only as a separate process ([0002](../decisions/0002-apache-2.0.md)).
+- Add a dependency without checking its licence: Apache-2.0-compatible, LGPL as a library, GPL only as a separate process ([0002](../decisions/foundations.md#0002-apache-20)).
 - Copy anything from `private/` into tracked files.
 
 ## Language
 
-Format, CLI output, help, code and docs are English. Legal, norm and role terms without an exact English equivalent stay German (Wohnfläche, Heizlast, Prüfingenieur …). Exports for humans are German ([0017](../decisions/0017-english-format.md)).
+Format, CLI output, help, code and docs are English. Legal, norm and role terms without an exact English equivalent stay German (Wohnfläche, Heizlast, Prüfingenieur …). Exports for humans are German ([0017](../decisions/foundations.md#0017-english-format)).
 
 ## Good first contributions
 
