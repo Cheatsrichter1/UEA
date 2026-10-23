@@ -24,6 +24,11 @@ Version 4: what may be built on a plot, and options for the client to choose fro
 - **`uea help calc`** lists `din277`, `costs` and `hoai`.
 - **`uea data` and `docs/reference.md`** list the exports' office tables too (`lv-texts`, `offer`).
 
+### Docs
+
+- **The wiki** gets [The line format](docs/wiki/format.md) (a line, ids and names, values, positions, files, operations) and [Commands by task](docs/wiki/commands.md) (from starting a project to handing it over, with the calculator for each question). Getting started, concepts and the wiki home cover v2 to v4.
+- **The README** opens with the versions as a table; the architecture's diagrams show the site, the LV and the bids, and GAEB and BCF.
+
 ### Not in this release
 
 - Any review of `baunvo` and `setback` by a licensed person, and of the calculators of 0.2.0 and 0.3.0 still unreviewed.

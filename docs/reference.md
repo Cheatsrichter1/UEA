@@ -18,7 +18,7 @@ fails when it is out of date. Agents get the same facts in layers through `uea h
 | `uea check [discipline]` | open issues, requests and waivers |
 | `uea calc [name] [scope]` | calculators, e.g. calc wofl; their norm tables: uea data (help calc) |
 | `uea render <level>` | plan image (PNG) to look at (help export) |
-| `uea export <format> [scope]` | for humans: pdf, dxf, xlsx, ifc, svg, png, bcf (help export) |
+| `uea export <format> [scope]` | for humans: pdf dxf xlsx ifc svg png bcf gaeb offer (help export) |
 | `uea import <format> <file>` | an architect's IFC (ifc), a bid (gaeb) (help import) |
 | `uea block x= y= storeys=<n>` | a simple building, for options on a plot (help site) |
 | `uea compare <project>...` | options side by side for the client (help site) |

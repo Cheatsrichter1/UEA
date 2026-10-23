@@ -21,8 +21,9 @@ Status: release 0.4.0 (`CHANGELOG.md`): versions 1 to 4. Everything described he
   │               (element kinds, types, validators,     │
   │                calculators, export mappings)         │
   ├──────────────────────────────────────────────────────┤
-  │ Importers     IFC (architecture)                     │
-  │ Exporters     IFC · DXF/DWG · PDF · XLSX · render    │
+  │ Importers     IFC (architecture) · GAEB 84 (bids)    │
+  │ Exporters     IFC · DXF/DWG · PDF · XLSX · GAEB ·    │
+  │               BCF · render                           │
   └──────────────────────────────────────────────────────┘
         │
         ▼
@@ -64,12 +65,14 @@ A discipline file only exists once the discipline has elements. If one file gets
 References only point upstream. Architecture never references electrical; electrical references architecture. In the graph, an arrow points from a discipline to the disciplines that reference it.
 
 ```
-project ─▶ arch ─┬─▶ struct
+project ─▶ arch ─┬─▶ site
+                 ├─▶ struct
                  ├─▶ heat  ─┤
                  ├─▶ plumb ─┤
                  ├─▶ vent  ─┼─▶ elec
                  ├─▶ light ─┤
                  └──────────┘
+  all of the above ─▶ lv ─▶ bid
 ```
 
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.

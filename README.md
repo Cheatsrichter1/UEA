@@ -6,7 +6,16 @@ Open-source engineering and building software made for AI agents. Not for humans
 
 Agents plan buildings in a compact text model through a CLI and a Python library, instead of driving GUI programs through screenshots. Tested code does the calculations. Humans get IFC, PDF and DWG plans, Excel tables and renders on demand, review them and sign.
 
-**Status:** release 0.4.0 (`CHANGELOG.md`): versions 1 to 4 are done. Version 2 adds partial views for big projects and the way from the model to the tender: areas per DIN 277, the Leistungsverzeichnis with a GAEB export, costs per DIN 276, the fee per HOAI, and reading and comparing the bids, not yet reviewed. Version 3 is a dashboard that shows the engineer what each agent is doing. Version 4 evaluates a plot: the measure of use per BauNVO and the Abstandsflächen against the plan's limits, quick options and their comparison for the client, and the site plan, not yet reviewed. In version 1, the core, architecture, electrical, heating, plumbing and ventilation packs are built, with their plans, tables and `norm` calculators, reviewed by licensed people outside this repository. Structural is built and reviewed too: the loads with snow and wind, the Statische Berechnung on an open-source solver (slabs, beams, columns, masonry walls with the bracing, lintels, rafters, footings), and the Positionsplan. Shafts, pre-wall installations and installation zones are shared by all disciplines. The agent runs end to end, the test with an office's IFC and the benchmark were done in private. What comes next is in `FUTURE.md`.
+**Status:** release 0.4.0 ([`CHANGELOG.md`](CHANGELOG.md)). Versions 1 to 4 are done:
+
+| Version | What it does | Calculators reviewed |
+|---|---|---|
+| v1 (0.1.0) | One agent plans an Einfamilienhaus: architecture, electrical, plumbing, heating, ventilation and structure, with plans, tables and `norm` calculators (Wohnfläche, cables, Heizlast, pipe and duct sizes, the Statische Berechnung on an open-source solver) | By licensed people, outside this repository |
+| v2 (0.2.0, 0.3.0) | Big projects a slice at a time, and the way from the model to the tender: areas per DIN 277, the Leistungsverzeichnis with GAEB, costs per DIN 276, the fee per HOAI, reading and comparing the bids | Not yet |
+| v3 (0.3.0) | A dashboard that shows the engineer what each agent is doing | – |
+| v4 (0.4.0) | Plot evaluation: GRZ, GFZ and Abstandsflächen against the plan's limits, quick options compared for the client, the site plan | Not yet |
+
+The agent runs end to end, the test with an office's IFC and the benchmark of version 1 were done in private. No version after v4 is planned yet ([`FUTURE.md`](FUTURE.md)).
 
 ## Why
 
@@ -112,23 +121,23 @@ Development: `uv run ruff check`, `uv run pyright`. The repository has no test s
 
 ## Scope
 
-Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core, and the plot with what its plan allows. Version 2 (0.2.0, the bids in 0.3.0) added partial views and the way from the model to the tender, version 3 (0.3.0) the agent dashboard (`uea dashboard`: what each agent is doing right now, for the engineer), version 4 (0.4.0) plot evaluation (`uea calc baunvo`, `setback`, `uea block`, `uea compare`). For an office's business side, UEA has an example `AGENTS.md` (`docs/templates/`) and the fee offer as a document (`uea export offer`). No further version is planned yet (`FUTURE.md`). Mechanical parts are not UEA's but UMEA's, a separate program.
+Buildings first: architecture, electrical, plumbing, heating, ventilation, lighting and structural, each as a domain pack on a shared core, and the plot with what its plan allows. For an office's business side there is an example of the instructions it gives its agent ([`docs/templates/AGENTS.md`](docs/templates/AGENTS.md)) and the fee offer as a document. Mechanical parts are not UEA's but UMEA's, a separate program.
 
 ## Docs
 
 | File | Content |
 |---|---|
-| [`docs/wiki/`](docs/wiki/README.md) | A quick way in: getting started, concepts, code map, contributing |
-| `VISION.md` | What UEA is, why, and what it is not |
-| `CHANGELOG.md` | What each release contains |
-| `ARCHITECTURE.md` | How it is built: core, domain packs, file format, CLI, calculators, exports |
-| `FUTURE.md` | The next versions, partial views, the backlog |
-| `docs/decisions/` | Major decisions with alternatives and reasons |
-| `docs/prototype/haus-mueller/` | A complete Einfamilienhaus in the draft format, written by hand |
-| `docs/validation/` | Validation reports of the `norm` calculators |
+| [`docs/wiki/`](docs/wiki/README.md) | A quick way in: getting started, the line format, commands by task, concepts, code map, contributing |
+| [`VISION.md`](VISION.md) | What UEA is, why, and what it is not |
+| [`CHANGELOG.md`](CHANGELOG.md) | What each release contains |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How it is built: core, domain packs, file format, CLI, calculators, exports |
+| [`FUTURE.md`](FUTURE.md) | The backlog, open questions, what could come next |
+| [`docs/decisions/`](docs/decisions/README.md) | Major decisions with alternatives and reasons |
+| [`docs/prototype/haus-mueller/`](docs/prototype/haus-mueller/README.md) | A complete Einfamilienhaus in the format, written by hand |
+| [`docs/validation/`](docs/validation/) | Validation reports of the `norm` calculators |
 | [`docs/templates/AGENTS.md`](docs/templates/AGENTS.md) | An example of the instructions an office gives its agent: requests, approval, fee and offer |
+| [`docs/reference.md`](docs/reference.md) | Every command, element kind, field and issue code, generated from the code |
 | `src/uea/` | The code: core, packs, CLI, calculators, exports |
-| `docs/reference.md` | Every command, element kind, field and issue code, generated from the code |
 | `tools/` | Throwaway prototype scripts that check the prototype and generate its plans |
 
 ## Licence

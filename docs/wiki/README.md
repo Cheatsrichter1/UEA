@@ -9,6 +9,8 @@ UEA is building software for AI agents: agents plan a building in a compact text
 | Page | For |
 |---|---|
 | [Getting started](getting-started.md) | Install, a first project, where an agent reads next |
+| [The line format](format.md) | How a line, a value, a position and an operation are written |
+| [Commands by task](commands.md) | What `uea` does, from starting a project to handing it over |
 | [Concepts](concepts.md) | The words UEA uses: elements, batches, requests, calculators, exports |
 | [Code map](code-map.md) | Which folder and module does what |
 | [Contributing](contributing.md) | The checks, the rules and where a change has to be written down |
@@ -23,6 +25,7 @@ UEA is building software for AI agents: agents plan a building in a compact text
 | Why was it done this way? | [`docs/decisions/`](../decisions/README.md), one record per decision |
 | Every command, kind, field, issue code and calculator | [`docs/reference.md`](../reference.md), generated from the code |
 | A complete house in the format | [Haus Müller](../prototype/haus-mueller/README.md) |
+| What an office tells its agent | [`docs/templates/AGENTS.md`](../templates/AGENTS.md), a template to adapt |
 | How far can a `norm` calculator be trusted? | [`docs/validation/`](../validation/), one report per calculator |
 | What does it cost an agent in tokens? | The figures in [`README.md`](../../README.md), measured at commit `517c07e` |
 | What comes next, partial views, the backlog | [`FUTURE.md`](../../FUTURE.md) |

@@ -18,6 +18,7 @@ The extras are `ifc` (IFC import and export, IfcOpenShell) and `struct` (the str
 ```bash
 uea init haus && cd haus
 uea apply --by arch-agent -m "Geschosse und Achsen" <<'EOF'
++ project haus "EFH"
 + level EG z=0 fb=0.15 head=2.26
 + grid W x=0
 + grid E x=10.49
@@ -37,7 +38,7 @@ uea check         # open issues: here, the walls have no height yet (no storey a
 uea render EG     # a plan image to look at
 ```
 
-Quote the heredoc (`<<'EOF'`) so the shell leaves the `@` placeholders alone. A longer walk-through is in the README; the whole syntax of operations and positions is in [`docs/reference.md`](../reference.md#operations).
+Quote the heredoc (`<<'EOF'`) so the shell leaves the `@` placeholders alone. How lines, positions and operations are written is on [The line format](format.md); what each command does is on [Commands by task](commands.md).
 
 ## Reading on, as an agent
 
@@ -48,12 +49,12 @@ uea help                 overview and commands
 uea help start           how a project begins
 uea help ops             operations and batches
 uea help positions       how elements are placed
-uea help arch            a discipline: arch, elec, heat, plumb, vent, struct
+uea help arch            a discipline: arch, site, elec, heat, plumb, vent, struct, lv, bid
 uea help wall            one element kind
 uea help codes           every issue code
 uea help calc            calculators and norm tables
 uea help export          exports for humans
-uea help import          importing an architect's IFC
+uea help import          importing an architect's IFC or a bid
 ```
 
 ## Reading on, as a person
@@ -61,4 +62,5 @@ uea help import          importing an architect's IFC
 1. [`VISION.md`](../../VISION.md) for the idea.
 2. [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §3 to §6 for the model, the format and the batches.
 3. [Haus Müller](../prototype/haus-mueller/README.md) for a whole house with all disciplines.
-4. [Concepts](concepts.md) when a word is unclear.
+4. [The line format](format.md) and [Commands by task](commands.md) for the details.
+5. [Concepts](concepts.md) when a word is unclear.
