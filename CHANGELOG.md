@@ -2,17 +2,40 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
-## Unreleased
+## 0.4.0 (2026-10-23): plot evaluation
+
+Version 4: what may be built on a plot, and options for the client to choose from. The agent reads the Bebauungsplan and judges § 34 BauGB; code measures. The office's business side is the instructions it gives its agent, with a template and the fee offer as a document. The calculators new in this release (`baunvo`, `setback`) are **not yet reviewed** by a licensed person, nor are `din277`, `costs`, `hoai`, `bids` and `light`; the tables in their cases are synthetic. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.
+
+### Plot evaluation
 
 - **The plot and the measure of use per BauNVO** (`docs/decisions/0055-plot-and-baunvo.md`), the first slice of plot evaluation: a new discipline `site` (`site.uea`) with the kind `plot`, its outline as plan points (`outline=W-3,S-5;E+4,S-5;...`) and the limits the agent read from the Bebauungsplan (`grz`, `gfz`, `gr`, `gf`, `storeys`, `grz2`, `plan`). Checks E-SITE-001 to W-SITE-003. `uea calc baunvo` (`norm`) measures GR and GRZ (§ 19, also with Abs. 4), the Vollgeschosse by the Land's rule from the office table `full-storey`, GF and GFZ (§ 20), each against the plot's limits. **Not yet reviewed** by a licensed person; its cases were run, not tested.
 - **The Abstandsflächen** (`docs/decisions/0056-setbacks.md`): `uea calc setback` (`norm`) puts an Abstandsfläche in front of each façade of each storey: H from the terrain to the roof skin (along a gable, point by point; steep roofs add a share of their height), depth factor × H, at least the minimum, by the Land's rule from the office table `setback`. Checked against the plot and half of each street on it; the plot gets `use=` (the Baugebiet) and `street=`.
 - **Options on a plot** (`docs/decisions/0057-options-on-a-plot.md`): `uea block x=W..E y=S..N storeys=3 [roof=...]` writes a simple building as an ordinary batch, so every calculator and export works on it. `uea compare <project>...` sets the options side by side for the client (`options.md`, `options.pdf`): GRZ, GFZ, Vollgeschosse against the plan, Abstandsflächen, BGF, NRF, BRI and costs, all from each option's results, refused when stale. `uea export pdf site` is the site plan. `baunvo` and `setback` are **not yet reviewed** by a licensed person; their cases were run, not tested.
+
+### Office workflows
+
+- **Office workflows are the agent's instructions, not a version** (`FUTURE.md`): an office's business side is how its agent behaves, so it belongs in the instructions the office gives it. `docs/templates/AGENTS.md` is an example to copy and adapt: nothing leaves the office without the senior engineer's approval, a request is summarised and then waits, the fee comes from `uea calc din277`, `costs` and `hoai`, the offer is a draft until it is signed. Plot evaluation and tender watching move up to v4.
 - **Tender watching in the `AGENTS.md` template:** where the agent looks, what fits the office, how a match is recorded and summarised, and what needs approval (registering, downloading, asking the contracting authority, submitting).
 - **The fee offer** (`docs/decisions/0054-offer-export.md`): `uea export offer [results]` sets the fees of the `uea calc hoai` results into a German Honorarangebot: letterhead, client, per service the zone, rate, chargeable costs and the service phases with their fees, the sum with VAT, the office's terms and a signature line. It writes `out/offer.md` and a PDF marked as a draft, and is refused when the model has changed since a fee was computed. The office's texts are the office table `offer`; the client is `client=` on the project.
 - **`hoai` 0.2.1:** one result per service and group of systems (`out/hoai-building.md`, `out/hoai-services-410-420.md`), so the runs no longer replace each other; `uea export pdf hoai` names them. The basis of the chargeable costs is German in the report. The fee is unchanged.
+
+### Help and reference
+
 - **`uea help calc`** lists `din277`, `costs` and `hoai`.
 - **`uea data` and `docs/reference.md`** list the exports' office tables too (`lv-texts`, `offer`).
-- **Office workflows are the agent's instructions, not a version** (`FUTURE.md`): an office's business side is how its agent behaves, so it belongs in the instructions the office gives it. `docs/templates/AGENTS.md` is an example to copy and adapt: nothing leaves the office without the senior engineer's approval, a request is summarised and then waits, the fee comes from `uea calc din277`, `costs` and `hoai`, the offer is a draft until it is signed. Plot evaluation and tender watching move up to v4.
+
+### Docs
+
+- **The wiki** gets [The line format](docs/wiki/format.md) (a line, ids and names, values, positions, files, operations) and [Commands by task](docs/wiki/commands.md) (from starting a project to handing it over, with the calculator for each question). Getting started, concepts and the wiki home cover v2 to v4.
+- **The README** opens with the versions as a table; the architecture's diagrams show the site, the LV and the bids, and GAEB and BCF.
+
+### Not in this release
+
+- Any review of `baunvo` and `setback` by a licensed person, and of the calculators of 0.2.0 and 0.3.0 still unreviewed.
+- Garages, parking and driveways (§ 19 Abs. 4 Nr. 1 and 2), building lines and limits, a sloping terrain.
+- Two buildings on one plot towards each other, buildings at the boundary, projecting parts.
+- L- and T-shaped blocks, a yield estimate, the site plan in survey coordinates.
+- Special services, hourly fees and lump sums in the offer.
 
 ## 0.3.0 (2026-10-21): the bids and the agent dashboard
 

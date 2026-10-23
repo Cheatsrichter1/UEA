@@ -9,9 +9,9 @@ What comes after the first version and in which order, and the ideas and backlog
 | v1 (0.1.0) | Architecture, electrical, plumbing, heating, ventilation and structure, planned by one agent for an Einfamilienhaus | v1 done |
 | v2 (0.2.0, 0.3.0) | Partial views, then from model to tender: cost estimate, Leistungsverzeichnis, GAEB, fees; the bids in 0.3.0 | Partial views, From model to tender |
 | v3 (0.3.0) | The agent dashboard: what each agent is doing right now, for the engineer | Agent dashboard |
-| v4 | Plot evaluation and the watching of public tenders (Ausschreibungen); built, not yet released | Plot evaluation, Tender watching |
+| v4 (0.4.0) | Plot evaluation and the watching of public tenders (Ausschreibungen) | Plot evaluation, Tender watching |
 
-The order is fixed; the content of each version is not.
+The order is fixed; the content of each version is not. No version after v4 is planned yet: the next one is chosen from the backlog and from the feedback of a first real project (In parallel: feedback from practice).
 
 ## v1 done
 
