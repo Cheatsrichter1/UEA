@@ -68,6 +68,7 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
     if plumbing:
         plumbing.append(("strang", "plumb"))
     venting = [("vent", lv) for lv in tga_levels(d, "vent")]
+    medical = [("med", lv) for lv in tga_levels(d, "med")]
     structure = [("struct", lv) for lv in struct_levels(d)]
     site = [("site", "plot")] if d.site.plot is not None else []
     if scope == "site":
@@ -82,12 +83,13 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
             *heating,
             *plumbing,
             *venting,
+            *medical,
             *structure,
         ]
     if scope == "elec":
         return electrical or "nothing electrical to draw yet"
-    if scope in ("heat", "plumb", "vent"):
-        found = {"heat": heating, "plumb": plumbing, "vent": venting}[scope]
+    if scope in ("heat", "plumb", "vent", "med"):
+        found = {"heat": heating, "plumb": plumbing, "vent": venting, "med": medical}[scope]
         return found or f"nothing of {scope} to draw yet"
     if scope in ("heat:schema", "schema"):
         return [("schema", "heat")] if has_schema else "no heating and no water to draw yet"
@@ -99,15 +101,16 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
             return f"unknown level {rest!r}. Levels: {' '.join(levels)}"
         on = [lv for _, lv in structure]
         return [("struct", rest)] if rest in on else f"no load-bearing members on {rest}"
-    if scope.startswith(("heat:", "plumb:", "vent:")):
+    if scope.startswith(("heat:", "plumb:", "vent:", "med:")):
         pack, _, rest = scope.partition(":")
         on = {
             "heat": heated,
             "plumb": [lv for k, lv in plumbing if k == "plumb"],
             "vent": [lv for _, lv in venting],
+            "med": [lv for _, lv in medical],
         }[pack]
         if rest not in levels:
-            extra = "" if pack == "vent" else " or schema"
+            extra = "" if pack in ("vent", "med") else " or schema"
             return f"unknown level {rest!r}{extra}. Levels: {' '.join(levels)}"
         return [(pack, rest)] if rest in on else f"nothing of {pack} on {rest}"
     if scope.startswith("elec:") or scope in boards:
@@ -134,6 +137,8 @@ def _sheet_targets(ctx: "Ctx", scope: str | None) -> list[tuple[str, str]] | str
         more += " Plumbing: plumb, plumb:<level>, plumb:schema."
     if venting:
         more += " Ventilation: vent, vent:<level>."
+    if medical:
+        more += " Medical systems: med, med:<level>."
     if structure:
         more += " Structure: struct:<level> (Positionsplan); struct after uea calc struct."
     return f"unknown level, section or side {scope!r}. {known} Sides: {' '.join(SIDES)}.{more}"
@@ -180,7 +185,7 @@ def _sheets(ctx: "Ctx", scope: str | None, fmt: str, out_path: str | None) -> li
             dw = sheet_install(d, key, stand)
         elif kind == "board":
             dw = sheet_board(d, key, stand)
-        elif kind in ("heat", "plumb", "vent"):
+        elif kind in ("heat", "plumb", "vent", "med"):
             dw = sheet_tga(d, key, kind, stand)
         elif kind == "struct":
             dw = sheet_positions(d, key, stand)

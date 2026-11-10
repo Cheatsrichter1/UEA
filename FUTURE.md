@@ -58,6 +58,7 @@ To solve, probably together with partial views:
 
 The core is domain-neutral, so new domain packs can be added on top of it:
 
+- **Medical and hospital systems** (`med`, decision 0058) exist as a first slice. Next: a calculator for the gas flows and pipe sizes on the office's tables, zone valve boxes, IFC export of the new kinds, circuits without an RCD for the IT systems, safety lighting, room uses for patient rooms and treatment rooms.
 - **Steel and timber construction:** members, connections, cutting lists.
 - **Civil engineering (Tiefbau, Verkehrswegebau):** roads, earthworks, drainage. Alignment-based geometry (axis, gradient line, cross sections) instead of storeys.
 

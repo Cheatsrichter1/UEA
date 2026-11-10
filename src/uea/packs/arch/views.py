@@ -345,6 +345,21 @@ def mounted_lines(d: Derived, level: str) -> list[str]:
                 found[kind] = n
         if found:
             by_pack["vent"] = found
+    med = getattr(d, "med", None)
+    if med is not None:
+        found = {}
+        for mt in med.at.values():
+            if mt.level == level:
+                found[mt.kind] = found.get(mt.kind, 0) + 1
+        locs = sum(
+            1
+            for el in d.model.of_kind("medloc")
+            if (rg := d.arch.rooms.get(getattr(el, "room").id)) and rg.level == level  # noqa: B009
+        )
+        if locs:
+            found["medloc"] = locs
+        if found:
+            by_pack["med"] = found
     parts: list[str] = []
     for pack, kinds in by_pack.items():
         items = [

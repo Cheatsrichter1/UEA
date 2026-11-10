@@ -13,6 +13,11 @@ dashed.
 Ventilation (decision 0038): the central units, the decentral units with a dashed line to their
 pair, the air terminals, and the derived ducts side by side: outdoor air green, supply blue,
 extract yellow, exhaust brown. The pipes are the derived shortest trees, not routes a planner chose.
+
+Medical and hospital systems (decision 0058): group 1 and 2 medical locations tinted, the gas
+outlets, sources, fire alarm and nurse call devices, IT systems and safety power sources as
+symbols, and the derived gas pipes side by side, one colour per gas (plot colours, not the
+marking colours of the pipes).
 """
 
 import math
@@ -31,6 +36,7 @@ from uea.export.paper import BLACK, BLOCK_H, BLOCK_W, Stand, de, fit_sheet, fram
 from uea.export.symbols import Ink, Spot
 from uea.packs.heat.geometry import heat_type
 from uea.packs.heat.kinds import GenType, Ufh
+from uea.packs.med.kinds import GASES, Call, Detector, GasOutlet, GasSrc, MedLoc, Safety
 from uea.packs.mount import Mounted
 from uea.packs.net import Net
 from uea.packs.plumb.geometry import nets
@@ -61,6 +67,14 @@ L_ETA = "L-ABLUFT"
 L_EHA = "L-FORTLUFT"
 L_LABEL = "L-BESCHRIFTUNG"
 L_LEGEND = "L-LEGENDE"
+M_LOC = "M-MEDIZINISCHER-BEREICH"
+M_GAS = "M-GASLEITUNG"
+M_DEVICE = "M-GERAET"
+M_FIRE = "M-BRANDMELDER"
+M_CALL = "M-RUFANLAGE"
+M_POWER = "M-SICHERHEITSSTROM"
+M_LABEL = "M-BESCHRIFTUNG"
+M_LEGEND = "M-LEGENDE"
 RED = "#c0392b"
 UFH_FILL = "#f8dcd8"
 BLUE = "#1f5fbf"
@@ -72,6 +86,29 @@ AIR = {"oda": "#2ca02c", "sup": "#1f77b4", "ext": "#d4a017", "eha": "#8c564b"}
 AIR_LAYER = {"oda": L_ODA, "sup": L_SUP, "ext": L_ETA, "eha": L_EHA}
 AIR_OFF = {"oda": 1.05, "sup": 0.35, "ext": -0.35, "eha": -1.05}
 AIR_MARK = {"oda": "AU", "sup": "ZU", "ext": "AB", "eha": "FO"}
+GAS_COLOR = {
+    "o2": "#1f77b4",
+    "air": "#4d4d4d",
+    "air8": "#8c8c8c",
+    "vac": "#d4a017",
+    "n2o": "#17becf",
+    "co2": "#7f7f00",
+    "agss": "#9467bd",
+}
+GAS_MARK = {
+    "o2": "O2",
+    "air": "DL",
+    "air8": "DL8",
+    "vac": "VA",
+    "n2o": "N2O",
+    "co2": "CO2",
+    "agss": "AN",
+}
+GAS_OFF = {"o2": 0.0, "air": 0.6, "air8": 1.2, "vac": -0.6, "n2o": 1.8, "co2": -1.2, "agss": -1.8}
+FIRE = "#d62728"
+CALL = "#2a9d8f"
+POWER = "#6a3d9a"
+LOC_FILL = {1: "#f3eefa", 2: "#e4d4f4"}
 TGA_LAYER_COLORS = {
     E_ZONE: "#8a8a8a",
     H_UFH: RED,
@@ -99,6 +136,14 @@ TGA_LAYER_COLORS = {
     L_EHA: AIR["eha"],
     L_LABEL: BLACK,
     L_LEGEND: BLACK,
+    M_LOC: POWER,
+    M_GAS: GAS_COLOR["o2"],
+    M_DEVICE: GAS_COLOR["o2"],
+    M_FIRE: FIRE,
+    M_CALL: CALL,
+    M_POWER: POWER,
+    M_LABEL: BLACK,
+    M_LEGEND: BLACK,
 }
 FIXTURE_DE = {
     "basin": ("WT", "Waschtisch"),
@@ -148,6 +193,21 @@ VENT_KEYS = {
     "eha": "Fortluft",
     "rise": "Leitung in ein anderes Geschoss",
 }
+MED_KEYS = {
+    "g2": "Medizinischer Bereich Gruppe 2",
+    "g1": "Medizinischer Bereich Gruppe 1",
+    "gas": "Entnahmestellen Medizinalgase",
+    "gsrc": "Gasversorgung (Zentrale)",
+    **{k: f"Leitung {v}" for k, v in GASES.items()},
+    "rise": "Leitung in ein anderes Geschoss",
+    "fpanel": "Brandmelderzentrale (BMZ)",
+    "fdet": "Automatischer Brandmelder (RM Rauch, WM Wärme, MM Multi)",
+    "mcp": "Handfeuermelder",
+    "cpanel": "Rufzentrale / Stationsterminal",
+    "call": "Rufanlage (B Bettruf, Z Zugruf, D Dienst, L Zimmerleuchte)",
+    "itsys": "IT-System (Trenntrafo, Isolationsüberwachung)",
+    "safety": "Sicherheitsstromquelle (USV, NEA, Batterie)",
+}
 STRIP = 72.0
 """Width of the legend left of the title block, in mm."""
 
@@ -158,10 +218,15 @@ class TgaPlan(InstallPlan):
     def __init__(self, d: Derived, level: str, stand: Stand, pack: str) -> None:
         super().__init__(d, level, stand)
         self.pack = pack
-        name = {"heat": "Heizung", "plumb": "Sanitär", "vent": "Lüftung"}[pack]
+        name = {
+            "heat": "Heizung",
+            "plumb": "Sanitär",
+            "vent": "Lüftung",
+            "med": "Medizin- und Sicherheitstechnik",
+        }[pack]
         self.heading = f"{name} {self.level_name}"
         self.dw.title = f"{self.project}: {self.heading}"
-        at = {"heat": d.heat.at, "plumb": d.plumb.at, "vent": d.vent.at}[pack]
+        at = {"heat": d.heat.at, "plumb": d.plumb.at, "vent": d.vent.at, "med": d.med.at}[pack]
         here = [mt for mt in at.values() if mt.level == level]
         if pack == "plumb":
             # risers and stacks pass through the storeys above their own
@@ -180,10 +245,18 @@ class TgaPlan(InstallPlan):
             for el in d.model.of_kind("ufh")
             if isinstance(el, Ufh) and pack == "heat" and _room_level(d, el.room.id) == level
         ]
+        self.locs = [
+            el
+            for el in d.model.of_kind("medloc")
+            if isinstance(el, MedLoc)
+            and pack == "med"
+            and el.group >= 1
+            and _room_level(d, el.room.id) == level
+        ]
 
     def draw(self) -> Drawing | None:
         bbox = self.bbox()
-        if bbox is None or not (self.here or self.ufh):
+        if bbox is None or not (self.here or self.ufh or self.locs):
             return None
         need = dict.fromkeys("SNWE", 8.0)
         self.dw.sheet = fit_sheet(bbox, need, strip=STRIP, fits=FITS_INSTALL, extra=self.north_room)
@@ -193,6 +266,8 @@ class TgaPlan(InstallPlan):
         )
         if self.pack == "heat":
             self.floors()
+        if self.pack == "med":
+            self.med_floors()
         start = len(self.dw.items)
         self.walls_and_openings()
         self.stairs_and_voids()
@@ -214,6 +289,13 @@ class TgaPlan(InstallPlan):
             keys = PLUMB_KEYS
             note = "Leitungen abgeleitet: kürzester rechtwinkliger Baum, keine Trasse"
             nr = f"S-{self.g.level_order().index(self.level) + 1:02d}"
+        elif self.pack == "med":
+            self.gas_pipes()
+            for mt in self.here:
+                self.med_symbol(mt)
+            keys = MED_KEYS
+            note = "Gasleitungen abgeleitet: kürzester rechtwinkliger Baum entlang der Trassen"
+            nr = f"M-{self.g.level_order().index(self.level) + 1:02d}"
         else:
             self.ducts()
             self.pair_lines()
@@ -344,6 +426,25 @@ class TgaPlan(InstallPlan):
         o = self.sh.m(off)
         for s in net.sections:
             a, b = net.nodes[s.a], net.nodes[s.b]
+            holes = [self.g.holes[h] for h in s.via if h in self.g.holes]
+            if a.level != b.level and holes and self.level in (a.level, b.level):
+                # through a slab hole of via=: on each storey the way to the hole, a ring there
+                c = holes[0].poly.centroid
+                hole = (c.x, c.y)
+                end = a.point if a.level == self.level else b.point
+                r = self.sh.m(1.0)
+                ring = [(hole[0] + r * dx, hole[1] + r * dy) for dx, dy in _RING]
+                for u, v in pairwise(ring):
+                    self.dw.add(Line(u, v, Pen(pen.color, self.sh.m(0.25)), layer))
+                pts = [
+                    (end[0] + o, end[1] + o),
+                    (hole[0] + o, end[1] + o),
+                    (hole[0] + o, hole[1] + o),
+                ]
+                for u, v in pairwise(pts):
+                    if abs(u[0] - v[0]) + abs(u[1] - v[1]) > 1e-6:
+                        self.dw.add(Line(u, v, pen, layer))
+                continue
             if a.level != b.level and across:
                 if self.level in (a.level, b.level) and off > 0:
                     r = self.sh.m(1.0)
@@ -452,11 +553,99 @@ class TgaPlan(InstallPlan):
         ink.layer, ink.color = L_LABEL, BLACK
         ink.text(0.0, reach + 1.9, label, 1.5)
 
+    # ---------- medical and hospital systems ----------
+
+    def med_floors(self) -> None:
+        for el in self.locs:
+            rg = self.g.rooms.get(el.room.id)
+            if rg is None:
+                continue
+            for piece in getattr(rg.fin, "geoms", [rg.fin]):
+                if isinstance(piece, Polygon):
+                    fill = LOC_FILL[el.group]
+                    self.dw.add(poly_item(piece, fill, self.pen(0.18, POWER), M_LOC))
+            at = (
+                rg.fin.centroid
+                if rg.fin.contains(rg.fin.centroid)
+                else rg.fin.representative_point()
+            )
+            it = f" · {el.it.id}" if el.it is not None else ""
+            self.text(
+                (at.x, at.y - self.sh.m(5.4)), f"Gruppe {el.group}{it}", 1.8, M_LOC, color=POWER
+            )
+
+    def gas_pipes(self) -> None:
+        for (_, gas), net in self.d.med.nets.items():
+            pen = Pen(GAS_COLOR[gas], self.sh.m(0.35))
+            self.net_lines(net, pen, M_GAS, GAS_OFF[gas], across=True)
+
+    def med_symbol(self, mt: Mounted) -> None:
+        el = self.m[mt.id]
+        ink = Ink(self.dw, self.sh, self.spot_of(mt), GAS_COLOR["o2"], M_DEVICE)
+        reach = 2.0
+        label = mt.id
+        if isinstance(el, GasOutlet):
+            marks = [GAS_MARK[x] for x in el.gas_list]
+            w = max(2.4, 1.3 * len(" ".join(marks)) / 2)
+            b0 = 0.0 if mt.wall else -1.6
+            ink.poly([(-w, b0), (w, b0), (w, b0 + 3.2), (-w, b0 + 3.2)], "#ffffff", 0.35)
+            ink.text(0.0, b0 + 1.0, " ".join(marks), 1.2, True)
+            reach = b0 + 3.2
+        elif isinstance(el, GasSrc):
+            ink.color = GAS_COLOR[el.gas]
+            ink.poly([(-3.0, -2.2), (3.0, -2.2), (3.0, 2.2), (-3.0, 2.2)], "#ffffff", 0.5)
+            ink.text(0.0, -0.6, GAS_MARK[el.gas], 1.6, True)
+            reach = 2.2
+        elif mt.kind in ("fpanel", "fdet", "mcp"):
+            ink.layer, ink.color = M_FIRE, FIRE
+            if mt.kind == "fpanel":
+                ink.poly([(-3.0, 0.0), (3.0, 0.0), (3.0, 2.4), (-3.0, 2.4)], "#ffffff", 0.5)
+                ink.text(0.0, 0.7, "BMZ", 1.3, True)
+                reach = 2.4
+            elif isinstance(el, Detector):
+                ink.circle(0.0, 0.0, 1.5, "#ffffff", 0.35)
+                mark = {"smoke": "RM", "heat": "WM", "multi": "MM"}[el.sensor]
+                ink.text(0.0, -0.45, mark, 1.0, True)
+                reach = 1.5
+            else:
+                ink.poly([(-1.3, 0.0), (1.3, 0.0), (1.3, 2.6), (-1.3, 2.6)], FIRE, 0.35)
+                ink.color = "#ffffff"
+                ink.text(0.0, 0.8, "HM", 1.0, True)
+                reach = 2.6
+        elif mt.kind in ("cpanel", "call"):
+            ink.layer, ink.color = M_CALL, CALL
+            if isinstance(el, Call):
+                mark = {"bed": "B", "pull": "Z", "lamp": "L", "duty": "D"}[el.role]
+                if el.role == "lamp":
+                    ink.circle(0.0, 1.2, 1.2, "#ffffff", 0.35)
+                    ink.text(0.0, 0.8, mark, 1.0, True)
+                else:
+                    ink.poly([(-1.1, 0.0), (1.1, 0.0), (1.1, 2.2), (-1.1, 2.2)], "#ffffff", 0.35)
+                    ink.text(0.0, 0.6, mark, 1.0, True)
+                reach = 2.4
+                label = ""
+            else:
+                ink.poly([(-2.4, 0.0), (2.4, 0.0), (2.4, 2.4), (-2.4, 2.4)], "#ffffff", 0.5)
+                ink.text(0.0, 0.7, "RZ", 1.3, True)
+                reach = 2.4
+        else:
+            ink.layer, ink.color = M_POWER, POWER
+            mark = "IT"
+            if isinstance(el, Safety):
+                mark = {"ups": "USV", "genset": "NEA", "battery": "ZB"}[el.source]
+            b0 = 0.0 if mt.wall else -2.2
+            ink.poly([(-3.0, b0), (3.0, b0), (3.0, b0 + 4.4), (-3.0, b0 + 4.4)], "#ffffff", 0.5)
+            ink.text(0.0, b0 + 1.6, mark, 1.6, True)
+            reach = b0 + 4.4
+        if label:
+            ink.layer, ink.color = M_LABEL, BLACK
+            ink.text(0.0, reach + 1.9, label, 1.5)
+
     # ---------- the legend ----------
 
     def legend(self, keys: dict[str, str]) -> None:
         sh = self.sh
-        layer = {"heat": H_LEGEND, "plumb": S_LEGEND, "vent": L_LEGEND}[self.pack]
+        layer = {"heat": H_LEGEND, "plumb": S_LEGEND, "vent": L_LEGEND, "med": M_LEGEND}[self.pack]
         _, y0, x1, _ = frame(sh.paper)
         top = y0 + BLOCK_H
         bx = x1 - BLOCK_W - STRIP
@@ -479,6 +668,17 @@ class TgaPlan(InstallPlan):
                 out.append(key)
             if key in ("flow", "ret") and self._heat_pipes():
                 out.append(key)
+            if key in ("g1", "g2") and any(f"g{el.group}" == key for el in self.locs):
+                out.append(key)
+            if (
+                key in GASES
+                and self.pack == "med"
+                and any(
+                    gas == key and any(net.nodes[s.a].level == self.level for s in net.sections)
+                    for (_, gas), net in self.d.med.nets.items()
+                )
+            ):
+                out.append(key)
             if key in AIR and any(
                 role == key and any(net.nodes[s.a].level == self.level for s in net.sections)
                 for (_, role), net in self.d.vent.ducts.items()
@@ -496,6 +696,8 @@ class TgaPlan(InstallPlan):
     def _nets(self) -> list[Net]:
         if self.pack == "heat":
             return list(self.d.heat.nets.values())
+        if self.pack == "med":
+            return list(self.d.med.nets.values())
         return list(self.d.vent.ducts.values()) if self.pack == "vent" else []
 
     def _heat_pipes(self) -> bool:
@@ -554,7 +756,7 @@ class TgaPlan(InstallPlan):
             r = sh.m(1.0)
             c = sh.pt(x, y)
             ring = [(c[0] + r * dx, c[1] + r * dy) for dx, dy in _RING]
-            color = AIR["sup"] if self.pack == "vent" else RED
+            color = {"vent": AIR["sup"], "med": GAS_COLOR["o2"]}.get(self.pack, RED)
             for u, v in pairwise(ring):
                 self.dw.add(Line(u, v, Pen(color, sh.m(0.25)), layer))
         elif key == "ahu":
@@ -569,6 +771,33 @@ class TgaPlan(InstallPlan):
         elif key == "inlet":
             ink.color = AIR["oda"]
             ink.poly([(-1.4, -1.0), (1.4, -1.0), (1.4, 1.0), (-1.4, 1.0)], "#ffffff", 0.35)
+        elif key in ("g1", "g2"):
+            ink.color = POWER
+            ink.poly(
+                [(-2.4, -1.4), (2.4, -1.4), (2.4, 1.4), (-2.4, 1.4)], LOC_FILL[int(key[1])], 0.18
+            )
+        elif key == "gas":
+            ink.color = GAS_COLOR["o2"]
+            ink.poly([(-2.4, -1.0), (2.4, -1.0), (2.4, 1.0), (-2.4, 1.0)], "#ffffff", 0.35)
+        elif key == "gsrc":
+            ink.color = BLACK
+            ink.poly([(-2.4, -1.4), (2.4, -1.4), (2.4, 1.4), (-2.4, 1.4)], "#ffffff", 0.5)
+        elif key in GASES and self.pack == "med":
+            pen = Pen(GAS_COLOR[key], sh.m(0.35))
+            self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
+        elif key in ("fpanel", "fdet", "mcp"):
+            ink.color = FIRE
+            if key == "fdet":
+                ink.circle(0.0, 0.0, 1.3, "#ffffff", 0.35)
+            else:
+                fill = FIRE if key == "mcp" else "#ffffff"
+                ink.poly([(-1.6, -1.0), (1.6, -1.0), (1.6, 1.0), (-1.6, 1.0)], fill, 0.35)
+        elif key in ("cpanel", "call"):
+            ink.color = CALL
+            ink.poly([(-1.6, -1.0), (1.6, -1.0), (1.6, 1.0), (-1.6, 1.0)], "#ffffff", 0.35)
+        elif key in ("itsys", "safety"):
+            ink.color = POWER
+            ink.poly([(-2.0, -1.2), (2.0, -1.2), (2.0, 1.2), (-2.0, 1.2)], "#ffffff", 0.5)
         elif key in AIR:
             pen = Pen(AIR[key], sh.m(0.5))
             self.dw.add(Line(sh.pt(x - 3.0, y), sh.pt(x + 3.0, y), pen, layer))
@@ -600,12 +829,17 @@ def tga_levels(d: Derived, pack: str) -> list[str]:
                 found.add(lv)
     elif pack == "vent":
         found = {mt.level for mt in d.vent.at.values()}
+    elif pack == "med":
+        found = {mt.level for mt in d.med.at.values()}
+        for el in d.model.of_kind("medloc"):
+            if isinstance(el, MedLoc) and (lv := _room_level(d, el.room.id)) is not None:
+                found.add(lv)
     else:
         found = {mt.level for mt in d.plumb.at.values()}
     return [lv for lv in d.arch.level_order() if lv in found]
 
 
 def sheet_tga(d: Derived, level: str, pack: str, stand: Stand | None = None) -> Drawing | None:
-    """The heating, plumbing or ventilation plan of a storey; none if nothing of the pack is on
-    it."""
+    """The heating, plumbing, ventilation or medical systems plan of a storey; none if nothing of
+    the pack is on it."""
     return TgaPlan(d, level, stand or Stand(), pack).draw()

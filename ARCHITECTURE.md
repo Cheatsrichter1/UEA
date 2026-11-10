@@ -49,6 +49,8 @@ haus-mueller/
   plumb.uea       plumbing: fixtures, meter, risers, stacks, sewer connection, circulation; pipes derived
   heat.uea        heating: heat generators, tanks, manifolds with their mixers, emitters; pipes derived
   vent.uea        ventilation: units, terminals, inlets, overflow openings; ducts derived
+  med.uea         medical and hospital systems: gases (pipes derived), fire alarm, nurse call,
+                  medical locations, IT systems, safety power
   light.uea       Lighting: luminaires, their types and the illuminance targets
   lv.uea          the Leistungsverzeichnis: titles and positions; quantities derived (§9)
   bid.uea         the bids on the LV and their unit prices, read from GAEB 84 (§9)
@@ -70,6 +72,7 @@ project ─▶ arch ─┬─▶ site
                  ├─▶ heat  ─┤
                  ├─▶ plumb ─┤
                  ├─▶ vent  ─┼─▶ elec
+                 ├─▶ med   ─┤
                  ├─▶ light ─┤
                  └──────────┘
   all of the above ─▶ lv ─▶ bid
@@ -77,6 +80,7 @@ project ─▶ arch ─┬─▶ site
 
 - Electrical sits below every other building-services pack because it feeds them: a circuit feeds a heat pump in `heat`, a ventilation unit in `vent`, a Durchlauferhitzer in `plumb` and the luminaires in `light`, and switches control those luminaires.
 - Between `plumb`, `heat` and `vent`, references are allowed in one fixed direction per pair. So far: `plumb` may reference `heat`, whose storage tank heats the drinking water (`docs/decisions/services.md#0035-plumbing`).
+- `med.uea` sits beside `heat`, `plumb` and `vent`: its panels, IT systems and gas plants are fed by the electrical design (`docs/decisions/medical.md#0058-medical-and-hospital-systems`).
 - `site.uea` sits beside the services, below the architecture: the plot's outline may use the grids and walls, and nothing references the plot (`docs/decisions/site.md#0055-plot-and-baunvo`).
 - `lv.uea` sits below all of them: a position may count the elements of every discipline, and no discipline references the LV (`docs/decisions/tender.md#0048-leistungsverzeichnis`).
 - `bid.uea` sits below the LV: a price references its bid and its position, and nothing references a bid (`docs/decisions/tender.md#0051-bids`).

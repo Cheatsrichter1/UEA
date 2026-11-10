@@ -32,6 +32,7 @@ WHO = {
     "heat": "Heizungsplanung",
     "plumb": "Sanitärplanung",
     "vent": "Lüftungsplanung",
+    "med": "Planung Medizin- und Sicherheitstechnik",
 }
 WORD = {
     "wall": "Wand",

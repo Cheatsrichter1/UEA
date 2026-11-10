@@ -54,6 +54,7 @@ PACK_DE = {
     "heat": "die Heizung",
     "plumb": "die Sanitärinstallation",
     "vent": "die Lüftung",
+    "med": "die Medizin- und Sicherheitstechnik",
     "lv": "das Leistungsverzeichnis",
     "bid": "die Angebote",
     "issues": "die Anfragen",

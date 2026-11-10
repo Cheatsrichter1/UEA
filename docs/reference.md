@@ -1136,6 +1136,156 @@ An overflow opening (Überströmöffnung) in or under a door, for the air betwee
 | cut | `cut=` | m | the door's undercut |
 | area | `area=` | cm² | free area of an overflow element |
 
+### Medical and hospital systems (`med.uea`)
+
+Kinds: `gsrc`, `gas`, `fpanel`, `fdet`, `mcp`, `cpanel`, `call`, `medloc`, `itsys`, `safety`.
+
+#### `gsrc`
+
+The central supply of one medical gas in a room (Gasversorgung: a cylinder battery, a tank connection, a compressor or vacuum plant): gsrc gq1 r20 o2 at=W+42,S+16 "O2 Flaschenbatterie". Its pipes reach every outlet of its gas; via= the slab holes they change storey through.
+
+`gsrc <id> <host> <gas>` · ids `gq1`, `gq2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| gas | positional | `o2` `air` `air8` `vac` `n2o` `co2` `agss` | the gas: o2, air, air8, vac, n2o, co2 or agss |
+| at | `at=` | m | plan point x,y; the middle of the room if left out |
+| z | `z=` | m | height of its connection above the FFL |
+| via | `via=` |  | slab holes or voids its pipes change storey through |
+
+#### `gas`
+
+Medical gas outlets (Entnahmestellen) side by side: on a wall face, e.g. in a bed-head unit (gas ge1 w29.s o2,air,vac x=W+2; z= 1.6 if left out), or in a room as a ceiling pendant (gas ge2 r16 o2,air,vac,agss at=W+20,S+13). Each gas comes from the nearest source of that gas.
+
+`gas <id> <host> <gases>` · ids `ge1`, `ge2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall face, or room for a ceiling pendant |
+| gases | positional |  | the gases, comma-separated: o2,air,vac |
+| at | `at=` | m | point in the room, x,y (a pendant) |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction |
+| z | `z=` | m | height of its centre above the FFL |
+
+#### `fpanel`
+
+The fire alarm panel (Brandmelderzentrale, BMZ) on a wall: fpanel bz1 w8.w y=S+14 "BMZ". Once there is one, every room needs an automatic detector (W-MED-010).
+
+`fpanel <id> <host>` · ids `bz1`, `bz2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+
+#### `fdet`
+
+An automatic fire detector (Brandmelder) at the ceiling of a room: fdet md1 r5; sensor=smoke|heat|multi (smoke if left out), at= a point, panel= its panel.
+
+`fdet <id> <host>` · ids `md1`, `md2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| sensor | `sensor=` | `smoke` `heat` `multi` | what it senses: smoke, heat or multi (both) |
+| at | `at=` | m | point in the room, x,y; default the middle |
+| z | `z=` | m | height above the FFL; default the ceiling |
+| panel | `panel=` |  | its fire alarm panel; the only one if left out |
+
+#### `mcp`
+
+A manual call point (Handfeuermelder) on a wall, usually at an exit or a stair door: mcp hm1 w6.n x=d16-0.3. z= 1.4 if left out; panel= its panel.
+
+`mcp <id> <host>` · ids `hm1`, `hm2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| panel | `panel=` |  | its fire alarm panel; the only one if left out |
+
+#### `cpanel`
+
+The nurse call panel (Rufzentrale, Stationsterminal) on a wall, at the nurses' station: cpanel rz1 w29.s x=W+22. Once there is one, bedrooms need a bed call and baths and WCs a pull call.
+
+`cpanel <id> <host>` · ids `rz1`, `rz2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+
+#### `call`
+
+A nurse call device (Rufanlage) on a wall: bed (Bettruf, at the bed head, z 1.1), pull (Zugruf in a bath or WC, z 2.0), lamp (Zimmersignalleuchte over a door outside, z 2.2; door= the door of the room it signals), duty (Dienstzimmer- or Anwesenheitstaster, z 1.4): call ru1 w36.w bed y=S+1.2. panel= its panel.
+
+`call <id> <host> <role>` · ids `ru1`, `ru2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| role | positional | `bed` `pull` `lamp` `duty` | bed, pull, lamp or duty |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| door | `door=` |  | the door of the room a lamp signals |
+| panel | `panel=` |  | its nurse call panel; the only one if left out |
+
+#### `medloc`
+
+A medical location (medizinisch genutzter Bereich) and its group, 0, 1 or 2, as the planner classifies it with the clinic: medloc mb1 r16 2 it=it1. Group 2 (applied parts in the heart, life support: OP, intensive care) needs an IT system (it=).
+
+`medloc <id> <room> <group>` · ids `mb1`, `mb2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| room | positional |  | room |
+| group | positional |  | group 0, 1 or 2 |
+| it | `it=` |  | the medical IT system that supplies it |
+
+#### `itsys`
+
+A medical IT system (IT-System: isolating transformer and insulation monitor, in its own board) on a wall near the rooms it supplies: itsys it1 w21.e y=S+12 kva=8 sv=sv2. sv= the safety power source behind it.
+
+`itsys <id> <host>` · ids `it1`, `it2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | wall; for an interior wall its face too: w5.s |
+| x | `x=` | m | centre along a wall running along x |
+| y | `y=` | m | centre along a wall running along y |
+| s | `s=` | m | centre along a wall in any direction, from its start a |
+| z | `z=` | m | height of its centre above the FFL |
+| kva | `kva=` | kVA | rated power of its transformer |
+| sv | `sv=` |  | the safety power source that feeds it |
+
+#### `safety`
+
+A safety power source (Sicherheitsstromversorgung) in a room: ups (USV, switches over without a break), genset (Netzersatzanlage, a diesel generator) or battery (a central battery for the safety lighting): safety sv1 r20 genset kw=150 "NEA".
+
+`safety <id> <host> <source>` · ids `sv1`, `sv2`, … assigned by UEA
+
+| Field | Written as | Values | Meaning |
+|---|---|---|---|
+| host | positional |  | room |
+| source | positional | `ups` `genset` `battery` | ups, genset or battery |
+| kw | `kw=` | kW | rated power |
+| at | `at=` | m | plan point x,y; the middle of the room if left out |
+| z | `z=` | m | height above the FFL |
+
 ### Leistungsverzeichnis: titles and positions (`lv.uea`)
 
 Kinds: `title`, `pos`.
@@ -1211,7 +1361,7 @@ A request from one discipline to the owner of its targets: req _ elec w7 "Schlit
 
 | Field | Written as | Values | Meaning |
 |---|---|---|---|
-| disc | positional | `arch` `struct` `light` `elec` `heat` `plumb` `vent` `lv` | discipline that asks |
+| disc | positional | `arch` `struct` `light` `elec` `heat` `plumb` `vent` `med` `lv` | discipline that asks |
 | targets | positional |  | elements the request is about |
 | done | `done=` |  | batch that resolved it |
 | rejected | `rejected=` |  | reason the owner rejected it |
@@ -1314,6 +1464,24 @@ E is an error, W a warning.
 | W-VENT-005 | central unit without outdoor air, exhaust air, supply or extract terminals |
 | W-VENT-006 | decentral unit, outdoor air inlet, or outdoor or exhaust air terminal, with no hole through its wall |
 | W-VENT-007 | ducts that change storey through a slab with no hole for them |
+| E-MED-002 | device on a wall without a usable face |
+| W-MED-001 | gas outlet whose gas has no source |
+| W-MED-003 | gas pipes that change storey through a slab with no hole for them |
+| W-MED-004 | gas source that supplies no outlet |
+| W-MED-010 | room without an automatic fire detector, in a building with a fire alarm panel |
+| W-MED-011 | storey with fire detectors but no manual call point |
+| W-MED-012 | fire detectors or manual call points, and no fire alarm panel |
+| W-MED-020 | bedroom without a bed call, in a building with a nurse call panel |
+| W-MED-021 | bath or WC without a pull call, in a building with a nurse call panel |
+| W-MED-022 | room with bed calls that no door lamp signals |
+| W-MED-023 | nurse call devices, and no nurse call panel |
+| W-MED-030 | group 2 medical location without an IT system |
+| W-MED-031 | group 1 or 2 medical locations, and no safety power source |
+| W-MED-032 | medical IT system without a safety power source |
+| W-MED-033 | group 2 medical location whose IT system is not behind a ups or battery |
+| W-MED-034 | medical IT system that supplies no medical location |
+| W-MED-035 | two medical locations for one room |
+| W-MED-040 | panel, IT system or gas plant that no circuit feeds |
 | E-LV-001 | position whose selector or measure cannot be used |
 | W-LV-002 | position that counts nothing |
 | W-LV-003 | element counted by two positions with the same measure |

@@ -32,7 +32,7 @@ COMMANDS: tuple[tuple[str, str], ...] = (
 """Every command with a one-line description: the root help and docs/reference.md."""
 
 TOPICS = (
-    "start | ops | positions | arch | site | elec | heat | plumb | vent | struct | lv | bid"
+    "start | ops | positions | arch | site | elec | heat | plumb | vent | med | struct | lv | bid"
     " | <kind>"
     " | codes"
     " | calc | export | import"
@@ -184,6 +184,20 @@ outdoor air through inlets (inlet) in the supply rooms; the air passes the doors
 openings (over: the undercut or an element), checked by uea calc airflow once there is one.
 """
 
+MED_NOTES = """\
+Hospital systems. Gases: a source per gas in a room (gsrc gq1 r20 o2; via= its slab holes) and
+outlets on a wall face or as a ceiling pendant (gas ge1 w29.s o2,air,vac x=W+2); the pipes of
+each gas are derived like the ducts, from the nearest source over its outlets, along the zones.
+Fire alarm: a panel (fpanel), a detector in each room (fdet md1 r5 sensor=smoke), manual call
+points (mcp) at the exits. Nurse call: a panel at the nurses' station (cpanel), calls on walls:
+bed at each bed, pull in baths and WCs, lamp over a door outside (door= that door), duty.
+Medical locations: medloc mb1 r16 2 it=it1 classifies a room as group 0, 1 or 2 with the
+clinic; group 2 needs a medical IT system (itsys it1 <wall> sv=sv2), and it a safety power
+source (safety sv2 r20 ups). The electrical design feeds the panels, IT systems and gas plants
+(feed). Panel rules apply once the project has that panel. The checks are planning rules and
+cite no norm; the Brandschutzkonzept and the clinic decide, waive a rule with their reason.
+"""
+
 STRUCT_NOTES = """\
 The load path is the architecture's: a slab rests on the load-bearing walls (lb) of the storey
 below, a load-bearing wall on those of the storey below its core overlaps. struct.uea adds what
@@ -309,6 +323,8 @@ uea export xlsx [level] [-o file]   tables: rooms, walls, openings, slabs, roofs
 uea export ifc [-o file]            IFC4 model for humans and other software
 uea export bcf [discipline] [-o f]  requests to that discipline (default arch) as BCF 2.1 topics
 uea export gaeb [-o file]           the LV for bidders: GAEB DA XML 3.3, phase 83, no prices
+uea export pdf med|med:<level>      medical and hospital systems: gases, fire alarm, nurse call,
+                                    medical locations, IT systems, safety power (M-01)
 uea export pdf site                 the site plan (Lageplan): plot, footprint, its Vollgeschosse
                                     and Abstandsflächen (from uea calc baunvo and setback)
 uea export offer [results] [-o f]   the fee offer (Honorarangebot) from the hoai results, all or
@@ -441,6 +457,8 @@ def pack_help(reg: Registry, pack: str) -> str:
         lines.append(PLUMB_NOTES.rstrip())
     if pack == "vent":
         lines.append(VENT_NOTES.rstrip())
+    if pack == "med":
+        lines.append(MED_NOTES.rstrip())
     if pack == "struct":
         lines.append(STRUCT_NOTES.rstrip())
     if pack == "lv":
