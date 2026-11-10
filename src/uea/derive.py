@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from uea.packs.heat.geometry import HeatGeo
     from uea.packs.issues import Req, Waive
     from uea.packs.lv.geometry import LvGeo
+    from uea.packs.med.geometry import MedGeo
     from uea.packs.mount import Mounted
     from uea.packs.plumb.geometry import PlumbGeo
     from uea.packs.site.geometry import SiteGeo
@@ -66,6 +67,7 @@ class Derived:
         self.heat: HeatGeo
         self.plumb: PlumbGeo
         self.vent: VentGeo
+        self.med: MedGeo
         self.struct: StructGeo
         self.lv: LvGeo
         self.site: SiteGeo

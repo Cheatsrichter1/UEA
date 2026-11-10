@@ -22,7 +22,7 @@ from uea.derive import Derived
 from uea.fmt import ln
 from uea.packs.mount import Mounted
 
-SectionKind = Literal["pipe", "riser", "branch", "stack", "ground", "home", "duct"]
+SectionKind = Literal["pipe", "riser", "branch", "stack", "ground", "home", "duct", "gas"]
 EPS = 1e-6
 
 

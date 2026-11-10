@@ -26,6 +26,7 @@ DISCIPLINES: tuple[str, ...] = (
     "heat",
     "plumb",
     "vent",
+    "med",
     "lv",
     "bid",
     "issues",
@@ -42,10 +43,14 @@ UPSTREAM: dict[str, frozenset[str]] = {
     "heat": frozenset({"project", "arch"}),
     "plumb": frozenset({"project", "arch", "heat"}),
     "vent": frozenset({"project", "arch"}),
-    "elec": frozenset({"project", "arch", "light", "heat", "plumb", "vent"}),
-    "lv": frozenset({"project", "arch", "struct", "light", "elec", "heat", "plumb", "vent"}),
+    # medical gases, fire alarm, nurse call, medical locations; electrical feeds their panels
+    "med": frozenset({"project", "arch"}),
+    "elec": frozenset({"project", "arch", "light", "heat", "plumb", "vent", "med"}),
+    "lv": frozenset({"project", "arch", "struct", "light", "elec", "heat", "plumb", "vent", "med"}),
     # a price references only its bid and its position; the rest keeps bid deriving after lv
-    "bid": frozenset({"project", "arch", "struct", "light", "elec", "heat", "plumb", "vent", "lv"}),
+    "bid": frozenset(
+        {"project", "arch", "struct", "light", "elec", "heat", "plumb", "vent", "med", "lv"}
+    ),
     "issues": frozenset(DISCIPLINES),
 }
 """Which disciplines each discipline may reference (references only point upstream)."""

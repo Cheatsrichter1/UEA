@@ -9,6 +9,7 @@ What was decided and why, grouped by topic. Each record is a section headed by i
 | [ifc.md](ifc.md) | IFC import and BCF requests |
 | [electrical.md](electrical.md) | Electrical and lighting: devices, sheets, cable routes, norm tables, calculators |
 | [services.md](services.md) | Heating, plumbing and ventilation |
+| [medical.md](medical.md) | Medical and hospital systems: gases, fire alarm, nurse call, medical locations |
 | [structure.md](structure.md) | Structure: load path, loads, the Statische Berechnung |
 | [tender.md](tender.md) | Areas, the Leistungsverzeichnis, costs, HOAI fee, bids, the offer |
 | [site.md](site.md) | Plot evaluation: BauNVO, Abstandsflächen, options |
@@ -72,5 +73,6 @@ What was decided and why, grouped by topic. Each record is a section headed by i
 | 0055 | [Plot and BauNVO](site.md#0055-plot-and-baunvo) |
 | 0056 | [Setbacks](site.md#0056-setbacks) |
 | 0057 | [Options on a plot](site.md#0057-options-on-a-plot) |
+| 0058 | [Medical and hospital systems](medical.md#0058-medical-and-hospital-systems) |
 
 A new record: the next free number, a section `## NNNN Title` in the file of its topic, the decision as short bullets, then one paragraph `Why:` with the alternatives that lost.

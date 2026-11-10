@@ -2,6 +2,19 @@
 
 What each release contains. What comes next is in `FUTURE.md`; the reasons are in `docs/decisions/`.
 
+## Unreleased
+
+### Medical and hospital systems
+
+- **A new discipline `med`** (`med.uea`, `docs/decisions/medical.md#0058-medical-and-hospital-systems`) with ten kinds: `gsrc` and `gas` (medical gas sources and outlets, with the pipes of each gas derived from the nearest source: one tree on the source's storey and one riser per other storey, along the installation zones), `fpanel`, `fdet` and `mcp` (the fire alarm system), `cpanel` and `call` (the nurse call system: bed, pull, door lamp, duty), `medloc` (a room's medical location group 0, 1 or 2), `itsys` (a medical IT system) and `safety` (ups, genset or battery). It sits above `elec`, so `feed` lines reach its panels, IT systems and gas plants.
+- **Checks W-MED-001 to W-MED-040** and E-MED-002, planning rules that cite no norm: outlets without a source, rooms without a detector once there is a fire alarm panel, bedrooms without a bed call and baths without a pull call once there is a nurse call panel, rooms with bed calls and no door lamp, group 2 without an IT system, IT systems without a safety source or behind a genset alone, panels and gas plants that no circuit feeds.
+- **Plans `uea export pdf med` and `med:<level>`** (M-01): group 1 and 2 locations tinted, gas pipes in one colour per gas, all devices as symbols. `uea help med`, `uea get` for every new kind.
+- **Pipes through a slab hole are drawn to the hole** on both storeys, with a ring there, on the heating, ventilation and medical plans; before, they were drawn straight to their far end.
+
+### Not in this release
+
+- A calculator for the gas flows and pipe sizes, zone valve boxes, the new kinds in the IFC export, circuits without an RCD, safety lighting.
+
 ## 0.4.0 (2026-10-23): plot evaluation
 
 Version 4: what may be built on a plot, and options for the client to choose from. The agent reads the Bebauungsplan and judges § 34 BauGB; code measures. The office's business side is the instructions it gives its agent, with a template and the fee offer as a document. The calculators new in this release (`baunvo`, `setback`) are **not yet reviewed** by a licensed person, nor are `din277`, `costs`, `hoai`, `bids` and `light`; the tables in their cases are synthetic. Nothing UEA produces is fit for a real project until the person responsible has checked and signed it.

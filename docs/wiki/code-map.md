@@ -39,6 +39,7 @@ cli.py ─▶ project.py ─▶ core/ (syntax, schema, model) ─▶ packs/ (kin
 | `packs/arch/` | Architecture: kinds, geometry, stairs, checks, views, quantities, the Wohnfläche and DIN 277 |
 | `packs/elec/`, `packs/light/` | Electrical devices, circuits, boards and feeds; luminaires |
 | `packs/heat/`, `packs/plumb/`, `packs/vent/` | Heating, plumbing and ventilation |
+| `packs/med/` | Medical and hospital systems: gases and their pipes, fire alarm, nurse call, medical locations, IT systems, safety power (`med.uea`) |
 | `packs/struct/` | The load path, loads and the Statische Berechnung |
 | `packs/site/` | The plot and the limits of its plan; the measure of use per BauNVO (`baunvo`) and the Abstandsflächen (`setback`) (`site.uea`) |
 | `packs/lv/` | The Leistungsverzeichnis: titles, positions and their derived quantities (`lv.uea`) |
